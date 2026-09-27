@@ -1,0 +1,136 @@
+/* Designtokens – terrakotta-paletten.
+   Kategorifargene (--k0..--k7) er validert for fargeblindhet og kontrast med
+   dataviz-validatoren (lys mot #FAF6F0, mørk mot #1F1B18). Ikke endre dem på øyemål. */
+
+:root {
+  color-scheme: light;
+
+  /* Flater */
+  --bg: #FAF6F0;
+  --flate: #FFFDF9;
+  --flate-2: #F3ECE2;
+  --flate-3: #EAE0D2;
+  --linje: #E4D8C8;
+  --linje-sterk: #CDBBA5;
+
+  /* Tekst */
+  --blekk: #2B211B;
+  --blekk-2: #5E5047;
+  --dempet: #6E5F52;
+
+  /* Aksent (terrakotta) */
+  --aksent: #A84F2B;
+  --aksent-hover: #8F4123;
+  --aksent-myk: #F8E8DF;
+  --paa-aksent: #FFFDF9;
+
+  /* Status – reservert betydning, alltid med ikon/tekst */
+  --bra: #4B6A24;
+  --bra-myk: #E6ECD8;
+  --varsel: #765604;
+  --varsel-myk: #F5EACB;
+  --feil: #A8352A;
+  --feil-myk: #F6DEDA;
+
+  /* Kategorier (fast rekkefølge) */
+  --k0: #C0643F; /* terrakotta */
+  --k1: #008A9E; /* blågrønn */
+  --k2: #A98014; /* oker */
+  --k3: #8A4F7D; /* plomme */
+  --k4: #6F8A3A; /* oliven */
+  --k5: #4F6FC0; /* dueblå */
+  --k6: #D0707E; /* leirrosa */
+  --k7: #8F4E10; /* umbra */
+  --noytral-flyt: #B9A895;
+
+  /* Typografi */
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-tittel: 'Fraunces', Georgia, 'Times New Roman', serif;
+
+  /* Avstander (4px-rutenett) */
+  --a1: 4px;
+  --a2: 8px;
+  --a3: 12px;
+  --a4: 16px;
+  --a5: 24px;
+  --a6: 32px;
+  --a7: 48px;
+
+  --radius: 14px;
+  --radius-liten: 8px;
+  --skygge: 0 1px 2px rgb(60 40 20 / 0.05), 0 2px 8px rgb(60 40 20 / 0.05);
+  --skygge-hoy: 0 12px 40px rgb(40 25 10 / 0.18);
+
+  --nav-hoyde: 64px;
+  --sidebar: 248px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='lys']) {
+    color-scheme: dark;
+    --bg: #1F1B18;
+    --flate: #282320;
+    --flate-2: #312B27;
+    --flate-3: #3A332E;
+    --linje: #3D3530;
+    --linje-sterk: #54483F;
+    --blekk: #F2EAE0;
+    --blekk-2: #CBBFB2;
+    --dempet: #A09283;
+    --aksent: #D9805A;
+    --aksent-hover: #E6966F;
+    --aksent-myk: #33231E;
+    --paa-aksent: #1F1B18;
+    --bra: #A3BD6A;
+    --bra-myk: #2F3522;
+    --varsel: #D9B24A;
+    --varsel-myk: #3A3120;
+    --feil: #E8857A;
+    --feil-myk: #43271F;
+    --k0: #C8704A;
+    --k1: #1E97A8;
+    --k2: #B38A1E;
+    --k3: #A86A9C;
+    --k4: #7E9A40;
+    --k5: #6F88D0;
+    --k6: #CC6F80;
+    --k7: #94601E;
+    --noytral-flyt: #6B5E53;
+    --skygge: 0 1px 2px rgb(0 0 0 / 0.3);
+    --skygge-hoy: 0 12px 40px rgb(0 0 0 / 0.5);
+  }
+}
+
+:root[data-tema='mork'] {
+  color-scheme: dark;
+  --bg: #1F1B18;
+  --flate: #282320;
+  --flate-2: #312B27;
+  --flate-3: #3A332E;
+  --linje: #3D3530;
+  --linje-sterk: #54483F;
+  --blekk: #F2EAE0;
+  --blekk-2: #CBBFB2;
+  --dempet: #A09283;
+  --aksent: #D9805A;
+  --aksent-hover: #E6966F;
+  --aksent-myk: #33231E;
+  --paa-aksent: #1F1B18;
+  --bra: #A3BD6A;
+  --bra-myk: #2F3522;
+  --varsel: #D9B24A;
+  --varsel-myk: #3A3120;
+  --feil: #E8857A;
+  --feil-myk: #43271F;
+  --k0: #C8704A;
+  --k1: #1E97A8;
+  --k2: #B38A1E;
+  --k3: #A86A9C;
+  --k4: #7E9A40;
+  --k5: #6F88D0;
+  --k6: #CC6F80;
+  --k7: #94601E;
+  --noytral-flyt: #6B5E53;
+  --skygge: 0 1px 2px rgb(0 0 0 / 0.3);
+  --skygge-hoy: 0 12px 40px rgb(0 0 0 / 0.5);
+}
