@@ -15,7 +15,7 @@ Personlige arbeidsinstrukser ligger i `~/.claude/CLAUDE.md`. Denne fila handler 
 
 ```powershell
 Start-Familie.cmd    # enklest: henter avhengigheter, starter server, åpner nettleser
-npm run dev          # http://localhost:5173 – demomodus uten .env.local
+npm run dev          # http://localhost:5180 – demomodus uten .env.local
 npm run build        # tsc + vite build -> dist/
 npm run typecheck    # tsc --noEmit
 npm test             # beregningstester, kjører uten nettleser

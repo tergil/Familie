@@ -37,7 +37,7 @@ Uten `.env.local` starter appen i **demomodus** med oppdiktede tall.
 5. I Supabase: **Authentication → Sign In / Providers → Google** → slå på, lim inn ID og secret, lagre.
 6. I Supabase: **Authentication → URL Configuration**:
    - **Site URL**: `https://tergil.github.io/Familie/`
-   - **Redirect URLs**: legg til `http://localhost:5173/**` og `https://tergil.github.io/Familie/**`
+   - **Redirect URLs**: legg til `http://localhost:5180/**` og `https://tergil.github.io/Familie/**`
 
 ### 3. Koble appen til Supabase
 
