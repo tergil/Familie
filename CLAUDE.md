@@ -62,7 +62,8 @@ npm run sjekk-data   # sjekker at ingen private data er staget for commit
 
 ## Fallgruver
 
-- **`Data/` skal aldri i Git.** `.gitignore` + pre-commit-hook (`.githooks/pre-commit`, aktivert med
+- **`Data/` skal aldri i Git.** Ignoreres som `/Data/` (forankret til roten – Windows skiller ikke store/små
+  bokstaver, så `data/` ville også skjult `src/data/`). `.gitignore` + pre-commit-hook (`.githooks/pre-commit`, aktivert med
   `git config core.hooksPath .githooks`) stopper regneark, importfiler og fulle kontonumre.
 - `demo.ts` skal bare ha **oppdiktede** tall – repoet kan være offentlig.
 - Kontonumre lagres maskert (`1234 xx xx567`) – `maskerKontonr` i `skjemaer.tsx`.

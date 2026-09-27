@@ -1,6 +1,6 @@
 # ALDRI i Git: private økonomidata
-Data/
-data/
+/Data/
+/data/
 *.xlsx
 *.xls
 *.csv
