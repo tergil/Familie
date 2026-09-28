@@ -10,6 +10,8 @@ import { Sparing } from './sider/Sparing';
 import { Revisjoner } from './sider/Revisjoner';
 import { Data, Kategorier, Kontoer, Mer, Personer } from './sider/Oppsett';
 
+const LOGO = `${import.meta.env.BASE_URL}favicon.svg`;
+
 // ---------------------------------------------------------------- Ruting (hash, fungerer på GitHub Pages)
 
 function useRute(): [string, (r: string) => void] {
@@ -46,11 +48,7 @@ function Innlogging({ feil }: { feil: string | null }) {
   return (
     <main className="innlogging">
       <div className="kort">
-        <svg width="56" height="56" viewBox="0 0 32 32" aria-hidden="true">
-          <rect width="32" height="32" rx="9" fill="var(--aksent)" />
-          <path d="M7 22c5 0 6-12 18-12" stroke="var(--paa-aksent)" strokeWidth="3" fill="none" strokeLinecap="round" />
-          <path d="M7 16c5 0 8 6 18 6" stroke="var(--paa-aksent)" strokeWidth="2" fill="none" strokeLinecap="round" opacity=".6" />
-        </svg>
+        <img src={LOGO} width={64} height={64} alt="" style={{ borderRadius: 16 }} />
         <h1>Familiebudsjett</h1>
         <p className="dempet">Logg inn for å se budsjettet deres.</p>
         {feil && <div className="banner feil" style={{ textAlign: 'left' }}><Ikon navn="advarsel" /><div>{feil}</div></div>}
@@ -141,7 +139,7 @@ function Skall() {
     <div className="ramme">
       <nav className="sidebar" aria-label="Hovedmeny">
         <div className="merke">
-          <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--aksent)" /><path d="M7 22c5 0 6-12 18-12" stroke="var(--paa-aksent)" strokeWidth="3" fill="none" strokeLinecap="round" /></svg>
+          <img src={LOGO} width={28} height={28} alt="" />
           Familiebudsjett
         </div>
         {HOVED.map(([r, ikon, tekst]) => (

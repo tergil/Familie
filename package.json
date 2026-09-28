@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "rolldown scripts/test-beregning.ts --format esm --platform node --file node_modules/.cache/test-beregning.mjs && node node_modules/.cache/test-beregning.mjs",
     "importer": "rolldown scripts/importer-excel.ts --format esm --platform node --external exceljs --file node_modules/.cache/importer.mjs && node node_modules/.cache/importer.mjs",
-    "sjekk-data": "node scripts/sjekk-data.mjs"
+    "sjekk-data": "node scripts/sjekk-data.mjs",
+    "ikoner": "node scripts/lag-ikoner.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
@@ -26,6 +27,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "exceljs": "^4.4.0",
     "rolldown": "^1.2.11",
+    "sharp": "^0.35.5",
     "typescript": "~6.0.2",
     "vite": "^8.3.1"
   }
