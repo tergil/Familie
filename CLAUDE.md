@@ -21,6 +21,7 @@ npm run typecheck    # tsc --noEmit
 npm test             # beregningstester, kjører uten nettleser
 npm run importer     # Excel i Data/ -> Data/import-familiebudsjett.json (lokalt!)
 npm run sjekk-data   # sjekker at ingen private data er staget for commit
+npm run ikoner       # lager app-ikonene i public/ fra SVG-en i scripts/lag-ikoner.mjs
 ```
 
 - **Kjør `npm test` og `npm run typecheck` før du sier deg ferdig.**
