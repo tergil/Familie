@@ -116,6 +116,15 @@ create trigger historikk_privat before update on public.privat_dok
   for each row execute function public.ta_vare_paa_forrige();
 
 -- ---------------------------------------------------------------------------
+-- Tilganger: bare innloggede brukere (authenticated) får røre tabellene – RLS-reglene over
+-- avgjør deretter hvilke rader. Anonyme (ikke innlogget) får ingenting.
+-- Eksplisitt fordi nyere Supabase-prosjekter ikke alltid gir dette automatisk.
+-- ---------------------------------------------------------------------------
+revoke all on public.medlem, public.felles_dok, public.privat_dok, public.historikk from anon, authenticated;
+grant select, insert, update on public.felles_dok to authenticated;
+grant select, insert, update on public.privat_dok to authenticated;
+
+-- ---------------------------------------------------------------------------
 -- LEGG INN DERES E-POSTER HER (små bokstaver), og kjør denne delen:
 -- ---------------------------------------------------------------------------
 -- insert into public.medlem (epost) values
