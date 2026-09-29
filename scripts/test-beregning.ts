@@ -2,6 +2,8 @@
 import { avrundOpp, foreslaOverforinger, kopierRevisjon, oppsummerFelles, oppsummerPrivat, sammenlign, tilMnd, aktivRevisjon } from '../src/logikk/beregning';
 import { fellesFlyt, privatFlyt } from '../src/logikk/flyt';
 import { demoFelles, demoPrivat } from '../src/data/demo';
+import { andelGaatt, avstem, dagerIMaaned, flyttMaaned, kategoriStatus, kontoPlan, kontoerFor, muligeDubletter, revisjonForMaaned } from '../src/logikk/oppfolging';
+import type { Post, Saldo, Utgift } from '../src/data/modell';
 
 let feil = 0;
 let ok = 0;
@@ -90,6 +92,62 @@ sjekk('fellesflyt enkel balanserer', balanserer(fellesFlyt(dok, host, 'enkel')),
 sjekk('fellesflyt kontoer balanserer', balanserer(fellesFlyt(dok, host, 'kontoer')), true);
 sjekk('privatflyt balanserer', balanserer(privatFlyt(dok, host, priv, priv.revisjoner[0], 'kontoer')), true);
 sjekk('privatflyt skjuler andres poster', privatFlyt(dok, host, priv, priv.revisjoner[0], 'enkel').noder.some((n) => n.navn.includes('Kari')), false);
+
+// --- Oppfølging: måneder
+sjekk('flytt måned bakover over årsskifte', flyttMaaned('2026-01', -1), '2025-12');
+sjekk('dager i februar 2028', dagerIMaaned('2028-02'), 29);
+sjekk('andel gått midt i måneden', andelGaatt('2026-09', '2026-09-15'), 0.5);
+sjekk('andel gått tidligere måned', andelGaatt('2026-08', '2026-09-15'), 1);
+sjekk('revisjon for august', revisjonForMaaned(dok.revisjoner, '2026-08')?.id, host.id);
+
+// --- Oppfølging: dobbeltføring
+const u = (id: string, dato: string, belop: number, kontoId = 'k-bruk'): Utgift =>
+  ({ id, dato, belop, kontoId, kategoriId: 'mat', notat: '', privat: false, fortAv: 'kari@example.com' });
+const liste = [u('a', '2026-09-10', 845), u('b', '2026-09-01', 845), u('c', '2026-09-10', 845, 'k-regning'), u('d', '2026-09-11', 846)];
+sjekk('dublett: samme konto og beløp innen 7 dager', muligeDubletter(u('ny', '2026-09-12', 845), liste).map((x) => x.id), ['a']);
+sjekk('dublett: ikke seg selv ved redigering', muligeDubletter(u('a', '2026-09-10', 845), liste).map((x) => x.id), []);
+
+// --- Oppfølging: kategoristatus
+const mat: Post = { id: 'm', navn: 'Mat', belop: 9500, frekvens: 'mnd', type: 'utgift', kategoriId: 'mat', kontoId: 'k-bruk', folgOpp: true };
+const fast: Post = { id: 'f', navn: 'Strøm', belop: 2000, frekvens: 'mnd', type: 'utgift', kategoriId: 'bolig', kontoId: 'k-regning' };
+const status = (brukt: number) => kategoriStatus([mat, fast], [u('x', '2026-09-05', brukt)], 0.5)[0];
+sjekk('tempo i rute', status(4000).tempo, 'i-rute');
+sjekk('tempo over tempo', status(6000).tempo, 'over-tempo');
+sjekk('tempo over budsjett', status(10000).tempo, 'over-budsjett');
+sjekk('faste poster teller ikke i oppfølging', kategoriStatus([mat, fast], [], 0.5).map((k) => k.kategoriId), ['mat']);
+sjekk('utgift uten budsjett vises', kategoriStatus([], [{ ...u('y', '2026-09-05', 300), kategoriId: 'personlig' }], 0.5)[0].tempo, 'ikke-budsjettert');
+
+// --- Oppfølging: saldokontroll
+const odok = demoFelles();
+const orev = odok.revisjoner[1];
+orev.poster = orev.poster.map((p) => (p.id === 'p-mat' ? { ...p, folgOpp: true } : p));
+const bruk = odok.kontoer.find((k) => k.id === 'k-bruk')!;
+const plan = kontoPlan(bruk, odok, orev);
+const innBruk = orev.overforinger.filter((o) => o.tilKontoId === 'k-bruk').reduce((s, o) => s + o.belop, 0);
+sjekk('plan inn = overføringer til konto', plan.inn, innBruk);
+sjekk('plan variabel = mat', plan.utVariabel, 9500);
+const saldo = (maaned: string, belop: number): Saldo => ({ id: maaned, kontoId: 'k-bruk', maaned, belop, privat: false, fortAv: '' });
+// Brukte 9 800 (300 over budsjett), men førte bare 9 000
+const av = avstem(bruk, plan, [saldo('2026-08', 1000), saldo('2026-09', 1000 + innBruk - 9800)], [u('z', '2026-09-20', 9000)], '2026-09');
+sjekk('avvik -300', Math.round(av.avvik!), -300);
+sjekk('forbruk fra saldo 9800', Math.round(av.forbrukFraSaldo!), 9800);
+sjekk('ikke ført 800', Math.round(av.ikkeFort!), 800);
+sjekk('uten forrige saldo: ingen avvik', avstem(bruk, plan, [saldo('2026-09', 500)], [], '2026-09').avvik, undefined);
+// Sparekonto: sparing blir stående
+const hus = odok.kontoer.find((k) => k.id === 'k-hus')!;
+const husPlan = kontoPlan(hus, odok, orev);
+sjekk('sparekonto: sparing er ikke ut', husPlan.utFast + husPlan.utVariabel, 0);
+// Privat: lønnskonto og egen fondskonto
+const opriv = demoPrivat('ola');
+const oprev = opriv.revisjoner[0];
+const lonn = kontoPlan(odok.kontoer.find((k) => k.id === 'k-ola')!, odok, orev, opriv, oprev);
+const privatSum = oprev.poster.reduce((s, p) => s + p.belop, 0);
+const tilFelles = orev.overforinger.filter((o) => o.fraKontoId === 'k-ola').reduce((s, o) => s + o.belop, 0);
+sjekk('lønnskonto inn = lønn', lonn.inn, 61000);
+sjekk('lønnskonto ut = til felles + alle private poster', lonn.utFast + lonn.utVariabel, tilFelles + privatSum);
+const fond = kontoPlan(opriv.kontoer[0], odok, orev, opriv, oprev);
+sjekk('fondskonto inn = fondssparing', fond.inn, 2500);
+sjekk('kontoer for privat: lønnskonto + egne', kontoerFor(odok, opriv, 'privat').map((k) => k.id), ['k-ola', opriv.kontoer[0].id]);
 
 console.log(`\n${ok} ok, ${feil} feil`);
 if (feil) process.exit(1);

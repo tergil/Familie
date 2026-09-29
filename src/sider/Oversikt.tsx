@@ -5,6 +5,7 @@ import { oppsummerFelles, sammenlign, sorterRevisjoner } from '../logikk/beregni
 import { fellesFlyt } from '../logikk/flyt';
 import { Endring, Ikon, Kpi, Prikk, Tom, kr, pst } from '../ui/felles';
 import { FlytKort } from '../ui/deler';
+import { DenneMaanedKort } from './Oppfolging';
 
 export function Oversikt({ gaaTil }: { gaaTil: (rute: string) => void }) {
   const { felles, rev } = useTilstand();
@@ -49,6 +50,8 @@ export function Oversikt({ gaaTil }: { gaaTil: (rute: string) => void }) {
             ? <span className="merkelapp bra"><Ikon navn="sjekk" storrelse={12} />Dekket</span>
             : <span className="merkelapp feil"><Ikon navn="advarsel" storrelse={12} />Mangler</span>} />
       </div>
+
+      <DenneMaanedKort gaaTil={gaaTil} />
 
       <div className="rutenett to-en">
         <FlytKort

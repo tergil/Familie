@@ -25,6 +25,8 @@ Uten `.env.local` starter appen i **demomodus** med oppdiktede tall.
    insert into public.medlem (epost) values ('din@gmail.com'), ('samboer@gmail.com') on conflict do nothing;
    ```
 
+4. Kjør også [supabase/oppfolging.sql](supabase/oppfolging.sql) (tabellene for utgifter og saldoer).
+
 ### 2. Google-innlogging
 
 1. Gå til [Google Cloud Console](https://console.cloud.google.com/) → lag et nytt prosjekt («Familiebudsjett»).

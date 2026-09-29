@@ -328,6 +328,7 @@ export function Data() {
 export function Mer({ gaaTil, tema, byttTema }: { gaaTil: (r: string) => void; tema: string; byttTema: () => void }) {
   const { bruker, loggUt } = useTilstand();
   const valg: [string, string, string][] = [
+    ['sparing', 'sparing', 'Sparemål'],
     ['revisjoner', 'revisjon', 'Revisjoner'],
     ['kontoer', 'konto', 'Kontoer og banker'],
     ['kategorier', 'kategori', 'Kategorier'],

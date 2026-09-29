@@ -1,8 +1,8 @@
 // Lagring: Supabase når VITE_SUPABASE_URL er satt, ellers lokal demomodus i nettleseren.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { FellesDok, PrivatDok } from './modell';
+import type { FellesDok, PrivatDok, Saldo, Utgift } from './modell';
 import { tomtPrivatDok } from './modell';
-import { demoFelles, demoPrivat } from './demo';
+import { demoFelles, demoOppfolging, demoPrivat } from './demo';
 
 export interface Bruker {
   epost: string;
@@ -38,6 +38,23 @@ export interface Lager {
   /** personId trengs for å opprette et tomt dokument første gang */
   hentPrivat(personId: string): Promise<Lagret<PrivatDok>>;
   lagrePrivat(data: PrivatDok, versjon: number): Promise<number>;
+
+  // Oppfølging – egne tabeller, én rad per utgift/saldo (ingen konflikt når begge fører samtidig)
+  /** Felles + egne private utgifter i perioden (ÅÅÅÅ-MM-DD, inklusive) */
+  hentUtgifter(fra: string, til: string): Promise<Utgift[]>;
+  /** Oppretter eller oppdaterer (etter id) */
+  lagreUtgift(u: Utgift): Promise<void>;
+  slettUtgift(id: string): Promise<void>;
+  /** Alle synlige saldoer (felles + egne private) */
+  hentSaldoer(): Promise<Saldo[]>;
+  lagreSaldo(s: Saldo): Promise<void>;
+  slettSaldo(id: string): Promise<void>;
+}
+
+/** Varsler sider som viser utgifter/saldoer om at noe er endret */
+export const OPPFOLGING_ENDRET = 'familie:oppfolging-endret';
+export function varsleOppfolgingEndret() {
+  window.dispatchEvent(new Event(OPPFOLGING_ENDRET));
 }
 
 // ---------------------------------------------------------------------------
@@ -113,6 +130,59 @@ class LokaltLager implements Lager {
     if (naa && naa.versjon !== versjon) throw new KonfliktFeil();
     skriv(`privat.${data.eierId}`, { data, versjon: versjon + 1 });
     return versjon + 1;
+  }
+
+  // Lokalt lagres eierens e-post på private rader, og bare egne vises
+  private megEpost() {
+    return les<Bruker>('bruker')?.epost ?? '';
+  }
+
+  private rader<T extends { privat: boolean; fortAv: string }>(nokkel: 'utgifter' | 'saldoer'): (T & { eier: string | null })[] {
+    let alle = les<(T & { eier: string | null })[]>(nokkel);
+    if (!alle) {
+      const demo = demoOppfolging();
+      skriv('utgifter', demo.utgifter);
+      skriv('saldoer', demo.saldoer);
+      alle = les<(T & { eier: string | null })[]>(nokkel) ?? [];
+    }
+    return alle;
+  }
+
+  private synlig<T extends { privat: boolean }>(r: T & { eier: string | null }) {
+    return !r.privat || r.eier === this.megEpost();
+  }
+
+  private lagreRad<T extends { id: string; privat: boolean }>(nokkel: 'utgifter' | 'saldoer', rad: T, fortAv: string) {
+    const alle = this.rader<T & { fortAv: string }>(nokkel);
+    const i = alle.findIndex((x) => x.id === rad.id);
+    const ny = { ...rad, fortAv: i >= 0 ? alle[i].fortAv : fortAv, eier: rad.privat ? this.megEpost() : null };
+    if (i >= 0) alle[i] = ny; else alle.push(ny);
+    skriv(nokkel, alle);
+  }
+
+  async hentUtgifter(fra: string, til: string) {
+    return this.rader<Utgift>('utgifter').filter((u) => this.synlig(u) && u.dato >= fra && u.dato <= til)
+      .map(({ eier: _e, ...u }) => u as Utgift);
+  }
+
+  async lagreUtgift(u: Utgift) {
+    this.lagreRad('utgifter', u, this.megEpost());
+  }
+
+  async slettUtgift(id: string) {
+    skriv('utgifter', this.rader<Utgift>('utgifter').filter((u) => u.id !== id));
+  }
+
+  async hentSaldoer() {
+    return this.rader<Saldo>('saldoer').filter((x) => this.synlig(x)).map(({ eier: _e, ...x }) => x as Saldo);
+  }
+
+  async lagreSaldo(x: Saldo) {
+    this.lagreRad('saldoer', x, this.megEpost());
+  }
+
+  async slettSaldo(id: string) {
+    skriv('saldoer', this.rader<Saldo>('saldoer').filter((x) => x.id !== id));
   }
 }
 
@@ -194,6 +264,60 @@ class SupabaseLager implements Lager {
     if (error) throw error;
     if (!rader?.length) throw new KonfliktFeil();
     return versjon + 1;
+  }
+
+  /** Private rader får eier = innlogget bruker; felles har eier = null */
+  private async eier(privat: boolean) {
+    if (!privat) return null;
+    const { data } = await this.db.auth.getSession();
+    const id = data.session?.user.id;
+    if (!id) throw new Error('Ikke innlogget');
+    return id;
+  }
+
+  async hentUtgifter(fra: string, til: string) {
+    const { data, error } = await this.db.from('utgift')
+      .select('id, eier, dato, belop, kategori_id, konto_id, notat, fort_av')
+      .gte('dato', fra).lte('dato', til).order('dato', { ascending: false }).limit(5000);
+    if (error) throw error;
+    return (data ?? []).map((r) => ({
+      id: r.id, dato: r.dato, belop: Number(r.belop), kategoriId: r.kategori_id, kontoId: r.konto_id,
+      notat: r.notat ?? '', privat: r.eier !== null, fortAv: r.fort_av ?? '',
+    }));
+  }
+
+  async lagreUtgift(u: Utgift) {
+    const { error } = await this.db.from('utgift').upsert({
+      id: u.id, eier: await this.eier(u.privat), dato: u.dato, belop: u.belop,
+      kategori_id: u.kategoriId, konto_id: u.kontoId, notat: u.notat,
+    });
+    if (error) throw error;
+  }
+
+  async slettUtgift(id: string) {
+    const { error } = await this.db.from('utgift').delete().eq('id', id);
+    if (error) throw error;
+  }
+
+  async hentSaldoer() {
+    const { data, error } = await this.db.from('saldo')
+      .select('id, eier, konto_id, maaned, belop, fort_av').order('maaned', { ascending: false }).limit(5000);
+    if (error) throw error;
+    return (data ?? []).map((r) => ({
+      id: r.id, kontoId: r.konto_id, maaned: r.maaned, belop: Number(r.belop), privat: r.eier !== null, fortAv: r.fort_av ?? '',
+    }));
+  }
+
+  async lagreSaldo(x: Saldo) {
+    const { error } = await this.db.from('saldo').upsert({
+      id: x.id, eier: await this.eier(x.privat), konto_id: x.kontoId, maaned: x.maaned, belop: x.belop,
+    });
+    if (error) throw error;
+  }
+
+  async slettSaldo(id: string) {
+    const { error } = await this.db.from('saldo').delete().eq('id', id);
+    if (error) throw error;
   }
 }
 

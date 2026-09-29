@@ -36,7 +36,7 @@ export function maanedTekst(iso: string): string {
 
 /** Tolker "1 200,50" / "1200.5" / "12 000" til tall */
 export function tolkTall(s: string): number {
-  const renset = s.replace(/[\s kr]/g, '').replace(',', '.');
+  const renset = s.replace(/[\s kr]/g, '').replace(/[−–]/g, '-').replace(',', '.');
   const n = Number(renset);
   return Number.isFinite(n) ? n : 0;
 }
@@ -68,6 +68,8 @@ const STIER: Record<string, ReactNode> = {
   lastopp: <><path d="M12 16V5M7 10l5-5 5 5" /><path d="M4 20h16" /></>,
   pilned: <path d="M6 9l6 6 6-6" />,
   pilhoyre: <path d="M9 6l6 6-6 6" />,
+  pilvenstre: <path d="M15 6l-6 6 6 6" />,
+  oppfolging: <><path d="M4 19V5M4 19h16" /><path d="M8 15l3-4 3 2 5-6" /></>,
   flyt: <><path d="M3 6c8 0 8 12 18 12" /><path d="M3 12c8 0 10-6 18-6" /></>,
   tabell: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M3 15h18M10 4v16" /></>,
   overforing: <><path d="M4 8h14l-3-3M20 16H6l3 3" /></>,
@@ -106,7 +108,9 @@ export function Ark({ tittel, lukk, children, bred }: { tittel: string; lukk: ()
     document.addEventListener('keydown', tast);
     const forrige = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    ref.current?.querySelector<HTMLElement>('input, select, textarea, button:not(.lukk)')?.focus({ preventScroll: true });
+    if (!ref.current?.contains(document.activeElement)) {
+      ref.current?.querySelector<HTMLElement>('input, select, textarea, button:not(.lukk)')?.focus({ preventScroll: true });
+    }
     return () => {
       document.removeEventListener('keydown', tast);
       document.body.style.overflow = forrige;

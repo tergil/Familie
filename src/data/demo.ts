@@ -1,6 +1,7 @@
 // OPPDIKTEDE demodata for lokal kjøring. Ingen ekte tall her – repoet kan være offentlig.
-import type { FellesDok, PrivatDok, Post, Revisjon } from './modell';
-import { foreslaOverforinger, kopierRevisjon } from '../logikk/beregning';
+import type { FellesDok, PrivatDok, Post, Revisjon, Saldo, Utgift } from './modell';
+import { foreslaOverforinger, iDag, kopierRevisjon } from '../logikk/beregning';
+import { flyttMaaned, kontoPlan, maanedAv, revisjonForMaaned } from '../logikk/oppfolging';
 
 const p = (id: string, navn: string, belop: number, kategoriId: string, kontoId: string, type: Post['type'] = 'utgift', frekvens: Post['frekvens'] = 'mnd'): Post =>
   ({ id, navn, belop, frekvens, type, kategoriId, kontoId });
@@ -25,7 +26,7 @@ export function demoFelles(): FellesDok {
       p('p-pers', 'Personforsikringer', 460, 'forsikring', 'k-regning'),
       p('p-barnf', 'Barneforsikring', 250, 'forsikring', 'k-regning'),
       p('p-bhg', 'Barnehage', 1500, 'barn', 'k-regning'),
-      p('p-mat', 'Mat og husholdning', 9000, 'mat', 'k-bruk'),
+      { ...p('p-mat', 'Mat og husholdning', 9000, 'mat', 'k-bruk'), folgOpp: true },
       p('p-buffer', 'Sparing hus/buffer', 1000, 'sparing', 'k-hus', 'sparing'),
       p('p-ferie', 'Sparing ferie', 1000, 'sparing', 'k-ferie', 'sparing'),
       p('p-bt', 'Barnetrygd spares', 1968, 'barn', 'k-barn', 'sparing'),
@@ -89,12 +90,60 @@ export function demoPrivat(eierId: string): PrivatDok {
       id: `prev-${eierId}`, navn: 'Privat juli 2026', gjelderFra: '2026-07-01', notat: '',
       poster: [
         p(`pp1-${eierId}`, 'Månedskort', 900, 'transport', minKonto),
-        p(`pp2-${eierId}`, 'Bil – drivstoff og bom', 1800, 'transport', minKonto),
+        { ...p(`pp2-${eierId}`, 'Bil – drivstoff og bom', 1800, 'transport', minKonto), folgOpp: true },
         p(`pp3-${eierId}`, 'Mobil', 399, 'abonnement', minKonto),
         p(`pp4-${eierId}`, 'Musikk', 139, 'abonnement', minKonto),
-        p(`pp5-${eierId}`, 'Klær og frisør', 1200, 'personlig', minKonto),
+        { ...p(`pp5-${eierId}`, 'Klær og frisør', 1200, 'personlig', minKonto), folgOpp: true },
         p(`pp6-${eierId}`, 'Fond', 2500, 'sparing', fond, 'sparing'),
       ],
     }],
   };
+}
+
+type Rad<T> = T & { eier: string | null };
+
+/**
+ * Oppdiktede utgifter og saldoer for forrige og inneværende måned, slik at Oppfølging
+ * har noe å vise i demomodus. Forrige måned: mat 300 kr over budsjett og 420 kr ikke ført.
+ */
+export function demoOppfolging(idag = iDag()): { utgifter: Rad<Utgift>[]; saldoer: Rad<Saldo>[] } {
+  const felles = demoFelles();
+  const naa = maanedAv(idag);
+  const forrige = flyttMaaned(naa, -1);
+  const dag = Number(idag.slice(8, 10));
+  const utgifter: Rad<Utgift>[] = [];
+  let n = 0;
+  const ut = (maaned: string, d: number, belop: number, kategoriId: string, kontoId: string, notat: string, fortAv: string, privat = false) =>
+    utgifter.push({ id: `demo-u${++n}`, dato: `${maaned}-${String(d).padStart(2, '0')}`, belop, kategoriId, kontoId, notat, privat, fortAv, eier: privat ? fortAv : null });
+
+  // Mat: forrige måned 9 080 kr ført (budsjett 9 500)
+  const handler = [1240, 860, 1510, 645, 1320, 980, 1105, 720, 700];
+  handler.forEach((b, i) => ut(forrige, 2 + i * 3, b, 'mat', 'k-bruk', i % 3 === 0 ? 'Storhandel' : 'Butikk', i % 2 ? 'ola@example.com' : 'kari@example.com'));
+  // Inneværende måned: handler frem til i dag, litt over tempo
+  [1380, 945, 1620, 540, 1210, 890, 1450, 760].forEach((b, i) => {
+    const d = 1 + i * 3;
+    if (d <= dag) ut(naa, d, b, 'mat', 'k-bruk', i % 3 === 0 ? 'Storhandel' : 'Butikk', i % 2 ? 'ola@example.com' : 'kari@example.com');
+  });
+  // Private: drivstoff og klær for begge
+  for (const [epost, konto] of [['kari@example.com', 'k-kari'], ['ola@example.com', 'k-ola']]) {
+    ut(forrige, 6, 820, 'transport', konto, 'Drivstoff', epost, true);
+    ut(forrige, 19, 760, 'transport', konto, 'Drivstoff + bom', epost, true);
+    ut(forrige, 12, 1450, 'personlig', konto, 'Jakke', epost, true);
+    if (dag >= 4) ut(naa, 4, 690, 'transport', konto, 'Drivstoff', epost, true);
+    if (dag >= 9) ut(naa, 9, 350, 'personlig', konto, 'Frisør', epost, true);
+  }
+
+  // Saldoer på felleskontoene: to måneder tilbake + forrige måned, i tråd med budsjettet
+  const saldoer: Rad<Saldo>[] = [];
+  const toTilbake = flyttMaaned(naa, -2);
+  const rev = revisjonForMaaned(felles.revisjoner, forrige)!;
+  const avvik: Record<string, number> = { 'k-bruk': -300, 'k-regning': 120 };
+  felles.kontoer.filter((k) => k.rolle !== 'avsender').forEach((k, i) => {
+    const start = k.sparemaal ? k.sparemaal.saldo - 2000 : 1500 + i * 250;
+    const plan = kontoPlan(k, felles, rev);
+    const slutt = start + (plan.inn - plan.utFast - plan.utVariabel) + (avvik[k.id] ?? 0);
+    saldoer.push({ id: `demo-s${k.id}-1`, kontoId: k.id, maaned: toTilbake, belop: start, privat: false, fortAv: 'kari@example.com', eier: null });
+    saldoer.push({ id: `demo-s${k.id}-2`, kontoId: k.id, maaned: forrige, belop: Math.round(slutt), privat: false, fortAv: 'ola@example.com', eier: null });
+  });
+  return { utgifter, saldoer };
 }

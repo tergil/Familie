@@ -59,6 +59,8 @@ export interface Post {
   /** Kontoen posten trekkes fra */
   kontoId: Id;
   notat?: string;
+  /** Følges opp med førte utgifter (variable poster som mat). Faste trekk kontrolleres via saldo. */
+  folgOpp?: boolean;
 }
 
 export interface Inntekt {
@@ -118,6 +120,34 @@ export interface PrivatDok {
   /** Kontoer bare eieren ser (egne sparekontoer, fond osv.) */
   kontoer: Konto[];
   revisjoner: PrivatRevisjon[];
+}
+
+// ---------------------------------------------------------------------------
+// Oppfølging: førte utgifter og månedlige saldoer. Egne tabeller (ikke i dokumentene),
+// så to personer kan føre samtidig uten konflikt.
+// ---------------------------------------------------------------------------
+
+export interface Utgift {
+  id: Id;
+  dato: string; // ÅÅÅÅ-MM-DD
+  belop: number;
+  kategoriId: Id;
+  kontoId: Id;
+  notat: string;
+  /** true = privat (bare eieren ser den), false = felles */
+  privat: boolean;
+  /** E-posten til den som førte utgiften */
+  fortAv: string;
+}
+
+/** Saldo på en konto ved utgangen av en måned */
+export interface Saldo {
+  id: Id;
+  kontoId: Id;
+  maaned: string; // ÅÅÅÅ-MM
+  belop: number;
+  privat: boolean;
+  fortAv: string;
 }
 
 export const FREKVENS_NAVN: Record<Frekvens, string> = {

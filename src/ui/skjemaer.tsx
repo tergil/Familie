@@ -85,6 +85,12 @@ export function PostSkjema({ post, kategorier, kontoer, banker, lagre, slett, lu
         <KontoValg kontoer={kontoer} banker={banker} verdi={p.kontoId} endre={(kontoId) => sett({ kontoId })} />
       </Felt>
       <Felt etikett="Notat (valgfritt)"><input value={p.notat ?? ''} onChange={(e) => sett({ notat: e.target.value })} placeholder="F.eks. 221 + 288" /></Felt>
+      {p.type === 'utgift' && (
+        <label className="rad" style={{ cursor: 'pointer', minHeight: 44 }}>
+          <span className="hoved"><span className="navn">Følg opp med utgifter</span><span className="info">For poster som varierer, f.eks. mat. Faste trekk kontrolleres via saldo.</span></span>
+          <input type="checkbox" className="bryter" checked={!!p.folgOpp} onChange={(e) => sett({ folgOpp: e.target.checked })} />
+        </label>
+      )}
       <Knapper slett={slett} lukk={lukk} kanLagre={!!p.navn && !!p.kategoriId && !!p.kontoId} />
     </Skjema>
   );

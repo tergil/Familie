@@ -8,6 +8,10 @@
   "display": "standalone",
   "background_color": "#FAF6F0",
   "theme_color": "#FAF6F0",
+  "shortcuts": [
+    { "name": "Før utgift", "short_name": "Før utgift", "url": "./#/ny", "icons": [{ "src": "ikon-192.png", "sizes": "192x192" }] },
+    { "name": "Oppfølging", "url": "./#/oppfolging", "icons": [{ "src": "ikon-192.png", "sizes": "192x192" }] }
+  ],
   "icons": [
     { "src": "ikon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "ikon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
