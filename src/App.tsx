@@ -108,7 +108,7 @@ function Lagring({ status }: { status: LagreStatus }) {
 function Skall() {
   const [rute, gaaTil] = useRute();
   const [tema, byttTema] = useTema();
-  const { felles, rev, velgRev, status, toast, visToast, bruker, meg, loggUt, lastPaaNytt } = useTilstand();
+  const { felles, rev, velgRev, status, feilmelding, toast, visToast, bruker, meg, loggUt, lastPaaNytt } = useTilstand();
   const [rullet, setRullet] = useState(false);
   const [side, underside] = rute.split('/');
 
@@ -176,7 +176,7 @@ function Skall() {
             </div>
           )}
           {status === 'feil' && (
-            <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Kunne ikke lagre.</strong> Sjekk nettforbindelsen. Endringen lagres ved neste endring.</div></div>
+            <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Kunne ikke lagre.</strong> Endringen er ikke lagret i databasen. Prøv igjen, eller last inn siden på nytt.{feilmelding && <p className="liten" style={{ marginTop: 4, fontFamily: 'ui-monospace, monospace' }}>Feil: {feilmelding}</p>}</div></div>
           )}
           {lager.modus === 'lokal' && side === 'oversikt' && (
             <div className="banner info"><Ikon navn="info" /><div><strong>Demomodus</strong> med oppdiktede tall. Du ser som {meg?.navn}. Bytt person under <a href="#/data">Import/eksport</a>.</div></div>

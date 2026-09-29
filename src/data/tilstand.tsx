@@ -6,6 +6,16 @@ import { aktivRevisjon, iDag } from '../logikk/beregning';
 
 export type LagreStatus = 'lagret' | 'lagrer' | 'feil' | 'konflikt';
 
+/** Lesbar tekst fra Error, Supabase-feil ({ message, code }) eller annet */
+function feiltekst(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === 'object' && 'message' in e) {
+    const f = e as { message: string; code?: string };
+    return f.code ? `${f.message} (${f.code})` : f.message;
+  }
+  return String(e);
+}
+
 interface Toast {
   tekst: string;
   angre?: () => void;
@@ -17,6 +27,8 @@ interface Tilstand {
   privat: PrivatDok | null;
   meg: Person | undefined;
   status: LagreStatus;
+  /** Teknisk feilmelding når status er «feil» */
+  feilmelding: string | null;
   /** Valgt revisjon i fellesbudsjettet */
   rev: Revisjon | undefined;
   velgRev: (id: string) => void;
@@ -45,7 +57,7 @@ export function useTilstand(): Tilstand {
 }
 
 /** Holder ett dokument synkronisert med lageret: én lagring om gangen, alltid siste versjon. */
-function useDokument<T>(lagre: (d: T, v: number) => Promise<number>, settStatus: (s: LagreStatus) => void) {
+function useDokument<T>(lagre: (d: T, v: number) => Promise<number>, settStatus: (s: LagreStatus, melding?: string) => void) {
   const [dok, setDok] = useState<T | null>(null);
   const versjon = useRef(0);
   const venter = useRef<T | null>(null);
@@ -64,7 +76,7 @@ function useDokument<T>(lagre: (d: T, v: number) => Promise<number>, settStatus:
       settStatus('lagret');
     } catch (e) {
       console.error(e);
-      settStatus(e instanceof KonfliktFeil ? 'konflikt' : 'feil');
+      settStatus(e instanceof KonfliktFeil ? 'konflikt' : 'feil', feiltekst(e));
     } finally {
       lagrer.current = false;
     }
@@ -86,7 +98,12 @@ function useDokument<T>(lagre: (d: T, v: number) => Promise<number>, settStatus:
 }
 
 export function TilstandGiver({ bruker, children }: { bruker: Bruker; children: ReactNode }) {
-  const [status, setStatus] = useState<LagreStatus>('lagret');
+  const [status, setStatusRå] = useState<LagreStatus>('lagret');
+  const [feilmelding, setFeilmelding] = useState<string | null>(null);
+  const setStatus = useCallback((s: LagreStatus, melding?: string) => {
+    setStatusRå(s);
+    setFeilmelding(s === 'feil' ? melding ?? null : null);
+  }, []);
   const [toast, visToast] = useState<Toast | null>(null);
   const [lastet, setLastet] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
@@ -166,7 +183,7 @@ export function TilstandGiver({ bruker, children }: { bruker: Bruker; children: 
   }, [toast]);
 
   const verdi: Tilstand = {
-    bruker, felles: felledok, privat: privdok, meg, status,
+    bruker, felles: felledok, privat: privdok, meg, status, feilmelding,
     rev, velgRev, prev, velgPrev, revForPrivat,
     endreFelles, endrePrivat,
     erstattFelles: felles.sett, erstattPrivat: privat.sett,

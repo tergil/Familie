@@ -102,7 +102,8 @@ as $$
 begin
   new.endret := now();
   insert into public.historikk (tabell, eier, versjon, data)
-  values (tg_table_name, case when tg_table_name = 'privat_dok' then old.eier end, old.versjon, old.data);
+  -- to_jsonb: felles_dok har ingen «eier»-kolonne, og old.eier direkte gir feil der
+  values (tg_table_name, (to_jsonb(old) ->> 'eier')::uuid, old.versjon, old.data);
   return new;
 end;
 $$;
