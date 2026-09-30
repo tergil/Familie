@@ -7,7 +7,8 @@ export type Id = string;
 export type Frekvens = 'mnd' | 'kvartal' | 'halvaar' | 'aar';
 export type PostType = 'utgift' | 'sparing';
 
-/** felles = felleskonto dere overfører til, avsender = en persons lønnskonto, sparing = sparekonto */
+/** felles = brukskonto (verdien heter «felles» av historiske grunner), avsender = lønnskonto, sparing = sparekonto.
+ *  Om kontoen er felles eller privat avgjøres av hvilket dokument den ligger i, ikke av rollen. */
 export type KontoRolle = 'felles' | 'avsender' | 'sparing';
 
 export interface Person {
@@ -158,16 +159,10 @@ export const FREKVENS_NAVN: Record<Frekvens, string> = {
 };
 
 export const ROLLE_NAVN: Record<KontoRolle, string> = {
-  felles: 'Felleskonto',
+  felles: 'Brukskonto',
   avsender: 'Lønnskonto',
   sparing: 'Sparekonto',
 };
-
-/** Private kontoer med rolle «felles» er brukskontoer – de skal ikke kalles «Felleskonto». */
-export function kontoTypeNavn(k: Konto): string {
-  if (k.eierId && k.rolle === 'felles') return 'Brukskonto';
-  return ROLLE_NAVN[k.rolle];
-}
 
 export function nyId(): Id {
   // randomUUID finnes bare på https/localhost – reserve for f.eks. test via IP på hjemmenettet

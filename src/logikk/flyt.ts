@@ -78,8 +78,10 @@ export function fellesFlyt(dok: FellesDok, rev: Revisjon, detalj: Detalj): Flyt 
     return b.ferdig();
   }
 
-  // Inntekt → Lønnskonto → Felleskonto → Kategori
-  for (const i of rev.inntekter) {
+  // Lønnskonto → Felleskonto → Kategori
+  // Lønnskontoene er startpunktet. Bare inntekt som går rett til andre kontoer (f.eks. barnetrygd) får egen node.
+  const lonnskontoer = new Set(dok.kontoer.filter((k) => k.rolle === 'avsender').map((k) => k.id));
+  for (const i of rev.inntekter.filter((x) => !lonnskontoer.has(x.tilKontoId))) {
     const kilde = b.node({ id: `inn:${i.id}`, navn: i.navn, type: 'inntekt' });
     b.lenke(kilde, b.node({ id: `k:${i.tilKontoId}`, navn: kontoNavn(i.tilKontoId), type: 'konto' }), tilMnd(i.belop, i.frekvens));
   }
@@ -124,12 +126,8 @@ export function privatFlyt(
     : b.node({ id: `k:${minKonto.id}`, navn: minKonto.navn, type: 'konto' });
 
   let inn = 0;
-  for (const i of inntekter) {
-    const v = tilMnd(i.belop, i.frekvens);
-    inn += v;
-    // Enkel: personen er startpunktet. Med kontoer: Inntekt → lønnskonto → …
-    if (detalj === 'kontoer') b.lenke(b.node({ id: `inn:${i.id}`, navn: i.navn, type: 'inntekt' }), lonn, v);
-  }
+  // Personen (enkel) eller lønnskontoen (med kontoer) er startpunktet – inntekten er allerede der
+  for (const i of inntekter) inn += tilMnd(i.belop, i.frekvens);
   const tilFelles = sum(overforinger, (o) => o.belop);
   b.lenke(lonn, b.node({ id: 'felles', navn: 'Fellesbudsjett', type: 'felles' }), tilFelles);
 

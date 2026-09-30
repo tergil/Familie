@@ -195,33 +195,30 @@ export function KontoSkjema({ konto, banker, personer, lagre, slett, lukk, nyBan
 
   return (
     <Skjema tittel={konto ? 'Endre konto' : 'Ny konto'} lukk={lukk} lagre={lagreKonto}>
-      <Felt etikett="Navn"><input value={k.navn} onChange={(e) => sett({ navn: e.target.value })} required placeholder={erPrivat ? 'F.eks. Brukskonto' : 'F.eks. Felles regning'} /></Felt>
-      {!bareSparing && meg && (
-        <label className="rad" style={{ cursor: 'pointer', minHeight: 44 }}>
-          <Ikon navn="privat" storrelse={18} />
-          <span className="hoved"><span className="navn">Privat konto</span><span className="info">Bare du ser den. Kan brukes i ditt privatbudsjett.</span></span>
-          <input type="checkbox" className="bryter" checked={erPrivat} onChange={(e) => veksle(e.target.checked)} />
-        </label>
-      )}
+      <Felt etikett="Navn"><input value={k.navn} onChange={(e) => sett({ navn: e.target.value })} required placeholder={erPrivat ? 'F.eks. Min brukskonto' : 'F.eks. Felles regning'} /></Felt>
       {!bareSparing && (
         <Felt etikett="Type konto">
-          <select value={k.rolle} onChange={(e) => sett({ rolle: e.target.value as KontoRolle })}>
-            {erPrivat ? (
-              <>
-                <option value="felles">Brukskonto – egne utgifter trekkes herfra</option>
-                <option value="sparing">Sparekonto</option>
-              </>
-            ) : (
-              <>
-                <option value="felles">Felleskonto – dere overfører hit, regninger trekkes herfra</option>
-                <option value="sparing">Sparekonto</option>
-                <option value="avsender">Lønnskonto – der inntekten kommer inn</option>
-              </>
-            )}
+          <select value={k.rolle} onChange={(e) => {
+            const rolle = e.target.value as KontoRolle;
+            // Lønnskontoen må ligge i fellesbudsjettet – overføringene til felles går fra den
+            if (rolle === 'avsender') { setErPrivat(false); setK({ ...k, rolle, eierId: meg?.id ?? k.eierId }); }
+            // Eier brukes bare på lønnskontoer og private kontoer
+            else sett({ rolle, eierId: erPrivat ? k.eierId : null });
+          }}>
+            <option value="avsender">{ROLLE_NAVN.avsender}</option>
+            <option value="sparing">{ROLLE_NAVN.sparing}</option>
+            <option value="felles">{ROLLE_NAVN.felles}</option>
           </select>
         </Felt>
       )}
-      {!bareSparing && !erPrivat && k.rolle === 'avsender' && (
+      {!bareSparing && meg && k.rolle !== 'avsender' && (
+        <label className="rad" style={{ cursor: 'pointer', minHeight: 44 }}>
+          <Ikon navn="privat" storrelse={18} />
+          <span className="hoved"><span className="navn">Privat konto</span><span className="info">Av = felles for begge. På = bare du ser den.</span></span>
+          <input type="checkbox" className="bryter" checked={erPrivat} onChange={(e) => veksle(e.target.checked)} />
+        </label>
+      )}
+      {!bareSparing && k.rolle === 'avsender' && (
         <Felt etikett="Eier">
           <select value={k.eierId ?? ''} onChange={(e) => sett({ eierId: e.target.value || null })} required>
             <option value="">Velg person</option>

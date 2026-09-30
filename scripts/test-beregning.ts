@@ -1,5 +1,5 @@
 // Tester beregningslogikken uten nettleser. Kjør: npm test
-import { avrundOpp, foreslaOverforinger, kopierRevisjon, oppsummerFelles, oppsummerPrivat, sammenlign, tilMnd, aktivRevisjon } from '../src/logikk/beregning';
+import { avrundOpp, foreslaOverforinger, kopierRevisjon, oppsummerFelles, oppsummerPrivat, privateOverforinger, sammenlign, sum, tilMnd, aktivRevisjon } from '../src/logikk/beregning';
 import { fellesFlyt, privatFlyt } from '../src/logikk/flyt';
 import { demoFelles, demoPrivat } from '../src/data/demo';
 import { andelGaatt, avstem, dagerIMaaned, flyttMaaned, kategoriStatus, kontoPlan, kontoerFor, muligeDubletter, revisjonForMaaned } from '../src/logikk/oppfolging';
@@ -91,6 +91,9 @@ function balanserer(flyt: ReturnType<typeof fellesFlyt>) {
 sjekk('fellesflyt enkel balanserer', balanserer(fellesFlyt(dok, host, 'enkel')), true);
 sjekk('fellesflyt kontoer balanserer', balanserer(fellesFlyt(dok, host, 'kontoer')), true);
 sjekk('privatflyt balanserer', balanserer(privatFlyt(dok, host, priv, priv.revisjoner[0], 'kontoer')), true);
+const lonnIder = new Set(dok.kontoer.filter((k) => k.rolle === 'avsender').map((k) => `k:${k.id}`));
+sjekk('fellesflyt: lønnskontoene er startpunkt', fellesFlyt(dok, host, 'kontoer').lenker.some((l) => lonnIder.has(l.mal)), false);
+sjekk('privatflyt: lønnskontoen er startpunkt', privatFlyt(dok, host, priv, priv.revisjoner[0], 'kontoer').lenker.some((l) => lonnIder.has(l.mal)), false);
 sjekk('privatflyt skjuler andres poster', privatFlyt(dok, host, priv, priv.revisjoner[0], 'enkel').noder.some((n) => n.navn.includes('Kari')), false);
 
 // --- Oppfølging: måneder
@@ -157,6 +160,12 @@ const lonn2 = kontoPlan(odok.kontoer.find((k) => k.id === 'k-ola')!, odok, orev,
 sjekk('lønnskonto: overføring til egen brukskonto er fast', [lonn2.utFast - lonn.utFast, lonn2.utVariabel - lonn.utVariabel], [3000, 0]);
 const egen = kontoPlan(opriv2.kontoer.find((k) => k.id === 'k-egen')!, odok, orev, opriv2, oprev2);
 sjekk('brukskonto: inn fra lønn, variabel ut', [egen.inn, egen.utFast, egen.utVariabel], [3000, 0, 3000]);
+
+// --- Private overføringer: til felles, til egne kontoer, direkte trekk og rest
+const penger = privateOverforinger(odok, orev, opriv2, oprev2);
+sjekk('private overføringer: til felles', sum(penger.overforinger.filter((o) => o.kilde === 'felles'), (o) => o.belop), tilFelles);
+sjekk('private overføringer: til egne kontoer', penger.overforinger.filter((o) => o.kilde === 'egen').map((o) => [o.konto.id, o.belop]), [[opriv2.kontoer[0].id, 2500], ['k-egen', 3000]]);
+sjekk('private overføringer: rest = som ikke budsjettert', Math.round(penger.rest), Math.round(oppsummerPrivat(odok, orev, oprev2, 'ola').ubudsjettert));
 
 console.log(`\n${ok} ok, ${feil} feil`);
 if (feil) process.exit(1);

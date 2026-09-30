@@ -210,6 +210,56 @@ export function oppsummerPrivat(
   };
 }
 
+export interface PrivatOverforing {
+  konto: Konto;
+  /** Per måned */
+  belop: number;
+  /** felles = overføring i fellesbudsjettet, egen = summen av postene på en egen privat konto */
+  kilde: 'felles' | 'egen';
+  poster: Post[];
+}
+
+export interface PrivatePenger {
+  lonnskonto?: Konto;
+  inntekt: number;
+  overforinger: PrivatOverforing[];
+  /** Poster som trekkes rett fra lønnskontoen */
+  direkte: Post[];
+  /** Det som blir igjen på lønnskontoen */
+  rest: number;
+}
+
+/** Hva som går ut av lønnskontoen hver måned: til felles, til egne kontoer og direkte trekk. */
+export function privateOverforinger(
+  felles: FellesDok, frev: Revisjon | undefined, privat: PrivatDok, prev: PrivatRevisjon | undefined,
+): PrivatePenger {
+  const personId = privat.eierId;
+  const lonnskonto = felles.kontoer.find((k) => k.rolle === 'avsender' && k.eierId === personId);
+  const inntekt = sum(frev?.inntekter.filter((i) => i.personId === personId) ?? [], (i) => tilMnd(i.belop, i.frekvens));
+  const overforinger: PrivatOverforing[] = [];
+
+  // Til fellesbudsjettet (samlet per mottakerkonto)
+  for (const o of frev?.overforinger.filter((x) => eierAvKonto(felles, x.fraKontoId) === personId) ?? []) {
+    const konto = felles.kontoer.find((k) => k.id === o.tilKontoId);
+    if (!konto) continue;
+    const finnes = overforinger.find((x) => x.konto.id === konto.id);
+    if (finnes) finnes.belop += o.belop;
+    else overforinger.push({ konto, belop: o.belop, kilde: 'felles', poster: [] });
+  }
+  // Til egne kontoer
+  const poster = prev?.poster ?? [];
+  for (const konto of privat.kontoer) {
+    const mine = poster.filter((p) => p.kontoId === konto.id);
+    if (mine.length) overforinger.push({ konto, belop: sum(mine, postMnd), kilde: 'egen', poster: mine });
+  }
+  const egne = new Set(privat.kontoer.map((k) => k.id));
+  const direkte = poster.filter((p) => !egne.has(p.kontoId));
+  return {
+    lonnskonto, inntekt, overforinger, direkte,
+    rest: inntekt - sum(overforinger, (o) => o.belop) - sum(direkte, postMnd),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Revisjoner
 // ---------------------------------------------------------------------------

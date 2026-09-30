@@ -1,16 +1,18 @@
 // Privatbudsjettet – bare eieren kan lese dette (håndheves i databasen).
 import { useState } from 'react';
 import type { Post, PrivatRevisjon } from '../data/modell';
-import { nyId } from '../data/modell';
+import { ROLLE_NAVN, nyId } from '../data/modell';
 import { useTilstand } from '../data/tilstand';
-import { kopierRevisjon, oppsummerPrivat, iDag } from '../logikk/beregning';
+import { kopierRevisjon, oppsummerPrivat, iDag, postMnd, privateOverforinger, sum, type PrivatOverforing } from '../logikk/beregning';
 import { privatFlyt } from '../logikk/flyt';
 import { Ikon, Kpi, Segment, Tom, kr, pst, maanedTekst } from '../ui/felles';
 import { FlytKort, PostListe, RevisjonsVelger } from '../ui/deler';
 import { PostSkjema, RevisjonSkjema } from '../ui/skjemaer';
 import { DenneMaanedKort } from './Oppfolging';
 
-export function Privat({ gaaTil }: { gaaTil: (r: string) => void }) {
+type Fane = 'oversikt' | 'overforinger';
+
+export function Privat({ gaaTil, fane, byttFane }: { gaaTil: (r: string) => void; fane: Fane; byttFane: (f: Fane) => void }) {
   const { felles, privat, meg, prev, velgPrev, revForPrivat, endrePrivat } = useTilstand();
   const [grupper, setGrupper] = useState<'kategori' | 'konto'>('kategori');
   const [redigerer, setRedigerer] = useState<Post | 'ny' | null>(null);
@@ -61,6 +63,10 @@ export function Privat({ gaaTil }: { gaaTil: (r: string) => void }) {
             {revForPrivat && <span className="dempet liten">Bruker inntekt og overføringer fra «{revForPrivat.navn}»</span>}
           </div>
 
+          <Segment etikett="Visning" full verdi={fane} endre={byttFane}
+            valg={[{ verdi: 'oversikt', tekst: 'Oversikt' }, { verdi: 'overforinger', tekst: 'Overføringer' }]} />
+
+          {fane === 'overforinger' ? <Overforinger gaaTil={gaaTil} /> : <>
           <div className="kpi-rad">
             <Kpi hero etikett="Ikke budsjettert" verdi={kr(opp.ubudsjettert)}
               under={opp.ubudsjettert >= 0 ? 'Til overs hver måned' : 'Du budsjetterer mer enn du har'} />
@@ -91,6 +97,7 @@ export function Privat({ gaaTil }: { gaaTil: (r: string) => void }) {
                 tomTekst={<Tom ikon="budsjett" tittel="Ingen poster ennå" tekst="F.eks. bil, abonnementer, klær og egen sparing." />} />
             </section>
           </div>
+          </>}
         </>
       )}
 
@@ -111,6 +118,94 @@ export function Privat({ gaaTil }: { gaaTil: (r: string) => void }) {
           lagre={opprettRevisjon} lukk={() => setNyRev(false)}
         />
       )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------- Overføringer fra lønnskontoen
+
+function Overforinger({ gaaTil }: { gaaTil: (r: string) => void }) {
+  const { felles, privat, revForPrivat, prev } = useTilstand();
+  if (!felles || !privat) return null;
+  const penger = privateOverforinger(felles, revForPrivat, privat, prev);
+  const tilFelles = penger.overforinger.filter((o) => o.kilde === 'felles');
+  const tilEgne = penger.overforinger.filter((o) => o.kilde === 'egen');
+  const bank = (id: string | null) => felles.banker.find((b) => b.id === id)?.navn;
+  const postNavn = (poster: Post[]) => [...poster].sort((a, b) => postMnd(b) - postMnd(a)).map((p) => p.navn).join(', ');
+
+  const rad = (o: PrivatOverforing) => (
+    <div className="rad" key={o.konto.id}>
+      <Ikon navn={o.kilde === 'egen' ? 'privat' : 'overforing'} storrelse={18} />
+      <span className="hoved">
+        <span className="navn">{o.konto.navn}</span>
+        <span className="info">
+          {o.kilde === 'egen'
+            ? [ROLLE_NAVN[o.konto.rolle], postNavn(o.poster)].join(' · ')
+            : [bank(o.konto.bankId), o.konto.kontonr].filter(Boolean).join(' ') || 'Felleskonto'}
+        </span>
+      </span>
+      <span className="belop">{kr(o.belop)}</span>
+    </div>
+  );
+
+  return (
+    <>
+      <section className="kort">
+        <div className="kort-hode">
+          <div className="tittel">
+            <h2>Fra {penger.lonnskonto?.navn ?? 'lønnskontoen'}</h2>
+            <span className="dempet liten">Per måned · inntekt {kr(penger.inntekt)}</span>
+          </div>
+        </div>
+
+        {!penger.lonnskonto && (
+          <div className="banner info"><Ikon navn="info" /><div>Du har ingen lønnskonto. Legg den til under Kontoer, så vises overføringene her.</div></div>
+        )}
+
+        <div className="gruppe-hode">
+          <span className="navn">Til fellesbudsjettet</span>
+          <span className="sum">{kr(sum(tilFelles, (o) => o.belop))}</span>
+        </div>
+        <div className="liste">
+          {tilFelles.map(rad)}
+          {tilFelles.length === 0 && <p className="dempet liten" style={{ padding: '8px 4px' }}>Ingen overføringer til felles.</p>}
+        </div>
+        <button className="knapp liten flat" style={{ marginTop: 4 }} onClick={() => gaaTil('budsjett/overforinger')}>
+          Endres under Budsjett → Overføringer<Ikon navn="pilhoyre" storrelse={16} />
+        </button>
+
+        <div className="gruppe-hode" style={{ marginTop: 8 }}>
+          <span className="navn">Til mine kontoer</span>
+          <span className="sum">{kr(sum(tilEgne, (o) => o.belop))}</span>
+        </div>
+        <div className="liste">
+          {tilEgne.map(rad)}
+          {tilEgne.length === 0 && (
+            <p className="dempet liten" style={{ padding: '8px 4px' }}>
+              Ingen poster på egne kontoer. Opprett en privat konto under Kontoer og velg den på postene som skal trekkes derfra.
+            </p>
+          )}
+        </div>
+
+        <div className="gruppe-hode" style={{ marginTop: 8 }}>
+          <span className="navn">Trekkes rett fra lønnskontoen</span>
+          <span className="sum">{kr(sum(penger.direkte, postMnd))}</span>
+        </div>
+        {penger.direkte.length > 0 && (
+          <p className="dempet liten" style={{ padding: '0 4px 8px' }}>{penger.direkte.length} poster: {postNavn(penger.direkte)}</p>
+        )}
+
+        <div className="gruppe-hode" style={{ marginTop: 8, borderTop: '1px solid var(--linje)' }}>
+          <span className="navn">Igjen på lønnskontoen</span>
+          {penger.rest >= -0.5
+            ? <span className="merkelapp bra">{kr(penger.rest)}</span>
+            : <span className="merkelapp feil"><Ikon navn="advarsel" storrelse={12} />{kr(penger.rest)}</span>}
+        </div>
+      </section>
+
+      <p className="dempet liten" style={{ padding: '0 4px' }}>
+        Beløpet til hver egen konto er summen av postene som trekkes derfra. Sett opp en fast overføring i nettbanken med dette beløpet.
+      </p>
     </>
   );
 }

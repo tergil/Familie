@@ -87,7 +87,7 @@ export function Oversikt({ gaaTil }: { gaaTil: (rute: string) => void }) {
                   <span className="prikk" style={{ background: i === 0 ? 'var(--blekk-2)' : 'var(--noytral-flyt)' }} />
                   <span className="hoved">
                     <span className="navn">{p.person.navn}</span>
-                    <span className="info">{[fraKontoer(p.person.id), pst(p.andel), `mål ${kr(p.maal)}`].filter(Boolean).join(' · ')}</span>
+                    <span className="info" style={{ whiteSpace: 'normal' }}>{[fraKontoer(p.person.id), pst(p.andel), `mål ${kr(p.maal)}`].filter(Boolean).join(' · ')}</span>
                   </span>
                   <span className="belop">
                     {kr(p.overfort)}

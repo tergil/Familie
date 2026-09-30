@@ -135,7 +135,7 @@ function Skall() {
   switch (side) {
     case 'budsjett': innhold = <Budsjett fane={(underside as 'poster' | 'overforinger' | 'inntekter') ?? 'poster'} byttFane={(f) => gaaTil(`budsjett/${f}`)} />; break;
     case 'oppfolging': innhold = <Oppfolging key={rute} visning={underside === 'privat' ? 'privat' : 'felles'} maaned={rute.split('/')[2]} byttVisning={(v) => gaaTil(`oppfolging/${v}`)} />; break;
-    case 'privat': innhold = <Privat gaaTil={gaaTil} />; break;
+    case 'privat': innhold = <Privat gaaTil={gaaTil} fane={underside === 'overforinger' ? 'overforinger' : 'oversikt'} byttFane={(f) => gaaTil(f === 'oversikt' ? 'privat' : `privat/${f}`)} />; break;
     case 'sparing': innhold = <Sparing />; break;
     case 'revisjoner': innhold = <Revisjoner gaaTil={gaaTil} />; break;
     case 'kontoer': innhold = <Kontoer />; break;

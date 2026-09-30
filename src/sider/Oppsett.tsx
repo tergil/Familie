@@ -1,7 +1,7 @@
 // Oppsett: kontoer og banker, kategorier, personer og fordeling, data (import/eksport) og Mer-menyen.
 import { useRef, useState } from 'react';
 import type { Bank, FellesDok, Kategori, Konto, KontoRolle, Person, PrivatDok } from '../data/modell';
-import { ROLLE_NAVN, kontoTypeNavn, nyId } from '../data/modell';
+import { ROLLE_NAVN, nyId } from '../data/modell';
 import { useTilstand } from '../data/tilstand';
 import { lager } from '../data/lager';
 import { Avatar, Ikon, Prikk, kr, pst } from '../ui/felles';
@@ -29,7 +29,7 @@ export function Kontoer() {
   const [bank, setBank] = useState<Bank | 'ny' | null>(null);
   if (!felles) return null;
   const bankNavn = (id: string | null) => felles.banker.find((b) => b.id === id)?.navn;
-  const roller: KontoRolle[] = ['felles', 'sparing', 'avsender'];
+  const roller: KontoRolle[] = ['avsender', 'sparing', 'felles'];
   // Den andres lønnskonto trengs i fellesbudsjettet, men skjules her
   const mine = (k: Konto) => !meg || !k.eierId || k.eierId === meg.id;
   const skjulte = felles.kontoer.filter((k) => !mine(k));
@@ -69,7 +69,7 @@ export function Kontoer() {
       <span className="hoved">
         <span className="navn">{k.navn}</span>
         <span className="info">
-          {[erPrivat ? kontoTypeNavn(k) : null, bankNavn(k.bankId), k.kontonr, !erPrivat && k.rolle === 'avsender' ? felles.personer.find((p) => p.id === k.eierId)?.navn : null, k.sparemaal ? `Mål ${kr(k.sparemaal.maal)}` : null].filter(Boolean).join(' · ')}
+          {[erPrivat ? ROLLE_NAVN[k.rolle] : null, bankNavn(k.bankId), k.kontonr, !erPrivat && k.rolle === 'avsender' ? felles.personer.find((p) => p.id === k.eierId)?.navn : null, k.sparemaal ? `Mål ${kr(k.sparemaal.maal)}` : null].filter(Boolean).join(' · ')}
         </span>
       </span>
       <Ikon navn="pilhoyre" storrelse={16} />
