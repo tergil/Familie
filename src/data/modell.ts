@@ -29,7 +29,7 @@ export interface Konto {
   /** Lagres maskert, f.eks. "1234 xx xx567" */
   kontonr: string;
   rolle: KontoRolle;
-  /** Hvem kontoen tilhører (avsenderkontoer). null = felles. */
+  /** Hvem kontoen tilhører (lønnskontoer og private kontoer). null = felles. */
   eierId: Id | null;
   /** Sparemål (valgfritt) */
   sparemaal?: Sparemaal;
@@ -162,6 +162,12 @@ export const ROLLE_NAVN: Record<KontoRolle, string> = {
   avsender: 'Lønnskonto',
   sparing: 'Sparekonto',
 };
+
+/** Private kontoer med rolle «felles» er brukskontoer – de skal ikke kalles «Felleskonto». */
+export function kontoTypeNavn(k: Konto): string {
+  if (k.eierId && k.rolle === 'felles') return 'Brukskonto';
+  return ROLLE_NAVN[k.rolle];
+}
 
 export function nyId(): Id {
   // randomUUID finnes bare på https/localhost – reserve for f.eks. test via IP på hjemmenettet

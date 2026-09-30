@@ -8,6 +8,7 @@ import { privatFlyt } from '../logikk/flyt';
 import { Ikon, Kpi, Segment, Tom, kr, pst, maanedTekst } from '../ui/felles';
 import { FlytKort, PostListe, RevisjonsVelger } from '../ui/deler';
 import { PostSkjema, RevisjonSkjema } from '../ui/skjemaer';
+import { DenneMaanedKort } from './Oppfolging';
 
 export function Privat({ gaaTil }: { gaaTil: (r: string) => void }) {
   const { felles, privat, meg, prev, velgPrev, revForPrivat, endrePrivat } = useTilstand();
@@ -67,6 +68,8 @@ export function Privat({ gaaTil }: { gaaTil: (r: string) => void }) {
             <Kpi etikett="Til fellesbudsjettet" verdi={kr(opp.tilFelles)} under={opp.inntekt ? `${pst((opp.tilFelles / opp.inntekt) * 100)} av inntekten` : undefined} />
             <Kpi etikett="Spareandel" verdi={pst(opp.spareandel * 100)} under={`Egen sparing ${kr(opp.sparing)} + din andel av felles`} />
           </div>
+
+          <DenneMaanedKort gaaTil={gaaTil} visning="privat" />
 
           <div className="rutenett to">
             <FlytKort

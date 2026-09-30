@@ -1,7 +1,7 @@
 // Oppsett: kontoer og banker, kategorier, personer og fordeling, data (import/eksport) og Mer-menyen.
 import { useRef, useState } from 'react';
 import type { Bank, FellesDok, Kategori, Konto, KontoRolle, Person, PrivatDok } from '../data/modell';
-import { ROLLE_NAVN, nyId } from '../data/modell';
+import { ROLLE_NAVN, kontoTypeNavn, nyId } from '../data/modell';
 import { useTilstand } from '../data/tilstand';
 import { lager } from '../data/lager';
 import { Avatar, Ikon, Prikk, kr, pst } from '../ui/felles';
@@ -19,19 +19,62 @@ function kontoIBruk(d: FellesDok, id: string): number {
   return n;
 }
 
+function kontoIPrivat(d: PrivatDok | null, id: string): number {
+  return d?.revisjoner.reduce((n, r) => n + r.poster.filter((p) => p.kontoId === id).length, 0) ?? 0;
+}
+
 export function Kontoer() {
-  const { felles, endreFelles, visToast } = useTilstand();
-  const [konto, setKonto] = useState<Konto | 'ny' | null>(null);
+  const { felles, privat, meg, endreFelles, endrePrivat, visToast } = useTilstand();
+  const [konto, setKonto] = useState<{ k: Konto; privat: boolean } | 'ny' | null>(null);
   const [bank, setBank] = useState<Bank | 'ny' | null>(null);
   if (!felles) return null;
   const bankNavn = (id: string | null) => felles.banker.find((b) => b.id === id)?.navn;
   const roller: KontoRolle[] = ['felles', 'sparing', 'avsender'];
+  // Den andres lønnskonto trengs i fellesbudsjettet, men skjules her
+  const mine = (k: Konto) => !meg || !k.eierId || k.eierId === meg.id;
+  const skjulte = felles.kontoer.filter((k) => !mine(k));
+  const andreNavn = [...new Set(skjulte.map((k) => felles.personer.find((p) => p.id === k.eierId)?.navn).filter(Boolean))].join(' og ');
+  const egne = privat?.kontoer ?? [];
 
   function nyBank(navn: string) {
     const id = nyId();
     endreFelles((d) => { d.banker.push({ id, navn }); });
     return id;
   }
+
+  const oppdater = (liste: Konto[], k: Konto) => { const i = liste.findIndex((x) => x.id === k.id); if (i >= 0) liste[i] = k; else liste.push(k); };
+
+  function lagre(k: Konto, tilPrivat: boolean) {
+    const fraPrivat = konto !== 'ny' && konto?.privat;
+    const flyttes = konto !== 'ny' && konto && fraPrivat !== tilPrivat;
+    if (flyttes && tilPrivat) {
+      const n = kontoIBruk(felles!, k.id);
+      if (n > 0) { visToast({ tekst: `Kontoen brukes ${n} steder i fellesbudsjettet. Flytt postene og overføringene først.` }); return; }
+      endreFelles((d) => { d.kontoer = d.kontoer.filter((x) => x.id !== k.id); });
+    }
+    if (flyttes && !tilPrivat) {
+      const n = kontoIPrivat(privat, k.id);
+      if (n > 0) { visToast({ tekst: `Kontoen brukes i ${n} private poster. Flytt dem først.` }); return; }
+      endrePrivat((d) => { d.kontoer = d.kontoer.filter((x) => x.id !== k.id); });
+    }
+    if (tilPrivat) endrePrivat((d) => oppdater(d.kontoer, k));
+    else endreFelles((d) => oppdater(d.kontoer, k));
+    if (flyttes) visToast({ tekst: tilPrivat ? `«${k.navn}» er nå privat` : `«${k.navn}» er nå felles` });
+    setKonto(null);
+  }
+
+  const rad = (k: Konto, erPrivat: boolean) => (
+    <button className="rad" key={k.id} onClick={() => setKonto({ k, privat: erPrivat })}>
+      <Ikon navn={erPrivat ? 'privat' : 'konto'} storrelse={18} />
+      <span className="hoved">
+        <span className="navn">{k.navn}</span>
+        <span className="info">
+          {[erPrivat ? kontoTypeNavn(k) : null, bankNavn(k.bankId), k.kontonr, !erPrivat && k.rolle === 'avsender' ? felles.personer.find((p) => p.id === k.eierId)?.navn : null, k.sparemaal ? `Mål ${kr(k.sparemaal.maal)}` : null].filter(Boolean).join(' · ')}
+        </span>
+      </span>
+      <Ikon navn="pilhoyre" storrelse={16} />
+    </button>
+  );
 
   return (
     <>
@@ -41,28 +84,26 @@ export function Kontoer() {
           <button className="knapp primar liten" onClick={() => setKonto('ny')}><Ikon navn="pluss" storrelse={18} />Ny konto</button>
         </div>
         {roller.map((rolle) => {
-          const liste = felles.kontoer.filter((k) => k.rolle === rolle);
+          const liste = felles.kontoer.filter((k) => k.rolle === rolle && mine(k));
           if (!liste.length) return null;
           return (
             <div key={rolle}>
               <div className="gruppe-hode"><span className="navn">{ROLLE_NAVN[rolle]}er</span></div>
-              <div className="liste">
-                {liste.map((k) => (
-                  <button className="rad" key={k.id} onClick={() => setKonto(k)}>
-                    <Ikon navn="konto" storrelse={18} />
-                    <span className="hoved">
-                      <span className="navn">{k.navn}</span>
-                      <span className="info">
-                        {[bankNavn(k.bankId), k.kontonr, rolle === 'avsender' ? felles.personer.find((p) => p.id === k.eierId)?.navn : null, k.sparemaal ? `Mål ${kr(k.sparemaal.maal)}` : null].filter(Boolean).join(' · ')}
-                      </span>
-                    </span>
-                    <Ikon navn="pilhoyre" storrelse={16} />
-                  </button>
-                ))}
-              </div>
+              <div className="liste">{liste.map((k) => rad(k, false))}</div>
             </div>
           );
         })}
+        {meg && egne.length > 0 && (
+          <div>
+            <div className="gruppe-hode"><span className="navn">Mine private kontoer</span><span className="dempet liten">Bare du ser disse</span></div>
+            <div className="liste">{egne.map((k) => rad(k, true))}</div>
+          </div>
+        )}
+        {skjulte.length > 0 && (
+          <p className="dempet liten" style={{ padding: '12px 4px 0' }}>
+            {skjulte.length === 1 ? 'Én konto' : `${skjulte.length} kontoer`} som tilhører {andreNavn || 'andre'} er skjult. De brukes fortsatt i fellesbudsjettet.
+          </p>
+        )}
       </section>
 
       <section className="kort">
@@ -83,13 +124,17 @@ export function Kontoer() {
 
       {konto && (
         <KontoSkjema
-          konto={konto === 'ny' ? undefined : konto} banker={felles.banker} personer={felles.personer} nyBank={nyBank}
+          konto={konto === 'ny' ? undefined : konto.k} privat={konto !== 'ny' && konto.privat}
+          meg={privat ? meg ?? undefined : undefined}
+          banker={felles.banker} personer={felles.personer} nyBank={nyBank}
           lukk={() => setKonto(null)}
-          lagre={(k) => { endreFelles((d) => { const i = d.kontoer.findIndex((x) => x.id === k.id); if (i >= 0) d.kontoer[i] = k; else d.kontoer.push(k); }); setKonto(null); }}
+          lagre={lagre}
           slett={konto === 'ny' ? undefined : () => {
-            const n = kontoIBruk(felles, konto.id);
+            const { k, privat: erPrivat } = konto;
+            const n = erPrivat ? kontoIPrivat(privat, k.id) : kontoIBruk(felles, k.id);
             if (n > 0) { visToast({ tekst: `Kontoen brukes ${n} steder. Flytt postene og overføringene først.` }); return; }
-            endreFelles((d) => { d.kontoer = d.kontoer.filter((x) => x.id !== konto.id); }, `Slettet «${konto.navn}»`);
+            if (erPrivat) endrePrivat((d) => { d.kontoer = d.kontoer.filter((x) => x.id !== k.id); }, `Slettet «${k.navn}»`);
+            else endreFelles((d) => { d.kontoer = d.kontoer.filter((x) => x.id !== k.id); }, `Slettet «${k.navn}»`);
             setKonto(null);
           }}
         />

@@ -25,6 +25,14 @@ export function Oversikt({ gaaTil }: { gaaTil: (rute: string) => void }) {
   const maksKat = Math.max(1, ...opp.kategorier.map((k) => k.belop));
   const underdekning = opp.kontoer.filter((k) => k.balanse < -0.5);
   const spareandel = opp.total > 0 ? (opp.sparing / opp.total) * 100 : 0;
+  /** Kontoene en person overfører fra, f.eks. «Fra Lønn DNB» */
+  const fraKontoer = (personId: string) => {
+    const navn = [...new Set(rev.overforinger
+      .map((o) => felles.kontoer.find((k) => k.id === o.fraKontoId))
+      .filter((k) => k?.eierId === personId)
+      .map((k) => k!.navn))];
+    return navn.length ? `Fra ${navn.join(' og ')}` : null;
+  };
 
   return (
     <>
@@ -79,7 +87,7 @@ export function Oversikt({ gaaTil }: { gaaTil: (rute: string) => void }) {
                   <span className="prikk" style={{ background: i === 0 ? 'var(--blekk-2)' : 'var(--noytral-flyt)' }} />
                   <span className="hoved">
                     <span className="navn">{p.person.navn}</span>
-                    <span className="info">{pst(p.andel)} · mål {kr(p.maal)}</span>
+                    <span className="info">{[fraKontoer(p.person.id), pst(p.andel), `mål ${kr(p.maal)}`].filter(Boolean).join(' · ')}</span>
                   </span>
                   <span className="belop">
                     {kr(p.overfort)}

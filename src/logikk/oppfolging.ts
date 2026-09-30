@@ -91,7 +91,7 @@ export interface KontoPlan {
 /**
  * Budsjettert bevegelse for en konto per måned.
  * - Sparing på en sparekonto blir stående (er ikke «ut»).
- * - Private poster trekkes fra eierens lønnskonto. Private spareposter settes inn på sin egen konto.
+ * - Private poster trekkes fra eierens lønnskonto. Poster på en egen privat konto overføres dit først.
  */
 export function kontoPlan(
   konto: Konto, felles: FellesDok, rev: Revisjon | undefined,
@@ -115,10 +115,13 @@ export function kontoPlan(
     for (const p of prev.poster) {
       const fraLonn = !privat.kontoer.some((k) => k.id === p.kontoId);
       if (konto.id === minLonn?.id) {
-        // Alt i privatbudsjettet går ut fra lønnskontoen – også sparing til egne kontoer
-        if (fraLonn || p.type === 'sparing') ut(p);
+        // Alt i privatbudsjettet går ut fra lønnskontoen. Til egne kontoer er det en fast overføring.
+        if (fraLonn) ut(p);
+        else plan.utFast += postMnd(p);
       } else if (p.kontoId === konto.id && !fraLonn) {
-        if (p.type === 'sparing') plan.inn += postMnd(p);
+        // Egen konto: pengene kommer inn fra lønnskontoen. Utgifter trekkes herfra, sparing blir stående.
+        plan.inn += postMnd(p);
+        if (p.type === 'utgift') ut(p);
       }
     }
   }

@@ -148,6 +148,15 @@ sjekk('lønnskonto ut = til felles + alle private poster', lonn.utFast + lonn.ut
 const fond = kontoPlan(opriv.kontoer[0], odok, orev, opriv, oprev);
 sjekk('fondskonto inn = fondssparing', fond.inn, 2500);
 sjekk('kontoer for privat: lønnskonto + egne', kontoerFor(odok, opriv, 'privat').map((k) => k.id), ['k-ola', opriv.kontoer[0].id]);
+// Privat brukskonto: 3 000 overføres fast fra lønn, klær (følges opp) trekkes fra brukskontoen
+const opriv2 = demoPrivat('ola');
+opriv2.kontoer.push({ id: 'k-egen', navn: 'Brukskonto', bankId: null, kontonr: '', rolle: 'felles', eierId: 'ola' });
+const oprev2 = opriv2.revisjoner[0];
+oprev2.poster.push({ id: 'p-klaer', navn: 'Klær', belop: 3000, frekvens: 'mnd', type: 'utgift', kategoriId: 'personlig', kontoId: 'k-egen', folgOpp: true });
+const lonn2 = kontoPlan(odok.kontoer.find((k) => k.id === 'k-ola')!, odok, orev, opriv2, oprev2);
+sjekk('lønnskonto: overføring til egen brukskonto er fast', [lonn2.utFast - lonn.utFast, lonn2.utVariabel - lonn.utVariabel], [3000, 0]);
+const egen = kontoPlan(opriv2.kontoer.find((k) => k.id === 'k-egen')!, odok, orev, opriv2, oprev2);
+sjekk('brukskonto: inn fra lønn, variabel ut', [egen.inn, egen.utFast, egen.utVariabel], [3000, 0, 3000]);
 
 console.log(`\n${ok} ok, ${feil} feil`);
 if (feil) process.exit(1);

@@ -316,22 +316,23 @@ function VelgPoster({ visning, maaned, lukk }: { visning: Visning; maaned: strin
 
 // ---------------------------------------------------------------- Kort på Oversikt
 
-/** Kompakt status for fellesbudsjettet denne måneden. Vises bare når noe følges opp. */
-export function DenneMaanedKort({ gaaTil }: { gaaTil: (r: string) => void }) {
-  const { felles } = useTilstand();
+/** Kompakt status for felles- eller privatbudsjettet denne måneden. Vises bare når noe følges opp. */
+export function DenneMaanedKort({ gaaTil, visning = 'felles' }: { gaaTil: (r: string) => void; visning?: Visning }) {
+  const { felles, privat } = useTilstand();
   const maaned = maanedAv(iDag());
   const data = useOppfolging(maaned);
   if (!felles) return null;
-  const rev = revisjonForMaaned(felles.revisjoner, maaned);
-  const status = kategoriStatus(rev?.poster ?? [], data.utgifter.filter((u) => !u.privat && maanedAv(u.dato) === maaned), andelGaatt(maaned, iDag()))
+  const erPrivat = visning === 'privat';
+  const rev = erPrivat ? revisjonForMaaned(privat?.revisjoner ?? [], maaned) : revisjonForMaaned(felles.revisjoner, maaned);
+  const status = kategoriStatus(rev?.poster ?? [], data.utgifter.filter((u) => u.privat === erPrivat && maanedAv(u.dato) === maaned), andelGaatt(maaned, iDag()))
     .filter((s) => s.budsjett > 0);
   if (status.length === 0) return null;
   const kategori = (id: string) => felles.kategorier.find((k) => k.id === id);
   return (
     <section className="kort">
       <div className="kort-hode">
-        <div className="tittel"><h2>{maanedTekst(maaned)}</h2><span className="dempet liten">Førte felles utgifter mot budsjett</span></div>
-        <button className="knapp liten flat" onClick={() => gaaTil('oppfolging')}>Oppfølging<Ikon navn="pilhoyre" storrelse={16} /></button>
+        <div className="tittel"><h2>{maanedTekst(maaned)}</h2><span className="dempet liten">Førte {erPrivat ? 'private' : 'felles'} utgifter mot budsjett</span></div>
+        <button className="knapp liten flat" onClick={() => gaaTil(erPrivat ? 'oppfolging/privat' : 'oppfolging')}>Oppfølging<Ikon navn="pilhoyre" storrelse={16} /></button>
       </div>
       <div className="rutenett to" style={{ gap: 16 }}>
         {status.slice(0, 4).map((s) => <KategoriStolpe key={s.kategoriId} s={s} navn={kategori(s.kategoriId)?.navn ?? 'Uten kategori'} farge={kategori(s.kategoriId)?.farge} andel={andelGaatt(maaned, iDag())} />)}

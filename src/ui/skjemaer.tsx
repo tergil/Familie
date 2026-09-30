@@ -33,18 +33,22 @@ const FREKVENSER = (Object.keys(FREKVENS_NAVN) as Frekvens[]);
 
 function KontoValg({ kontoer, banker, verdi, endre, tom }: { kontoer: Konto[]; banker: Bank[]; verdi: Id; endre: (id: Id) => void; tom?: string }) {
   const bank = (id: Id | null) => banker.find((b) => b.id === id)?.navn;
-  const grupper: KontoRolle[] = ['avsender', 'felles', 'sparing'];
+  // Private kontoer (eier satt, ikke lønnskonto) får egen gruppe
+  const erPrivat = (k: Konto) => !!k.eierId && k.rolle !== 'avsender';
+  const grupper: [string, Konto[]][] = [
+    [ROLLE_NAVN.avsender, kontoer.filter((k) => k.rolle === 'avsender')],
+    ['Mine kontoer', kontoer.filter(erPrivat)],
+    [ROLLE_NAVN.felles, kontoer.filter((k) => k.rolle === 'felles' && !erPrivat(k))],
+    [ROLLE_NAVN.sparing, kontoer.filter((k) => k.rolle === 'sparing' && !erPrivat(k))],
+  ];
   return (
     <select value={verdi} onChange={(e) => endre(e.target.value)} required>
       {tom !== undefined && <option value="">{tom}</option>}
-      {grupper.map((g) => {
-        const liste = kontoer.filter((k) => k.rolle === g);
-        return liste.length ? (
-          <optgroup key={g} label={ROLLE_NAVN[g]}>
-            {liste.map((k) => <option key={k.id} value={k.id}>{k.navn}{bank(k.bankId) ? ` (${bank(k.bankId)})` : ''}</option>)}
-          </optgroup>
-        ) : null;
-      })}
+      {grupper.map(([navn, liste]) => liste.length ? (
+        <optgroup key={navn} label={navn}>
+          {liste.map((k) => <option key={k.id} value={k.id}>{k.navn}{bank(k.bankId) ? ` (${bank(k.bankId)})` : ''}</option>)}
+        </optgroup>
+      ) : null)}
     </select>
   );
 }
@@ -156,40 +160,68 @@ export function OverforingSkjema({ overforing, kontoer, banker, lagre, slett, lu
 
 // ---------------------------------------------------------------- Konto
 
-export function KontoSkjema({ konto, banker, personer, lagre, slett, lukk, nyBank, bareSparing }: {
+export function KontoSkjema({ konto, banker, personer, lagre, slett, lukk, nyBank, bareSparing, privat: privat0 = false, meg }: {
   konto?: Konto; banker: Bank[]; personer: Person[];
-  lagre: (k: Konto) => void; slett?: () => void; lukk: () => void;
+  lagre: (k: Konto, privat: boolean) => void; slett?: () => void; lukk: () => void;
   nyBank: (navn: string) => Id; bareSparing?: { eierId: Id };
+  /** Kontoen ligger i privatbudsjettet */
+  privat?: boolean;
+  /** Innlogget person – gir valget «Privat konto» */
+  meg?: Person;
 }) {
   const [k, setK] = useState<Konto>(konto ?? {
     id: nyId(), navn: '', bankId: banker[0]?.id ?? null, kontonr: '',
     rolle: bareSparing ? 'sparing' : 'felles', eierId: bareSparing?.eierId ?? null,
   });
+  const [erPrivat, setErPrivat] = useState(!!bareSparing || privat0);
   const [bankNavn, setBankNavn] = useState('');
   const [harMaal, setHarMaal] = useState(!!k.sparemaal);
   const sett = (e: Partial<Konto>) => setK({ ...k, ...e });
   const maal = k.sparemaal ?? { maal: 0, saldo: 0, saldoDato: new Date().toISOString().slice(0, 10), rente: 0 };
 
+  function veksle(p: boolean) {
+    setErPrivat(p);
+    // Private kontoer kan ikke være lønnskonto (den må ligge i fellesbudsjettet)
+    if (p) setK({ ...k, eierId: meg!.id, rolle: k.rolle === 'avsender' ? 'felles' : k.rolle });
+    else setK({ ...k, eierId: k.rolle === 'avsender' ? k.eierId : null });
+  }
+
   function lagreKonto() {
     let bankId = k.bankId;
     if (bankId === '__ny' && bankNavn.trim()) bankId = nyBank(bankNavn.trim());
     else if (bankId === '__ny') bankId = null;
-    lagre({ ...k, bankId, kontonr: maskerKontonr(k.kontonr), sparemaal: harMaal ? maal : undefined });
+    lagre({ ...k, bankId, kontonr: maskerKontonr(k.kontonr), sparemaal: harMaal ? maal : undefined }, erPrivat);
   }
 
   return (
     <Skjema tittel={konto ? 'Endre konto' : 'Ny konto'} lukk={lukk} lagre={lagreKonto}>
-      <Felt etikett="Navn"><input value={k.navn} onChange={(e) => sett({ navn: e.target.value })} required placeholder="F.eks. Felles regning" /></Felt>
+      <Felt etikett="Navn"><input value={k.navn} onChange={(e) => sett({ navn: e.target.value })} required placeholder={erPrivat ? 'F.eks. Brukskonto' : 'F.eks. Felles regning'} /></Felt>
+      {!bareSparing && meg && (
+        <label className="rad" style={{ cursor: 'pointer', minHeight: 44 }}>
+          <Ikon navn="privat" storrelse={18} />
+          <span className="hoved"><span className="navn">Privat konto</span><span className="info">Bare du ser den. Kan brukes i ditt privatbudsjett.</span></span>
+          <input type="checkbox" className="bryter" checked={erPrivat} onChange={(e) => veksle(e.target.checked)} />
+        </label>
+      )}
       {!bareSparing && (
         <Felt etikett="Type konto">
           <select value={k.rolle} onChange={(e) => sett({ rolle: e.target.value as KontoRolle })}>
-            <option value="felles">Felleskonto – dere overfører hit, regninger trekkes herfra</option>
-            <option value="sparing">Sparekonto</option>
-            <option value="avsender">Lønnskonto – der inntekten kommer inn</option>
+            {erPrivat ? (
+              <>
+                <option value="felles">Brukskonto – egne utgifter trekkes herfra</option>
+                <option value="sparing">Sparekonto</option>
+              </>
+            ) : (
+              <>
+                <option value="felles">Felleskonto – dere overfører hit, regninger trekkes herfra</option>
+                <option value="sparing">Sparekonto</option>
+                <option value="avsender">Lønnskonto – der inntekten kommer inn</option>
+              </>
+            )}
           </select>
         </Felt>
       )}
-      {!bareSparing && k.rolle === 'avsender' && (
+      {!bareSparing && !erPrivat && k.rolle === 'avsender' && (
         <Felt etikett="Eier">
           <select value={k.eierId ?? ''} onChange={(e) => sett({ eierId: e.target.value || null })} required>
             <option value="">Velg person</option>
