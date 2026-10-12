@@ -10,7 +10,7 @@ import { iDag, sum } from '../logikk/beregning';
 import { erBrukt, gavehistorikk, medStatus, nesteRekkefolge, nesteStatus, nyttPunkt, tidligereGaver } from '../logikk/lister';
 import {
   ANLEDNING_IKON, ANLEDNING_NAVN, PLAN_IKON, PLAN_NAVN, PLAN_TYPER, alder, anledningsDato, anledningsNavn, anledningsPlan, flyttGavelister, forekomster, rundDag, tilPlanType,
-  gaveaar, gaverTil, mottakere, nesteDato, nokkelTekst, nyAnledning, personbudsjett, planNokkel, planTittel, potter,
+  gaveaar, gaverTil, medAutoAnledning, mottakere, nesteDato, nokkelTekst, nyAnledning, personbudsjett, planNokkel, planTittel, potter,
   type Forekomst, type PlanDel, type PlanType,
 } from '../logikk/gaveaar';
 import { Ark, BelopFelt, Felt, Ikon, MAANEDER_KORT, Segment, Tom, kortDato, kr, maanedTekst } from '../ui/felles';
@@ -34,9 +34,10 @@ function fodtTekst(fodt: string, idag: string): string {
 }
 
 /** «fyller 70» – med merke for runde dager */
-function Alder({ alder: a }: { alder?: number }) {
+function Alder({ alder: a, forbi }: { alder?: number; forbi?: boolean }) {
   if (a === undefined) return null;
-  return rundDag(a) ? <span className="merkelapp aksent">🎉 fyller {a}</span> : <span className="dempet">fyller {a}</span>;
+  const ord = forbi ? 'fylte' : 'fyller';
+  return rundDag(a) ? <span className="merkelapp aksent">🎉 {ord} {a}</span> : <span className="dempet">{ord} {a}</span>;
 }
 
 function nyttGaveaar(privat: boolean, rekkefolge: number): Liste {
@@ -242,8 +243,8 @@ function MottakerArk({ liste, mottakerId, lukk }: { liste: Liste; mottakerId: st
   const alle = gaverTil(mottaker.id, punkter);
   const anledninger = mottaker.anledninger ?? [];
   const ideer = alle.filter((g) => !g.anledning && !erBrukt('gaveaar', g.status));
-  // Planlagt: gaver til en anledning som ikke er gitt ennå
-  const planlagt = alle.filter((g) => g.anledning && g.status !== 'gitt');
+  // Valgt eller kjøpt: gaver med anledning eller som er kjøpt, til de er gitt
+  const planlagt = alle.filter((g) => (g.anledning || erBrukt('gaveaar', g.status)) && g.status !== 'gitt');
   const planlagtIder = new Set([...planlagt, ...ideer].map((g) => g.id));
   const historikk = tidligereGaver(gavehistorikk(lister, punkter), mottaker.tekst).filter((g) => !planlagtIder.has(g.punkt.id));
 
@@ -271,10 +272,15 @@ function MottakerArk({ liste, mottakerId, lukk }: { liste: Liste; mottakerId: st
     setNyIde('');
   }
 
-  function lagreGave(foer: Punkt | undefined, etter: Punkt) {
+  function lagreGave(foer: Punkt | undefined, endret: Punkt) {
+    const etter = medAutoAnledning(endret, mottaker, idag);
     void listeLager.lagrePunkter([etter]);
-    if (etter.belop && erBrukt('gaveaar', etter.status) && !(foer && erBrukt('gaveaar', foer.status))) {
-      visToast({ tekst: `«${etter.tekst}» kjøpt`, handling: { tekst: 'Før utgift', kjor: () => { setUtgift(forslag(etter)); visToast(null); } } });
+    if (erBrukt('gaveaar', etter.status) && !(foer && erBrukt('gaveaar', foer.status))) {
+      const til = etter.anledning ? ` til ${nokkelTekst(mottaker, etter.anledning).toLowerCase()}` : '';
+      visToast({
+        tekst: `«${etter.tekst}» kjøpt${til}`,
+        handling: etter.belop ? { tekst: 'Før utgift', kjor: () => { setUtgift(forslag(etter)); visToast(null); } } : undefined,
+      });
     }
   }
   // En felles gave som du betaler, føres som privat utgift
@@ -355,7 +361,7 @@ function MottakerArk({ liste, mottakerId, lukk }: { liste: Liste; mottakerId: st
 
         {planlagt.length > 0 && (
           <div className="felt">
-            <span>Valgt til en anledning</span>
+            <span>Valgt eller kjøpt <span className="dempet" style={{ fontWeight: 400 }}>– trykk for å bytte anledning</span></span>
             <div className="liste">{planlagt.sort((a, b) => (a.anledning ?? '').localeCompare(b.anledning ?? '')).map((g) => gaveRad(g, true))}</div>
           </div>
         )}
@@ -364,13 +370,23 @@ function MottakerArk({ liste, mottakerId, lukk }: { liste: Liste; mottakerId: st
           <div className="felt">
             <span>Historikk</span>
             <div className="liste">
-              {historikk.map((g) => (
-                <div className="rad" key={g.punkt.id}>
-                  <span className="merkelapp tall">{g.aar}</span>
-                  <span className="hoved"><span className="navn">{g.punkt.tekst}</span><span className="info">{g.punkt.anledning ? nokkelTekst(punkter.find((x) => x.id === g.punkt.forelderId), g.punkt.anledning) : g.liste.navn}</span></span>
-                  {g.punkt.belop ? <span className="belop">{kr(g.punkt.belop)}</span> : null}
-                </div>
-              ))}
+              {historikk.map((g) => {
+                // Gaver i dette gaveåret kan endres herfra. Gaver fra andre lister vises bare.
+                const her = alle.some((x) => x.id === g.punkt.id);
+                const innhold = (
+                  <>
+                    <span className="merkelapp tall">{g.aar}</span>
+                    <span className="hoved"><span className="navn">{g.punkt.tekst}</span><span className="info">{g.punkt.anledning ? nokkelTekst(punkter.find((x) => x.id === g.punkt.forelderId), g.punkt.anledning) : g.liste.navn}</span></span>
+                    {g.punkt.belop ? <span className="belop">{kr(g.punkt.belop)}</span> : null}
+                  </>
+                );
+                return her ? (
+                  <div className="rad" key={g.punkt.id}>
+                    <button className="rad-knapp" onClick={() => setRedigerer(g.punkt)}>{innhold}</button>
+                    <StatusKnapp type="gaveaar" status={g.punkt.status} endre={() => lagreGave(g.punkt, medStatus(g.punkt, 'gaveaar', nesteStatus('gaveaar', g.punkt.status), idag))} />
+                  </div>
+                ) : <div className="rad" key={g.punkt.id}>{innhold}</div>;
+              })}
             </div>
           </div>
         )}
@@ -458,6 +474,10 @@ export function AnledningsPlan({ type: t, aar: a, gaaTil }: { type?: string; aar
   const minListe = alleAar.find((l) => l.privat);
   const nyIListe = nyListeValg(fellesListe, minListe);
   const plan = anledningsPlan(lister, punkter, type, aar);
+  // Bursdager og andre: det som har vært, havner i egen bolk nederst. Jul er én dag for alle.
+  const idag = iDag();
+  const kommende = type === 'jul' ? plan : plan.filter((p) => p.dato >= idag);
+  const tidligere = type === 'jul' ? [] : plan.filter((p) => p.dato < idag);
   const pottListe = potter(plan, meg?.id);
   const nokkel = planNokkel(type, aar);
   const gaa = (ny: { type?: PlanType; aar?: number }) => gaaTil(`lister/plan/${ny.type ?? type}/${ny.aar ?? (ny.type && ny.type !== type ? nestePlanAar(ny.type) : aar)}`);
@@ -551,12 +571,14 @@ export function AnledningsPlan({ type: t, aar: a, gaaTil }: { type?: string; aar
               </form>
             )}
             {plan.length === 0 && <Tom ikon="gave" tittel={type === 'jul' ? 'Ingen mottakere med jul ennå' : type === 'bursdag' ? 'Ingen bursdager med dato ennå' : `Ingen andre anledninger i ${aar}`} />}
-            {plan.map((person) => (
-              <section className="seksjon boks" key={person.navn + person.tittel}>
+            {[...kommende, ...(tidligere.length ? [null] : []), ...tidligere].map((person) => person === null ? (
+              <div className="seksjon har-vaert" key="har-vaert"><SeksjonHode tittel="Har vært" antall={tidligere.length} /></div>
+            ) : (
+              <section className={`seksjon boks${person.dato < iDag() && type !== 'jul' ? ' forbi' : ''}`} key={person.navn + person.tittel}>
                 <SeksjonHode person
                   tittel={type === 'andre' ? `${person.tittel} – ${person.navn}` : person.navn}
                   merke={type === 'jul' ? undefined : <span className="dato-blokk" aria-hidden="true"><span className="dag">{Number(person.dato.slice(8))}</span><span className="mnd">{MAANEDER_KORT[Number(person.dato.slice(5, 7)) - 1]}</span></span>}
-                  etterTittel={person.alder !== undefined ? <Alder alder={person.alder} /> : undefined}
+                  etterTittel={person.alder !== undefined ? <Alder alder={person.alder} forbi={person.dato < idag} /> : undefined}
                   under={person.deler.map((d) => `${d.liste.privat ? 'Mitt' : 'Felles'}${d.anledning.budsjett ? ` · budsjett ${kr(d.anledning.budsjett)}` : ''}`).join('  |  ')}
                   sum={sum(person.deler.flatMap((d) => d.gaver), (g) => g.belop ?? 0)} />
                 {person.deler.map((d) => <PlanDelVisning key={d.mottaker.id} d={d} flere={person.deler.length > 1} navnPaa={navnPaa} megId={meg?.id}

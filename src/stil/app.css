@@ -716,3 +716,8 @@ body.drar-punkt [data-dra-id] { transition: transform .15s ease; }
   flex: none; min-height: 48px; padding: 0 var(--a3); border-radius: 999px; border: 1px solid var(--linje-sterk);
   background: var(--flate); font-size: 14px; font-weight: 600;
 }
+
+/* Planer: anledninger som har vært */
+.seksjon.har-vaert { margin-top: var(--a5); }
+.seksjon.boks.forbi { background: var(--flate-2); }
+.seksjon.boks.forbi .seksjon-hode .navn { color: var(--blekk-2); }

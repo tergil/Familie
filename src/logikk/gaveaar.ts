@@ -153,6 +153,16 @@ export function anledningsValg(mottaker: Punkt, iDag: string): { nokkel: string;
   return ut.sort((a, b) => a.dato.localeCompare(b.dato));
 }
 
+/**
+ * En gave som blir kjøpt eller gitt uten anledning, kobles til mottakerens neste anledning.
+ * Da blir den med på bursdagen/julen (og vises som kjøpt der) i stedet for å forsvinne. Kan endres etterpå.
+ */
+export function medAutoAnledning(gave: Punkt, mottaker: Punkt | undefined, iDag: string): Punkt {
+  if (gave.anledning || !mottaker || !erBrukt('gaveaar', gave.status)) return gave;
+  const neste = anledningsValg(mottaker, iDag)[0];
+  return neste ? { ...gave, anledning: neste.nokkel } : gave;
+}
+
 /** Teksten for en anledningsnøkkel, også for tidligere år («Jul 2025») */
 export function nokkelTekst(mottaker: Punkt | undefined, nokkel: string): string {
   const [id, aar] = nokkel.split(':');

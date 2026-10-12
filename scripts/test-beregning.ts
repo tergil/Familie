@@ -2,7 +2,7 @@
 import { avrundOpp, foreslaOverforinger, kopierRevisjon, oppsummerFelles, oppsummerPrivat, privateOverforinger, sammenlign, sum, tilMnd, aktivRevisjon } from '../src/logikk/beregning';
 import { fellesFlyt, privatFlyt } from '../src/logikk/flyt';
 import { demoFelles, demoLister, demoPrivat } from '../src/data/demo';
-import { alder, andreSondag, anledningsDato, anledningsPlan, flyttGavelister, forekomster, gaveVarsler, personbudsjett, potter, rundDag, tilPlanType } from '../src/logikk/gaveaar';
+import { alder, andreSondag, anledningsDato, anledningsPlan, flyttGavelister, forekomster, gaveVarsler, medAutoAnledning, personbudsjett, potter, rundDag, tilPlanType } from '../src/logikk/gaveaar';
 import { andelGaatt, avstem, dagerIMaaned, flyttMaaned, kategoriStatus, kontoPlan, kontoerFor, muligeDubletter, revisjonForMaaned } from '../src/logikk/oppfolging';
 import {
   MALER, adventssondager, delingsTekst, erFerdig, erGjort, flyttEtSteg, fremdrift, gavehistorikk, nyRekkefolge, punkterForDeling, hageIMaaned, huskelapp, kalenderAar, kalenderLuker, kopierPunkter, lagTre, listeSum,
@@ -280,6 +280,12 @@ sjekk('bursdager sortert på dato, med alder', bursdager.map((p) => `${p.dato} $
 sjekk('andre: alt unntatt jul og bursdag', anledningsPlan(ga.lister, ga.punkter, 'andre', 2027).map((p) => `${p.tittel} ${p.navn}`),
   ['Morsdag Mamma', 'Konfirmasjon Lena', 'Farsdag Pappa']);
 sjekk('årshjul: alder på bursdag', tidslinje.find((f) => f.anledning.type === 'bursdag')!.alder, 70);
+// Kjøpt fra idébanken uten anledning → kobles til neste anledning (Mammas bursdag 29. okt.)
+const mammaGa = ga.punkter.find((p) => p.tekst === 'Mamma' && p.listeId === fellesGa.id)!;
+const strikkebok = ga.punkter.find((p) => p.tekst === 'Strikkebok')!;
+sjekk('kjøpt idé får neste anledning', medAutoAnledning({ ...strikkebok, status: 'kjopt' }, mammaGa, '2026-10-11').anledning, 'a-m-b:2026');
+sjekk('idé uten kjøp forblir i idébanken', medAutoAnledning(strikkebok, mammaGa, '2026-10-11').anledning, undefined);
+sjekk('valgt anledning endres ikke', medAutoAnledning({ ...strikkebok, status: 'kjopt', anledning: 'a-m-j:2026' }, mammaGa, '2026-10-11').anledning, 'a-m-j:2026');
 
 // --- Flytte gamle gavelister inn i gaveåret
 const mittGa = ga.lister.find((l) => l.navn === 'Mitt gaveår')!;
