@@ -207,6 +207,7 @@ html, body { overflow-x: clip; }
 }
 .rad:last-child { border-bottom: 0; }
 button.rad:hover { background: var(--flate-2); }
+button.rad:disabled { opacity: .55; cursor: default; background: none; }
 button.rad { border-radius: 0; }
 .rad .hoved { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .rad .hoved .navn { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -593,3 +594,10 @@ input.bryter:checked::after { transform: translateX(18px); }
   border: 1px solid var(--linje-sterk); background: var(--flate); font-size: 14px; font-weight: 600; color: var(--blekk-2);
 }
 .hurtig-under.valgt select { border-color: var(--aksent); background: var(--aksent-myk); color: var(--aksent); }
+
+/* Når alt i en sjekkliste er gjort: tilby nullstilling */
+.alt-gjort {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--a3);
+  margin: var(--a2) 0; padding: var(--a3) var(--a4); border-radius: 12px; background: var(--bra-myk);
+}
+.alt-gjort > span { display: flex; flex-direction: column; gap: 2px; }

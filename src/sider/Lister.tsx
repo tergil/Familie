@@ -660,6 +660,15 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
     }
   }
   const settStatus = (p: Punkt, status: string) => lagre(p, medStatus(p, type, status, idag));
+
+  // Nullstill: gjenbruk listen (f.eks. pakkelisten før neste tur) i stedet for å kopiere den
+  const tilbakestill = nullstill(mine, type);
+  const kanNullstille = type === 'sjekk' && tilbakestill.length > 0;
+  function nullstillListe() {
+    const foer = mine.filter((p) => tilbakestill.some((t) => t.id === p.id));
+    void listeLager.lagrePunkter(tilbakestill);
+    visToast({ tekst: `Nullstilte ${tilbakestill.length} punkter`, angre: () => { void listeLager.lagrePunkter(foer); visToast(null); } });
+  }
   const aapne = (p: Punkt) => setRedigerer({ punkt: p, ny: false });
 
   // Mulige hovedpunkter: punkter på toppnivå
@@ -801,7 +810,12 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
     innhold = (
       <>
         <div className="liste">{aapne_.map(({ punkt, barn }) => rad(punkt, barn))}</div>
-        {aapne_.length === 0 && ferdige.length > 0 && <p className="dempet" style={{ padding: '12px 4px' }}>Alt er gjort! 🎉</p>}
+        {aapne_.length === 0 && ferdige.length > 0 && (
+          <div className="alt-gjort">
+            <span><strong>Alt er gjort! 🎉</strong><span className="dempet liten">Skal listen brukes igjen? Nullstill den i stedet for å lage en ny.</span></span>
+            {kanNullstille && <button className="knapp primar liten" onClick={nullstillListe}><Ikon navn="revisjon" storrelse={16} />Nullstill til neste gang</button>}
+          </div>
+        )}
         {ferdige.length > 0 && (
           <>
             <div className="seksjon">
@@ -1103,11 +1117,14 @@ function ValgArk({ liste, punkter, lukk, endre, gaaTil }: { liste: Liste; punkte
     }
   }
 
-  const valg: { ikon: string; tekst: string; info: string; gjor: () => void; fare?: boolean; skjul?: boolean }[] = [
+  const valg: { ikon: string; tekst: string; info: string; gjor: () => void; fare?: boolean; skjul?: boolean; av?: boolean }[] = [
     { ikon: 'rediger', tekst: 'Endre liste', info: 'Navn, ikon, kategori, privat og budsjettkobling', gjor: endre },
     {
-      ikon: 'revisjon', tekst: 'Nullstill', skjul: !tilbake.length || LISTETYPER[liste.type].statuser.length < 2,
-      info: `Setter ${tilbake.length} punkter tilbake til «${forste}» – f.eks. pakkelisten før neste tur`,
+      // Alltid synlig (når listetypen har status), nedtonet når ingenting er krysset av
+      ikon: 'revisjon', tekst: 'Nullstill', skjul: LISTETYPER[liste.type].statuser.length < 2, av: !tilbake.length,
+      info: tilbake.length
+        ? `Setter ${tilbake.length} punkter tilbake til «${forste}» – f.eks. pakkelisten før neste tur. Kan angres.`
+        : `Ingenting å nullstille – alle punktene står allerede som «${forste}»`,
       gjor: () => {
         const foer = punkter.filter((p) => tilbake.some((t) => t.id === p.id));
         void listeLager.lagrePunkter(tilbake);
@@ -1127,7 +1144,7 @@ function ValgArk({ liste, punkter, lukk, endre, gaaTil }: { liste: Liste; punkte
     <Ark tittel={liste.navn} lukk={lukk}>
       <div className="liste">
         {valg.filter((v) => !v.skjul).map((v) => (
-          <button key={v.tekst} className="rad" onClick={v.gjor}>
+          <button key={v.tekst} className="rad" onClick={v.gjor} disabled={v.av}>
             <Ikon navn={v.ikon} />
             <span className="hoved"><span className="navn">{v.tekst}</span><span className="info" style={{ whiteSpace: 'normal' }}>{v.info}</span></span>
           </button>
