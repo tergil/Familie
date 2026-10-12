@@ -17,6 +17,9 @@ Personlige arbeidsinstrukser ligger i `~/.claude/CLAUDE.md`. Denne fila handler 
   kalender), underpunkter (ett nivå), private lister, maler, adventskalender (24 luker eller søndager + egne dager),
   gavehistorikk, hagesesong per måned og huskelapp med frister (også på Oversikt). En liste kan kobles til en budsjettpost
   (sammenlignes med årsbeløpet) eller et sparemål. «Kjøpt» på et punkt med beløp tilbyr «Før utgift».
+  Punkter kan dras i ny rekkefølge (håndtaket ⋮⋮, innenfor samme nivå) og ha bilder/PDF som vedlegg.
+- **Deling** (Valg → Del liste): som tekst (øyeblikksbilde) eller lenke `#/delt/<nøkkel>` som vises uten innlogging
+  (`sider/Delt.tsx`). Bare det som ikke er kjøpt/gjort deles, og aldri vedlegg.
 - Status: POC i grenen `poc`.
 
 ## Kommandoer
@@ -47,7 +50,7 @@ npm run ikoner       # lager app-ikonene i public/ fra SVG-en i scripts/lag-ikon
 | `src/stil/` | `tokens.css` (farger, avstander – lys/mørk) og `app.css` |
 | `supabase/skjema.sql` | Budsjettdokumentene + RLS-regler. Kjøres i Supabase SQL Editor |
 | `supabase/oppfolging.sql` | Tabellene `utgift` og `saldo` (egne rader, `eier` null = felles) |
-| `supabase/lister.sql` | Tabellene `liste` (`eier` null = felles) og `listepunkt` (arver synlighet fra listen) |
+| `supabase/lister.sql` | Tabellene `liste` (`eier` null = felles) og `listepunkt` (arver synlighet fra listen), funksjonen `hent_delt_liste` (delingslenker) og Storage-bøtta `vedlegg` |
 | `scripts/` | Tester, Excel-import, datasjekk |
 | `Data/` | **Private regneark og importfiler. ALDRI i Git.** |
 
@@ -88,6 +91,10 @@ npm run ikoner       # lager app-ikonene i public/ fra SVG-en i scripts/lag-ikon
 - Kontonumre lagres maskert (`1234 xx xx567`) – `maskerKontonr` i `skjemaer.tsx`.
 - GitHub Pages krever offentlig repo på gratis GitHub-konto. `vite.config.ts` har `base: '/Familie/'` –
   må endres hvis repoet får nytt navn.
+- **Delingslenker** går forbi innloggingen via `hent_delt_liste` (security definer). Funksjonen skal bare returnere
+  felt som er ment for deling – legg aldri til vedlegg, mottaker eller budsjettkobling der.
+- **Vedlegg** ligger i Storage-bøtta `vedlegg` under `<liste-id>/<punkt-id>/`. Tilgangen følger listen. Sletter man et
+  punkt eller en liste, blir filene liggende (så «Angre» virker) – de er da utilgjengelige, men tar plass.
 - `crypto.randomUUID` finnes bare på https/localhost – bruk alltid `nyId()` fra `modell.ts`.
 - Headless Edge kan ikke lage vinduer smalere enn ~500 px. Mobil-skjermbilder: iframe-siden må serveres fra samme
   adresse som appen (ikke `file://` – da henger appen på lasteikonet), eller bruk CDP `Emulation.setDeviceMetricsOverride`.

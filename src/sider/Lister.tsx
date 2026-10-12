@@ -1,15 +1,18 @@
 // Huskelister: oversikt over listene, én liste, skjemaer, huskelapp (også på Oversikt) og hagesesong.
 // Data ligger i egne tabeller (se supabase/lister.sql) og håndteres av data/lister.ts.
-import { useState, type FormEvent, type ReactNode } from 'react';
-import type { FellesDok, Konto, Liste, ListeType, Post, PrivatDok, Punkt } from '../data/modell';
+import { useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import type { FellesDok, Konto, Liste, ListeType, Post, PrivatDok, Punkt, Vedlegg } from '../data/modell';
 import { nyId } from '../data/modell';
 import { listeLager, useLister } from '../data/lister';
 import { useTilstand } from '../data/tilstand';
+import { lager } from '../data/lager';
+import { GODTATTE_TYPER, lastOppVedlegg, storrelseTekst, useVedleggUrl } from '../data/vedlegg';
 import { aktivRevisjon, iDag, postMnd, sum, tilMnd } from '../logikk/beregning';
 import {
   FORSLAG_DAGER, LISTETYPER, MALER, STANDARD_KATEGORIER, adventssondager, erBrukt, erFerdig, erGjort, fremdrift, gavehistorikk,
   hageIMaaned, huskelapp, kalenderAar, kalenderLuker, kopierPunkter, lagTre, listeSum, medStatus, nesteRekkefolge,
   nesteStatus, nullstill, nyttPunkt, punkterFraMal, statusTekst, tidligereGaver, tolkHurtig, dagerMellom,
+  delingsTekst, flyttEtSteg, nyRekkefolge, punkterForDeling,
   type EgenDag, type HageOppgave, type KalenderModus, type Mal,
 } from '../logikk/lister';
 import { Ark, BelopFelt, Felt, Ikon, MAANEDER_KORT, Segment, Tom, dagerTekst, kortDato, kr, ukedagDato } from '../ui/felles';
@@ -623,6 +626,7 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
   const [under, setUnder] = useState('');
   const [barnTekst, setBarnTekst] = useState<Record<string, string>>({});
   const [lukket, setLukketRaa] = useState(() => lesLukket(id));
+  const [deler, setDeler] = useState(false);
   const setLukket = (l: Set<string>) => { setLukketRaa(l); lagreLukket(id, l); };
   if (!lastet) return <Laster />;
   const liste = lister.find((l) => l.id === id);
@@ -703,7 +707,85 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
     setBarnTekst({ ...barnTekst, [f.id]: '' });
   }
 
-  const rad = (p: Punkt, barn: Punkt[]): ReactNode => {
+  /** Ny rekkefølge for søsken – bare punktene som faktisk flyttes, lagres */
+  const omorganiser = (ider: string[]) => { const endret = nyRekkefolge(mine, ider); if (endret.length) void listeLager.lagrePunkter(endret); };
+
+  /**
+   * Dra og slipp med håndtaket (⋮⋮). Flytter innenfor samme nivå: søsken er radene i samme beholder.
+   * Raden følger fingeren, de andre glir unna, og siden ruller når du nærmer deg kanten.
+   */
+  function startDra(e: ReactPointerEvent<HTMLElement>) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const el = e.currentTarget.closest<HTMLElement>('[data-dra-id]');
+    const sosken = el ? [...el.parentElement!.children].filter((c): c is HTMLElement => c instanceof HTMLElement && !!c.dataset.draId) : [];
+    if (!el || sosken.length < 2) return;
+    e.preventDefault();
+    const fra = sosken.indexOf(el);
+    const rects = sosken.map((x) => x.getBoundingClientRect());
+    const hoyde = rects[fra].height;
+    const startY = e.clientY;
+    const startRull = window.scrollY;
+    let sisteY = e.clientY;
+    let til = fra;
+    let ramme = 0;
+    el.classList.add('drar');
+    document.body.classList.add('drar-punkt');
+
+    const tegn = () => {
+      const dy = sisteY - startY + window.scrollY - startRull;
+      el.style.transform = `translateY(${dy}px)`;
+      const midt = rects[fra].top + hoyde / 2 + dy;
+      til = sosken.reduce((n, _, i) => (i !== fra && rects[i].top + rects[i].height / 2 < midt ? n + 1 : n), 0);
+      sosken.forEach((x, i) => {
+        if (i === fra) return;
+        const skift = fra < til && i > fra && i <= til ? -hoyde : fra > til && i < fra && i >= til ? hoyde : 0;
+        x.style.transform = skift ? `translateY(${skift}px)` : '';
+      });
+    };
+    const rull = () => {
+      // Bunnmenyen dekker de nederste 64 px på mobil
+      const topp = 90;
+      const bunn = window.innerHeight - 150;
+      if (sisteY < topp) window.scrollBy(0, -Math.ceil((topp - sisteY) / 5));
+      else if (sisteY > bunn) window.scrollBy(0, Math.ceil((sisteY - bunn) / 5));
+      tegn();
+      ramme = requestAnimationFrame(rull);
+    };
+    const flytt = (ev: PointerEvent) => { sisteY = ev.clientY; };
+    const slipp = () => {
+      cancelAnimationFrame(ramme);
+      window.removeEventListener('pointermove', flytt);
+      window.removeEventListener('pointerup', slipp);
+      window.removeEventListener('pointercancel', slipp);
+      document.body.classList.remove('drar-punkt');
+      if (til !== fra) {
+        const ider = sosken.map((x) => x.dataset.draId!);
+        const [flyttet] = ider.splice(fra, 1);
+        ider.splice(til, 0, flyttet);
+        omorganiser(ider);
+      }
+      requestAnimationFrame(() => { sosken.forEach((x) => { x.style.transform = ''; }); el.classList.remove('drar'); });
+    };
+    window.addEventListener('pointermove', flytt);
+    window.addEventListener('pointerup', slipp);
+    window.addEventListener('pointercancel', slipp);
+    ramme = requestAnimationFrame(rull);
+  }
+
+  /** Piltaster på håndtaket flytter ett steg (for tastatur og skjermleser) */
+  function tastFlytt(e: KeyboardEvent, pid: string, sosken: string[]) {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    omorganiser(flyttEtSteg(sosken, pid, e.key === 'ArrowUp' ? -1 : 1));
+  }
+
+  /** Radene i én beholder (samme nivå) */
+  const rader = (liste: { punkt: Punkt; barn: Punkt[] }[]) => {
+    const ider = liste.map((x) => x.punkt.id);
+    return liste.map(({ punkt, barn }) => rad(punkt, barn, ider));
+  };
+
+  const rad = (p: Punkt, barn: Punkt[], sosken: string[] = []): ReactNode => {
     const ferdig = erGjort(type, p, barn);
     const dager = p.dato ? dagerMellom(idag, p.dato) : null;
     // Nær frist vises i farge i infolinjen (plass til beløp og status på mobil)
@@ -717,6 +799,7 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
       p.dato && type !== 'kalender' && (ferdig || dager! > 14) ? kortDato(p.dato) : null,
       barn.length ? (medAvkryss(type) ? `${barn.filter((b) => erFerdig(type, b.status)).length} av ${barn.length} gjort` : `${barn.length} ${barn.length === 1 ? 'underpunkt' : 'underpunkter'}`) : null,
       p.lenke ? '🔗' : null,
+      p.vedlegg?.length ? `📎 ${p.vedlegg.length}` : null,
       p.notat,
     ].filter(Boolean);
     const aapen = !lukket.has(p.id);
@@ -740,22 +823,29 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
           {!medAvkryss(type) && info.statuser.length > 1 && <StatusKnapp type={type} status={p.status} endre={() => settStatus(p, nesteStatus(type, p.status))} />}
       </>
     );
+    const handtak = sosken.length > 1 && (
+      <button type="button" className="dra-handtak" aria-label={`Flytt «${p.tekst}». Dra, eller bruk piltastene.`}
+        onPointerDown={startDra} onKeyDown={(e) => tastFlytt(e, p.id, sosken)}>
+        <Ikon navn="grep" storrelse={18} />
+      </button>
+    );
     const ferdigKlasse = ferdig && medAvkryss(type) ? ' ferdig' : '';
-    if (!barn.length) return <div className={`punkt${ferdigKlasse}`} key={p.id}><div className="rad">{radInnhold}</div></div>;
+    if (!barn.length) return <div className={`punkt${ferdigKlasse}`} key={p.id} data-dra-id={p.id}><div className="rad">{radInnhold}{handtak}</div></div>;
 
     // Hovedpunkt: tonet topp med pil, underpunktene med innrykk og strek, og felt for nytt underpunkt nederst
     return (
-      <div className={`gruppe-punkt${ferdigKlasse}${aapen ? '' : ' lukket'}`} key={p.id}>
+      <div className={`gruppe-punkt${ferdigKlasse}${aapen ? '' : ' lukket'}`} key={p.id} data-dra-id={p.id}>
         <div className="rad gruppe-topp">
           {radInnhold}
           <button type="button" className="knapp flat ikon liten gruppe-pil" aria-expanded={aapen}
             aria-label={`${aapen ? 'Skjul' : 'Vis'} underpunktene i ${p.tekst}`} onClick={() => veksle(p.id)}>
             <Ikon navn="pilned" storrelse={18} />
           </button>
+          {handtak}
         </div>
         {aapen && (
           <div className="gruppe-barn">
-            {barn.map((b) => rad(b, []))}
+            {barn.map((b) => rad(b, [], barn.map((x) => x.id)))}
             <form className="legg-til-barn" onSubmit={(e) => leggTilBarn(e, p)}>
               <Ikon navn="pluss" storrelse={16} />
               <input value={barnTekst[p.id] ?? ''} onChange={(e) => setBarnTekst({ ...barnTekst, [p.id]: e.target.value })}
@@ -807,7 +897,7 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
         <section className="seksjon boks" key={m || '-'}>
           <SeksjonHode person tittel={m || 'Uten mottaker'} under={under}
             sum={sum(gaver.flatMap(({ punkt, barn }) => [punkt, ...barn]), (x) => x.belop ?? 0)} />
-          <div className="liste">{gaver.map(({ punkt, barn }) => rad(punkt, barn))}</div>
+          <div className="liste">{rader(gaver)}</div>
         </section>
       );
     });
@@ -816,7 +906,7 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
     const ferdige = tre.filter(({ punkt, barn }) => erGjort(type, punkt, barn));
     innhold = (
       <>
-        <div className="liste">{aapne_.map(({ punkt, barn }) => rad(punkt, barn))}</div>
+        <div className="liste">{rader(aapne_)}</div>
         {aapne_.length === 0 && ferdige.length > 0 && (
           <div className="alt-gjort">
             <span><strong>Alt er gjort! 🎉</strong><span className="dempet liten">Skal listen brukes igjen? Nullstill den i stedet for å lage en ny.</span></span>
@@ -829,7 +919,7 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
               <button className="seksjon-knapp" onClick={() => setVisFerdige(!visFerdige)} aria-expanded={visFerdige}>
                 <SeksjonHode tittel="Gjort" antall={ferdige.length}><Ikon navn={visFerdige ? 'pilned' : 'pilhoyre'} storrelse={16} /></SeksjonHode>
               </button>
-              {visFerdige && <div className="liste">{ferdige.map(({ punkt, barn }) => rad(punkt, barn))}</div>}
+              {visFerdige && <div className="liste">{rader(ferdige)}</div>}
             </div>
           </>
         )}
@@ -842,12 +932,12 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
       return (
         <div className="seksjon" key={s.id}>
           <SeksjonHode tittel={s.tekst} antall={her.length} sum={sum(her.flatMap(({ punkt, barn }) => [punkt, ...barn]), (x) => x.belop ?? 0)} />
-          <div className="liste">{her.map(({ punkt, barn }) => rad(punkt, barn))}</div>
+          <div className="liste">{rader(her)}</div>
         </div>
       );
     });
   } else {
-    innhold = <div className="liste">{tre.map(({ punkt, barn }) => rad(punkt, barn))}</div>;
+    innhold = <div className="liste">{rader(tre)}</div>;
   }
 
   const plassholder: Record<ListeType, string> = {
@@ -915,7 +1005,8 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
           forUtgift={(p) => { setRedigerer(null); setUtgift({ belop: p.belop ?? 0, notat: p.tekst, kategoriId: kobling?.type === 'post' ? kobling.post.kategoriId : undefined, privat: liste.privat }); }} />
       )}
       {endrer && <ListeSkjema liste={liste} lukk={() => setEndrer(false)} />}
-      {valg && <ValgArk liste={liste} punkter={mine} lukk={() => setValg(false)} endre={() => { setValg(false); setEndrer(true); }} gaaTil={gaaTil} />}
+      {valg && <ValgArk liste={liste} punkter={mine} lukk={() => setValg(false)} endre={() => { setValg(false); setEndrer(true); }} del={() => { setValg(false); setDeler(true); }} gaaTil={gaaTil} />}
+      {deler && <DelArk liste={liste} punkter={mine} lukk={() => setDeler(false)} />}
       {historikk && <GavehistorikkArk lukk={() => setHistorikk(false)} />}
       {utgift && <UtgiftSkjema forslag={utgift} privatStart={liste.privat} lukk={() => setUtgift(null)} />}
     </>
@@ -935,7 +1026,38 @@ function PunktArk({ liste, start, ny, alle, historikk, lagre, lukk, aapne, forUt
   const [p, setP] = useState<Punkt>(start);
   const [bekreft, setBekreft] = useState(false);
   const [nyttBarn, setNyttBarn] = useState('');
+  const [lasterOpp, setLasterOpp] = useState(false);
+  const [vedleggFeil, setVedleggFeil] = useState<string | null>(null);
+  const filvelger = useRef<HTMLInputElement>(null);
   const sett = (e: Partial<Punkt>) => setP({ ...p, ...e });
+
+  /** Vedlegg lagres med en gang (ikke først ved «Lagre»), så filene ikke blir liggende uten punkt */
+  async function leggTilFiler(filer: File[]) {
+    setLasterOpp(true);
+    setVedleggFeil(null);
+    const nye: Vedlegg[] = [];
+    try {
+      for (const fil of filer) nye.push(await lastOppVedlegg(liste.id, p.id, fil));
+    } catch (e) {
+      setVedleggFeil(e instanceof Error ? e.message : String((e as { message?: unknown })?.message ?? e));
+    }
+    if (nye.length) {
+      const vedlegg = [...(p.vedlegg ?? []), ...nye];
+      setP((x) => ({ ...x, vedlegg }));
+      const lagret = alle.find((x) => x.id === p.id) ?? start;
+      void listeLager.lagrePunkter([{ ...lagret, vedlegg }]);
+    }
+    setLasterOpp(false);
+  }
+
+  async function fjernVedlegg(v: Vedlegg) {
+    if (!confirm(`Slette «${v.navn}»? Dette kan ikke angres.`)) return;
+    const vedlegg = (p.vedlegg ?? []).filter((x) => x.id !== v.id);
+    setP((x) => ({ ...x, vedlegg }));
+    const lagret = alle.find((x) => x.id === p.id) ?? start;
+    void listeLager.lagrePunkter([{ ...lagret, vedlegg }]);
+    try { await lager.slettVedlegg([v.sti]); } catch (e) { console.error(e); }
+  }
   const barn = alle.filter((b) => b.forelderId === p.id).sort((a, b) => a.rekkefolge - b.rekkefolge);
   const mulige = alle.filter((x) => !x.forelderId && x.id !== p.id);
   const tidligere = type === 'gave' && p.mottaker ? tidligereGaver(historikk, p.mottaker, p.id) : [];
@@ -1039,6 +1161,25 @@ function PunktArk({ liste, start, ny, alle, historikk, lagre, lukk, aapne, forUt
 
         {type !== 'kalender' && <Felt etikett="Notat"><textarea value={p.notat} onChange={(e) => sett({ notat: e.target.value })} /></Felt>}
 
+        <div className="felt">
+          <span>Bilder og PDF</span>
+          {ny ? <small>Lagre punktet først, så kan du legge til bilder og PDF.</small> : (
+            <>
+              <div className="vedlegg-rutenett">
+                {(p.vedlegg ?? []).map((v) => <VedleggFlis key={v.id} v={v} fjern={() => void fjernVedlegg(v)} />)}
+                <button type="button" className="vedlegg-ny" onClick={() => filvelger.current?.click()} disabled={lasterOpp}>
+                  {lasterOpp ? <span className="spinner liten" aria-hidden="true" /> : <Ikon navn="binders" storrelse={22} />}
+                  <span>{lasterOpp ? 'Laster opp …' : 'Legg til'}</span>
+                </button>
+              </div>
+              <input ref={filvelger} type="file" accept={GODTATTE_TYPER} multiple hidden
+                onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ''; if (f.length) void leggTilFiler(f); }} />
+              <small>Bilder gjøres mindre før opplasting. PDF maks 10 MB.{liste.privat ? ' Følger listen – bare du ser dem.' : ''}</small>
+              {vedleggFeil && <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Kunne ikke laste opp.</strong><p className="liten">{vedleggFeil}</p></div></div>}
+            </>
+          )}
+        </div>
+
         {type !== 'kalender' && barn.length === 0 && mulige.length > 0 && (
           <Felt etikett="Underpunkt av">
             <select value={p.forelderId ?? ''} onChange={(e) => sett({ forelderId: e.target.value || null })}>
@@ -1105,7 +1246,7 @@ function flyttAar(p: Punkt, aar: number): Punkt {
   return { ...p, dato: sondag ? adventssondager(nyttAar)[Number(sondag[1]) - 1] : `${nyttAar}${p.dato.slice(4)}` };
 }
 
-function ValgArk({ liste, punkter, lukk, endre, gaaTil }: { liste: Liste; punkter: Punkt[]; lukk: () => void; endre: () => void; gaaTil: (r: string) => void }) {
+function ValgArk({ liste, punkter, lukk, endre, del, gaaTil }: { liste: Liste; punkter: Punkt[]; lukk: () => void; endre: () => void; del: () => void; gaaTil: (r: string) => void }) {
   const { lister } = useLister();
   const { visToast } = useTilstand();
   const [bekreft, setBekreft] = useState(false);
@@ -1126,6 +1267,7 @@ function ValgArk({ liste, punkter, lukk, endre, gaaTil }: { liste: Liste; punkte
 
   const valg: { ikon: string; tekst: string; info: string; gjor: () => void; fare?: boolean; skjul?: boolean; av?: boolean }[] = [
     { ikon: 'rediger', tekst: 'Endre liste', info: 'Navn, ikon, kategori, privat og budsjettkobling', gjor: endre },
+    { ikon: 'del', tekst: 'Del liste', skjul: liste.mal, info: liste.deling ? 'Delingslenken er på. Del som tekst eller lenke.' : 'Med familie og venner – som tekst eller lenke', gjor: del },
     {
       // Alltid synlig (når listetypen har status), nedtonet når ingenting er krysset av
       ikon: 'revisjon', tekst: 'Nullstill', skjul: LISTETYPER[liste.type].statuser.length < 2, av: !tilbake.length,
@@ -1194,6 +1336,78 @@ function GavehistorikkArk({ lukk }: { lukk: () => void }) {
           </div>
         </div>
       ))}
+    </Ark>
+  );
+}
+
+// ---------------------------------------------------------------- Vedlegg
+
+function VedleggFlis({ v, fjern }: { v: Vedlegg; fjern: () => void }) {
+  const { url, feil } = useVedleggUrl(v.sti);
+  const bilde = v.type.startsWith('image/');
+  return (
+    <div className="vedlegg-flis">
+      <a href={url ?? undefined} target="_blank" rel="noreferrer" aria-label={`Åpne ${v.navn}`} className={bilde && url ? 'bilde' : 'fil'}>
+        {bilde && url ? <img src={url} alt={v.navn} loading="lazy" />
+          : <><Ikon navn={feil ? 'advarsel' : 'dokument'} storrelse={26} /><span className="filnavn">{v.navn}</span><span className="dempet">{storrelseTekst(v.storrelse)}</span></>}
+      </a>
+      <button type="button" className="fjern" onClick={fjern} aria-label={`Slett ${v.navn}`}><Ikon navn="lukk" storrelse={14} /></button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- Deling
+
+/** Del listen som tekst (øyeblikksbilde) eller som lenke (alltid oppdatert, bare lesetilgang) */
+function DelArk({ liste, punkter, lukk }: { liste: Liste; punkter: Punkt[]; lukk: () => void }) {
+  const { visToast } = useTilstand();
+  const tekst = delingsTekst(liste, punkter);
+  const antall = punkterForDeling(liste.type, punkter).length;
+  const url = liste.deling ? `${location.origin}${location.pathname}#/delt/${liste.deling}` : null;
+  const kanDele = typeof navigator.share === 'function';
+
+  async function del(data: { title: string; text?: string; url?: string }, kopi: string) {
+    try {
+      if (kanDele) await navigator.share(data);
+      else { await navigator.clipboard.writeText(kopi); visToast({ tekst: 'Kopiert' }); }
+    } catch (e) {
+      // Avbrutt deling er ikke en feil
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      try { await navigator.clipboard.writeText(kopi); visToast({ tekst: 'Kopiert' }); } catch { visToast({ tekst: 'Kunne ikke dele eller kopiere' }); }
+    }
+  }
+
+  return (
+    <Ark tittel={`Del «${liste.navn}»`} lukk={lukk}>
+      <div className="skjema">
+        <p className="dempet liten">Bare det som ikke er kjøpt eller gjort, deles ({antall} {antall === 1 ? 'punkt' : 'punkter'}).
+          Bilder og vedlegg deles ikke.</p>
+        {liste.type === 'gave' && <div className="banner varsel"><Ikon navn="gave" /><div>Gavelister inneholder ofte overraskelser. Sjekk hvem som får se den.</div></div>}
+
+        <section className="del-valg">
+          <div className="tittel"><h3>Som tekst</h3><span className="dempet liten">Til Messenger, SMS eller e-post. Et øyeblikksbilde – oppdateres ikke.</span></div>
+          <pre className="del-tekst">{tekst}</pre>
+          <button className="knapp" onClick={() => void del({ title: liste.navn, text: tekst }, tekst)}>
+            <Ikon navn={kanDele ? 'del' : 'kopi'} storrelse={18} />{kanDele ? 'Del som tekst' : 'Kopier tekst'}
+          </button>
+        </section>
+
+        <section className="del-valg">
+          <div className="tittel"><h3>Som lenke</h3><span className="dempet liten">Viser alltid den nyeste versjonen. Alle med lenken kan se listen uten å logge inn – men ikke endre den.</span></div>
+          {url ? (
+            <>
+              <input className="del-lenke" readOnly value={url} onFocus={(e) => e.target.select()} aria-label="Delingslenke" />
+              <div className="knapperad">
+                <button className="knapp primar" onClick={() => void del({ title: liste.navn, url }, url)}><Ikon navn={kanDele ? 'del' : 'kopi'} storrelse={18} />{kanDele ? 'Del lenken' : 'Kopier lenken'}</button>
+                <button className="knapp flat fare" onClick={() => { void listeLager.lagreListe({ ...liste, deling: null }); visToast({ tekst: 'Lenken er slått av' }); }}>Slå av lenken</button>
+              </div>
+              {liste.privat && <p className="dempet liten">Listen er privat i appen, men alle med lenken kan se den.</p>}
+            </>
+          ) : (
+            <button className="knapp primar" onClick={() => void listeLager.lagreListe({ ...liste, deling: nyId() })}><Ikon navn="lenke" storrelse={18} />Lag delingslenke</button>
+          )}
+        </section>
+      </div>
     </Ark>
   );
 }

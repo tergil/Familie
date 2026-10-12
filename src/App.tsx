@@ -7,6 +7,7 @@ import { Oversikt } from './sider/Oversikt';
 import { Budsjett } from './sider/Budsjett';
 import { NyPrivatRevisjon, PrivatBudsjett, PrivatOversikt } from './sider/Privat';
 import { Lister } from './sider/Lister';
+import { DeltSide } from './sider/Delt';
 import { useLister } from './data/lister';
 import { Sparing } from './sider/Sparing';
 import { Revisjoner } from './sider/Revisjoner';
@@ -77,7 +78,20 @@ function Innlogging({ feil }: { feil: string | null }) {
   );
 }
 
+const deltNokkel = () => location.hash.match(/^#\/delt\/([\w-]+)/)?.[1];
+
 export function App() {
+  // Delte lister (#/delt/<nøkkel>) vises uten innlogging – også når lenken åpnes i en fane der appen er åpen
+  const [delt, setDelt] = useState(deltNokkel);
+  useEffect(() => {
+    const f = () => setDelt(deltNokkel());
+    window.addEventListener('hashchange', f);
+    return () => window.removeEventListener('hashchange', f);
+  }, []);
+  return delt ? <DeltSide key={delt} nokkel={delt} /> : <MedInnlogging />;
+}
+
+function MedInnlogging() {
   const [bruker, setBruker] = useState<Bruker | null | undefined>(undefined);
   const [feil, setFeil] = useState<string | null>(null);
 

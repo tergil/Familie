@@ -199,6 +199,8 @@ export interface Liste {
   /** Kobling til budsjettet: en post (sammenlignes med årsbeløpet) eller en sparekonto med mål */
   postId?: Id;
   kontoId?: Id;
+  /** Hemmelig nøkkel for delingslenken (#/delt/<nøkkel>). null/mangler = ikke delt. */
+  deling?: string | null;
   rekkefolge: number;
   opprettet: string; // ÅÅÅÅ-MM-DD
 }
@@ -229,4 +231,25 @@ export interface Punkt {
   ferdigDato?: string;
   /** Hage: sist stelt */
   sistGjort?: string;
+  /** Bilder og PDF i Supabase Storage (bøtta «vedlegg») */
+  vedlegg?: Vedlegg[];
+}
+
+export interface Vedlegg {
+  id: Id;
+  /** Opprinnelig filnavn */
+  navn: string;
+  /** MIME-type, f.eks. image/jpeg eller application/pdf */
+  type: string;
+  /** Sti i bøtta: <listeId>/<punktId>/<vedleggId>.<endelse> */
+  sti: string;
+  storrelse: number;
+}
+
+/** Det en delingslenke viser – uten innlogging */
+export interface DeltListe {
+  navn: string;
+  ikon: string;
+  type: ListeType;
+  punkter: Punkt[];
 }

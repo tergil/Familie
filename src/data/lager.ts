@@ -1,6 +1,6 @@
 // Lagring: Supabase når VITE_SUPABASE_URL er satt, ellers lokal demomodus i nettleseren.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { FellesDok, Liste, Punkt, PrivatDok, Saldo, Utgift } from './modell';
+import type { DeltListe, FellesDok, Liste, Punkt, PrivatDok, Saldo, Utgift } from './modell';
 import { tomtPrivatDok } from './modell';
 import { demoFelles, demoLister, demoOppfolging, demoPrivat } from './demo';
 
@@ -60,6 +60,14 @@ export interface Lager {
   lagrePunkter(p: Punkt[]): Promise<void>;
   /** Sletter punktene og underpunktene deres */
   slettPunkter(ider: string[]): Promise<void>;
+  /** Delt liste via lenke – virker uten innlogging. null = lenken finnes ikke (eller er slått av). */
+  hentDeltListe(nokkel: string): Promise<DeltListe | null>;
+
+  // Vedlegg (bilder og PDF) – Supabase Storage, samme tilgang som listen
+  lastOppVedlegg(sti: string, fil: Blob, type: string): Promise<void>;
+  /** Midlertidig adresse til filen (gyldig en time) */
+  vedleggUrl(sti: string): Promise<string>;
+  slettVedlegg(stier: string[]): Promise<void>;
 }
 
 /** Varsler sider som viser utgifter/saldoer om at noe er endret */
@@ -240,6 +248,37 @@ class LokaltLager implements Lager {
   async slettPunkter(ider: string[]) {
     const borte = new Set(ider);
     skriv('listepunkter', this.alleLister().punkter.filter((p) => !borte.has(p.id) && !borte.has(p.forelderId ?? '')));
+  }
+
+  // Demomodus: delingslenken virker bare i denne nettleseren
+  async hentDeltListe(nokkel: string) {
+    const { lister, punkter } = this.alleLister();
+    const l = lister.find((x) => x.deling && x.deling === nokkel);
+    return l ? { navn: l.navn, ikon: l.ikon, type: l.type, punkter: punkter.filter((p) => p.listeId === l.id) } : null;
+  }
+
+  // Demomodus: vedlegg lagres som data-URL i nettleseren (bilder er forminsket før opplasting)
+  async lastOppVedlegg(sti: string, fil: Blob) {
+    const url = await new Promise<string>((ok, feil) => {
+      const r = new FileReader();
+      r.onload = () => ok(String(r.result));
+      r.onerror = () => feil(r.error);
+      r.readAsDataURL(fil);
+    });
+    skriv(`vedlegg.${sti}`, url);
+  }
+
+  async vedleggUrl(sti: string) {
+    const url = les<string>(`vedlegg.${sti}`);
+    if (!url) throw new Error('Fant ikke vedlegget');
+    return url;
+  }
+
+  async slettVedlegg(stier: string[]) {
+    for (const sti of stier) {
+      minne.delete(`vedlegg.${sti}`);
+      try { localStorage.removeItem(`${LOKAL}.vedlegg.${sti}`); } catch { /* ignorer */ }
+    }
   }
 }
 
@@ -426,6 +465,38 @@ class SupabaseLager implements Lager {
   async slettPunkter(ider: string[]) {
     if (!ider.length) return;
     const { error } = await this.db.from('listepunkt').delete().in('id', ider);
+    if (error) throw error;
+  }
+
+  /** Funksjonen hent_delt_liste (supabase/lister.sql) slipper til uten innlogging, men bare med riktig nøkkel */
+  async hentDeltListe(nokkel: string): Promise<DeltListe | null> {
+    const { data, error } = await this.db.rpc('hent_delt_liste', { nokkel });
+    if (error) throw error;
+    if (!data) return null;
+    const d = data as { navn: string; ikon: string; type: DeltListe['type']; punkter: { id: string; forelder_id: string | null; tekst: string; notat: string; status: string; belop: number | null; rekkefolge: number; lenke: string | null }[] };
+    return {
+      navn: d.navn, ikon: d.ikon, type: d.type,
+      punkter: d.punkter.map((r) => ({
+        id: r.id, listeId: '', forelderId: r.forelder_id, tekst: r.tekst, notat: r.notat ?? '', status: r.status,
+        belop: r.belop === null ? null : Number(r.belop), dato: null, rekkefolge: Number(r.rekkefolge), lenke: r.lenke ?? undefined,
+      })),
+    };
+  }
+
+  async lastOppVedlegg(sti: string, fil: Blob, type: string) {
+    const { error } = await this.db.storage.from('vedlegg').upload(sti, fil, { contentType: type, upsert: false });
+    if (error) throw error;
+  }
+
+  async vedleggUrl(sti: string) {
+    const { data, error } = await this.db.storage.from('vedlegg').createSignedUrl(sti, 3600);
+    if (error) throw error;
+    return data.signedUrl;
+  }
+
+  async slettVedlegg(stier: string[]) {
+    if (!stier.length) return;
+    const { error } = await this.db.storage.from('vedlegg').remove(stier);
     if (error) throw error;
   }
 }

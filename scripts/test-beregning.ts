@@ -4,7 +4,7 @@ import { fellesFlyt, privatFlyt } from '../src/logikk/flyt';
 import { demoFelles, demoLister, demoPrivat } from '../src/data/demo';
 import { andelGaatt, avstem, dagerIMaaned, flyttMaaned, kategoriStatus, kontoPlan, kontoerFor, muligeDubletter, revisjonForMaaned } from '../src/logikk/oppfolging';
 import {
-  MALER, adventssondager, erFerdig, erGjort, fremdrift, gavehistorikk, hageIMaaned, huskelapp, kalenderAar, kalenderLuker, kopierPunkter, lagTre, listeSum,
+  MALER, adventssondager, delingsTekst, erFerdig, erGjort, flyttEtSteg, fremdrift, gavehistorikk, nyRekkefolge, punkterForDeling, hageIMaaned, huskelapp, kalenderAar, kalenderLuker, kopierPunkter, lagTre, listeSum,
   medStatus, nesteStatus, nullstill, punkterFraMal, tidligereGaver, tolkHurtig,
 } from '../src/logikk/lister';
 import type { Post, Punkt, Saldo, Utgift } from '../src/data/modell';
@@ -201,6 +201,25 @@ sjekk('hovedpunkt gjort når alle underpunktene er gjort', erGjort('sjekk', klae
 sjekk('hovedpunkt ikke gjort når ett underpunkt mangler', erGjort('sjekk', klaer, [ting[0], { ...ting[1], status: 'apen' }]), false);
 sjekk('punkt uten underpunkter følger egen status', erGjort('sjekk', klaer, []), false);
 sjekk('fremdrift teller ikke overskrifter', fremdrift('sjekk', [klaer, ...ting, lp('mat', { status: 'apen' })]), { ferdig: 2, totalt: 3 });
+// Dra og slipp: gjenbruker rekkefølgetallene, bare flyttede lagres
+const r = [lp('a', { rekkefolge: 2 }), lp('b', { rekkefolge: 5 }), lp('c', { rekkefolge: 9 })];
+sjekk('flytt c øverst', nyRekkefolge(r, ['c', 'a', 'b']).map((p) => [p.id, p.rekkefolge]), [['c', 2], ['a', 5], ['b', 9]]);
+sjekk('uendret rekkefølge lagrer ingenting', nyRekkefolge(r, ['a', 'b', 'c']).length, 0);
+sjekk('like tall gjøres unike', nyRekkefolge([lp('x', { rekkefolge: 1 }), lp('y', { rekkefolge: 1 })], ['y', 'x']).map((p) => p.id), ['x']);
+sjekk('ett steg opp', flyttEtSteg(['a', 'b', 'c'], 'b', -1), ['b', 'a', 'c']);
+sjekk('ikke forbi toppen', flyttEtSteg(['a', 'b'], 'a', -1), ['a', 'b']);
+
+// Deling: bare det som ikke er kjøpt, med pris, notat, lenke og underpunkter
+const onsker = [
+  lp('sofa', { tekst: 'Ny sofa', status: 'onske', belop: 14000, lenke: 'https://example.com/sofa', rekkefolge: 1 }),
+  lp('kjopt', { tekst: 'Utemøbler', status: 'kjopt', belop: 9000, rekkefolge: 2 }),
+  lp('strikk', { tekst: 'Strikk', status: 'onske', rekkefolge: 3 }),
+  lp('genser', { tekst: 'Genser', status: 'onske', forelderId: 'strikk', notat: 'Str. M', rekkefolge: 4 }),
+];
+sjekk('deling: kjøpte er ikke med', punkterForDeling('onske', onsker).map((p) => p.id), ['sofa', 'strikk', 'genser']);
+sjekk('delingstekst', delingsTekst({ navn: 'Ønsker', ikon: '🏠', type: 'onske' }, onsker).replace(/ /g, ' '),
+  '🏠 Ønsker\n\n• Ny sofa – 14 000 kr\n  https://example.com/sofa\n• Strikk\n   – Genser\n     Str. M');
+sjekk('delingstekst tom liste', delingsTekst({ navn: 'Tom', ikon: '', type: 'sjekk' }, []), 'Tom\n\n(Ingenting på listen akkurat nå)');
 sjekk('hurtig gave med mottaker', tolkHurtig('gave', 'Mamma: skjerf'), { mottaker: 'Mamma', tekst: 'skjerf' });
 sjekk('hurtig uten kolon i andre lister', tolkHurtig('sjekk', ' Kjøpe melk: lett '), { tekst: 'Kjøpe melk: lett' });
 

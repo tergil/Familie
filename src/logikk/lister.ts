@@ -413,3 +413,57 @@ export function tidligereGaver(historikk: Mottaker[], mottaker: string, unnta?: 
   if (!nokkel) return [];
   return historikk.find((m) => m.navn.toLocaleLowerCase('nb') === nokkel)?.gaver.filter((g) => g.punkt.id !== unnta) ?? [];
 }
+
+// ---------------------------------------------------------------- Rekkefølge (dra og slipp)
+
+/**
+ * Punktene som må lagres når søsken får ny rekkefølge (ider i ny rekkefølge).
+ * Gjenbruker de samme rekkefølgetallene, så punkter i andre grupper ikke påvirkes.
+ */
+export function nyRekkefolge(punkter: Punkt[], ider: string[]): Punkt[] {
+  const valgte = ider.map((id) => punkter.find((p) => p.id === id)).filter((p): p is Punkt => !!p);
+  const tall = valgte.map((p) => p.rekkefolge).sort((a, b) => a - b);
+  // Like tall (f.eks. etter import) gjøres unike
+  for (let i = 1; i < tall.length; i++) if (tall[i] <= tall[i - 1]) tall[i] = tall[i - 1] + 0.001;
+  return valgte.map((p, i) => ({ ...p, rekkefolge: tall[i] })).filter((p, i) => p.rekkefolge !== valgte[i].rekkefolge);
+}
+
+/** Flytter ett steg opp (-1) eller ned (1) – for tastatur */
+export function flyttEtSteg(ider: string[], id: string, retning: -1 | 1): string[] {
+  const i = ider.indexOf(id);
+  const j = i + retning;
+  if (i < 0 || j < 0 || j >= ider.length) return ider;
+  const ut = [...ider];
+  [ut[i], ut[j]] = [ut[j], ut[i]];
+  return ut;
+}
+
+// ---------------------------------------------------------------- Deling
+
+/** Det som deles: bare punkter som ikke er kjøpt eller gjort (og underpunkter av slike) */
+export function punkterForDeling(type: ListeType, punkter: Punkt[]): Punkt[] {
+  const aktive = (p: Punkt) => !erFerdig(type, p.status) && !erBrukt(type, p.status);
+  const foreldre = new Set(punkter.filter((p) => !p.forelderId && aktive(p)).map((p) => p.id));
+  return punkter.filter((p) => aktive(p) && (!p.forelderId || foreldre.has(p.forelderId)));
+}
+
+const krTekst = (n: number) => `${new Intl.NumberFormat('nb-NO', { maximumFractionDigits: 0 }).format(Math.round(n))} kr`;
+
+/** Listen som ren tekst, klar til å lime inn i Messenger, SMS eller e-post */
+export function delingsTekst(liste: Pick<Liste, 'navn' | 'ikon' | 'type'>, punkter: Punkt[]): string {
+  const linjer = [`${liste.ikon} ${liste.navn}`.trim(), ''];
+  const ekstra = (p: Punkt, innrykk: string) => {
+    if (p.notat) linjer.push(`${innrykk}${p.notat}`);
+    if (p.lenke) linjer.push(`${innrykk}${p.lenke}`);
+  };
+  for (const { punkt, barn } of lagTre(punkterForDeling(liste.type, punkter), liste.type)) {
+    linjer.push(`• ${punkt.tekst}${punkt.belop ? ` – ${krTekst(punkt.belop)}` : ''}`);
+    ekstra(punkt, '  ');
+    for (const b of barn) {
+      linjer.push(`   – ${b.tekst}${b.belop ? ` – ${krTekst(b.belop)}` : ''}`);
+      ekstra(b, '     ');
+    }
+  }
+  if (linjer.length === 2) linjer.push('(Ingenting på listen akkurat nå)');
+  return linjer.join('\n');
+}

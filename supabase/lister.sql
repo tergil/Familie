@@ -72,3 +72,54 @@ create policy "slett punkt" on public.listepunkt for delete to authenticated
 
 revoke all on public.liste, public.listepunkt from anon, authenticated;
 grant select, insert, update, delete on public.liste, public.listepunkt to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Deling via lenke (#/delt/<nøkkel>): leses uten innlogging, men bare med riktig nøkkel.
+-- Nøkkelen ligger i liste.ekstra->>'deling' (tilfeldig uuid). Slås av ved å fjerne den i appen.
+-- Gir bare det som trengs for visningen: navn, tekst, notat, pris, lenke og status. Ingen vedlegg.
+-- ---------------------------------------------------------------------------
+create or replace function public.hent_delt_liste(nokkel text)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select jsonb_build_object(
+    'navn', l.navn, 'ikon', l.ikon, 'type', l.type,
+    'punkter', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', p.id, 'forelder_id', p.forelder_id, 'tekst', p.tekst, 'notat', p.notat,
+        'status', p.status, 'belop', p.belop, 'rekkefolge', p.rekkefolge, 'lenke', p.ekstra ->> 'lenke'
+      ) order by p.rekkefolge)
+      from public.listepunkt p where p.liste_id = l.id
+    ), '[]'::jsonb)
+  )
+  from public.liste l
+  where length(nokkel) >= 32 and l.mal = false and l.ekstra ->> 'deling' = nokkel
+  limit 1;
+$$;
+revoke all on function public.hent_delt_liste(text) from public;
+grant execute on function public.hent_delt_liste(text) to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Vedlegg (bilder og PDF): privat bøtte i Supabase Storage.
+-- Sti: <liste-id>/<punkt-id>/<fil>. Tilgang hvis du ser listen – private lister gir private vedlegg.
+-- ---------------------------------------------------------------------------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('vedlegg', 'vedlegg', false, 10485760,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'application/pdf'])
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "vedlegg les" on storage.objects;
+create policy "vedlegg les" on storage.objects for select to authenticated
+  using (bucket_id = 'vedlegg' and public.er_medlem()
+    and exists (select 1 from public.liste l where l.id::text = (storage.foldername(name))[1]));
+drop policy if exists "vedlegg ny" on storage.objects;
+create policy "vedlegg ny" on storage.objects for insert to authenticated
+  with check (bucket_id = 'vedlegg' and public.er_medlem()
+    and exists (select 1 from public.liste l where l.id::text = (storage.foldername(name))[1]));
+drop policy if exists "vedlegg slett" on storage.objects;
+create policy "vedlegg slett" on storage.objects for delete to authenticated
+  using (bucket_id = 'vedlegg' and public.er_medlem()
+    and exists (select 1 from public.liste l where l.id::text = (storage.foldername(name))[1]));

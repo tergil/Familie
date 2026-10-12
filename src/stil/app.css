@@ -601,3 +601,68 @@ input.bryter:checked::after { transform: translateX(18px); }
   margin: var(--a2) 0; padding: var(--a3) var(--a4); border-radius: 12px; background: var(--bra-myk);
 }
 .alt-gjort > span { display: flex; flex-direction: column; gap: 2px; }
+
+/* ---------------------------------------------------------------- Dra og slipp */
+
+.dra-handtak {
+  flex: none; width: 36px; height: 44px; margin-right: -6px; padding: 0; border: 0; border-radius: 8px;
+  background: none; color: var(--linje-sterk); display: grid; place-items: center;
+  cursor: grab; touch-action: none; /* hindrer at siden ruller når du drar i håndtaket */
+}
+.dra-handtak:hover, .dra-handtak:focus-visible { color: var(--dempet); background: var(--flate-2); }
+body.drar-punkt { user-select: none; -webkit-user-select: none; cursor: grabbing; }
+body.drar-punkt [data-dra-id] { transition: transform .15s ease; }
+[data-dra-id].drar {
+  position: relative; z-index: 5; transition: none !important;
+  background: var(--flate); border-radius: 10px; box-shadow: var(--skygge-hoy);
+}
+[data-dra-id].drar .dra-handtak { color: var(--aksent); cursor: grabbing; }
+
+/* ---------------------------------------------------------------- Vedlegg */
+
+.vedlegg-rutenett { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: var(--a2); }
+.vedlegg-flis { position: relative; aspect-ratio: 1; }
+.vedlegg-flis > a {
+  width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  border-radius: 12px; border: 1px solid var(--linje); background: var(--flate-2); overflow: hidden;
+  color: var(--blekk-2); text-decoration: none; padding: var(--a2); text-align: center;
+}
+.vedlegg-flis > a.bilde { padding: 0; }
+.vedlegg-flis img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vedlegg-flis .filnavn { font-size: 11px; font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vedlegg-flis .dempet { font-size: 11px; }
+.vedlegg-flis .fjern {
+  position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; padding: 0; border-radius: 50%;
+  border: 0; background: rgb(30 20 12 / .6); color: #fff; display: grid; place-items: center;
+}
+.vedlegg-flis .fjern::before { content: ''; position: absolute; inset: -9px; } /* trykkflate */
+.vedlegg-ny {
+  aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  border-radius: 12px; border: 1.5px dashed var(--linje-sterk); background: none; color: var(--dempet); font-size: 13px; font-weight: 600;
+}
+.vedlegg-ny:hover { border-color: var(--aksent); color: var(--aksent); }
+.spinner.liten { width: 20px; height: 20px; border-width: 2px; }
+
+/* ---------------------------------------------------------------- Deling */
+
+.del-valg { display: flex; flex-direction: column; gap: var(--a3); padding-top: var(--a4); border-top: 1px solid var(--linje); }
+.del-valg .tittel { display: flex; flex-direction: column; gap: 2px; }
+.del-valg .knapp { align-self: flex-start; }
+.del-tekst {
+  margin: 0; max-height: 180px; overflow: auto; padding: var(--a3); border-radius: var(--radius-liten);
+  background: var(--flate-2); font-family: var(--font); font-size: 13px; line-height: 1.5; white-space: pre-wrap; color: var(--blekk-2);
+}
+.del-lenke {
+  min-height: 44px; padding: 0 var(--a3); border: 1px solid var(--linje-sterk); border-radius: var(--radius-liten);
+  background: var(--flate-2); font-size: 14px; color: var(--blekk-2); width: 100%;
+}
+
+/* Den delte siden (uten innlogging) */
+.delt { min-height: 100dvh; padding: var(--a5) var(--a4) var(--a7); }
+.delt-innhold { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--a4); }
+.delt-hode { display: flex; align-items: center; gap: var(--a3); }
+.delt-hode h1 { font-size: 26px; }
+.liste-ikon.stor { width: 56px; height: 56px; border-radius: 16px; font-size: 28px; }
+.delt-lenke { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: 13px; color: var(--aksent); text-decoration: none; }
+.delt-lenke:hover { text-decoration: underline; }
+.delt-fot { display: flex; align-items: center; justify-content: center; gap: 6px; }
