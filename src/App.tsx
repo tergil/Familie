@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { IkkeMedlemFeil, lager, type Bruker } from './data/lager';
 import { TilstandGiver, useTilstand, type LagreStatus } from './data/tilstand';
 import { Avatar, Ikon } from './ui/felles';
-import { RevisjonsVelger } from './ui/deler';
+import { RevisjonsVelger, VisningsBryter, type Visning } from './ui/deler';
 import { Oversikt } from './sider/Oversikt';
 import { Budsjett } from './sider/Budsjett';
-import { Privat } from './sider/Privat';
+import { NyPrivatRevisjon, PrivatBudsjett, PrivatOversikt } from './sider/Privat';
+import { Lister } from './sider/Lister';
+import { useLister } from './data/lister';
 import { Sparing } from './sider/Sparing';
 import { Revisjoner } from './sider/Revisjoner';
 import { Data, Kategorier, Kontoer, Mer, Personer } from './sider/Oppsett';
@@ -41,6 +43,18 @@ function useTema(): [Tema, () => void] {
     try { localStorage.setItem('familie.tema', tema); } catch { /* ignorer */ }
   }, [tema]);
   return [tema, () => setTema(tema === 'auto' ? 'lys' : tema === 'lys' ? 'mork' : 'auto')];
+}
+
+// ---------------------------------------------------------------- Felles eller privat (huskes mellom sidene)
+
+function useVisning(): [Visning, (v: Visning) => void] {
+  const [visning, setVisning] = useState<Visning>(() => {
+    try { return localStorage.getItem('familie.visning') === 'privat' ? 'privat' : 'felles'; } catch { return 'felles'; }
+  });
+  return [visning, (v) => {
+    setVisning(v);
+    try { localStorage.setItem('familie.visning', v); } catch { /* ignorer */ }
+  }];
 }
 
 // ---------------------------------------------------------------- Innlogging
@@ -89,12 +103,14 @@ const HOVED: [string, string, string][] = [
   ['oversikt', 'oversikt', 'Oversikt'],
   ['budsjett', 'budsjett', 'Budsjett'],
   ['oppfolging', 'oppfolging', 'Oppfølging'],
-  ['privat', 'privat', 'Privat'],
+  ['lister', 'liste', 'Lister'],
   ['sparing', 'sparing', 'Sparing'],
 ];
 const BUNN = HOVED.filter(([r]) => r !== 'sparing');
+/** Sider med felles/privat-bryter */
+const MED_VISNING = ['oversikt', 'budsjett', 'oppfolging'];
 /** Sider med «Før utgift»-knapp */
-const MED_FAB = ['oversikt', 'oppfolging', 'privat', 'ny'];
+const MED_FAB = ['oversikt', 'oppfolging', 'ny'];
 const OPPSETT: [string, string, string][] = [
   ['revisjoner', 'revisjon', 'Revisjoner'],
   ['kontoer', 'konto', 'Kontoer'],
@@ -103,7 +119,7 @@ const OPPSETT: [string, string, string][] = [
   ['data', 'lastned', 'Import/eksport'],
 ];
 const TITLER: Record<string, string> = {
-  oversikt: 'Oversikt', budsjett: 'Budsjett', oppfolging: 'Oppfølging', privat: 'Mitt budsjett', sparing: 'Sparemål', mer: 'Mer',
+  oversikt: 'Oversikt', budsjett: 'Budsjett', oppfolging: 'Oppfølging', lister: 'Lister', sparing: 'Sparemål', mer: 'Mer',
   revisjoner: 'Revisjoner', kontoer: 'Kontoer og banker', kategorier: 'Kategorier', personer: 'Personer og fordeling', data: 'Import og eksport',
 };
 
@@ -115,7 +131,10 @@ function Lagring({ status }: { status: LagreStatus }) {
 function Skall() {
   const [rute, gaaTil] = useRute();
   const [tema, byttTema] = useTema();
-  const { felles, rev, velgRev, status, feilmelding, toast, visToast, bruker, meg, loggUt, lastPaaNytt } = useTilstand();
+  const { felles, privat, rev, velgRev, prev, velgPrev, status, feilmelding, toast, visToast, bruker, meg, loggUt, lastPaaNytt } = useTilstand();
+  const { lister } = useLister();
+  const [valgtVisning, settVisning] = useVisning();
+  const [nyPrivatRevisjon, setNyPrivatRevisjon] = useState(false);
   const [rullet, setRullet] = useState(false);
   const [forerUtgift, setForerUtgift] = useState(() => location.hash.replace(/^#\/?/, '') === 'ny');
   const [side, underside] = rute.split('/');
@@ -126,16 +145,32 @@ function Skall() {
     return () => window.removeEventListener('scroll', f);
   }, []);
 
+  // Gamle lenker til den tidligere Privat-fanen
+  useEffect(() => {
+    if (side !== 'privat') return;
+    settVisning('privat');
+    gaaTil(underside === 'overforinger' ? 'budsjett/overforinger' : 'oversikt');
+  }, [side]);
+
   const erAktiv = (r: string) => side === r || (r === 'mer' && (side === 'sparing' || OPPSETT.some(([o]) => o === side)));
-  const visFab = MED_FAB.includes(side || 'oversikt');
-  const privatFab = side === 'privat' || (side === 'oppfolging' && underside === 'privat');
+  const medVisning = MED_VISNING.includes(side) && !!meg;
+  const erPrivat = medVisning && valgtVisning === 'privat';
+  const visFab = MED_FAB.includes(side);
+  const fabPlass = visFab || (side === 'lister' && !underside);
   const visRevVelger = felles && ['oversikt', 'budsjett', 'personer'].includes(side);
+  const aapenListe = side === 'lister' && underside ? lister.find((l) => l.id === underside) : undefined;
+  const tittel = aapenListe ? `${aapenListe.ikon} ${aapenListe.navn}` : TITLER[side] ?? 'Oversikt';
 
   let innhold;
   switch (side) {
-    case 'budsjett': innhold = <Budsjett fane={(underside as 'poster' | 'overforinger' | 'inntekter') ?? 'poster'} byttFane={(f) => gaaTil(`budsjett/${f}`)} />; break;
-    case 'oppfolging': innhold = <Oppfolging key={rute} visning={underside === 'privat' ? 'privat' : 'felles'} maaned={rute.split('/')[2]} byttVisning={(v) => gaaTil(`oppfolging/${v}`)} />; break;
-    case 'privat': innhold = <Privat gaaTil={gaaTil} fane={underside === 'overforinger' ? 'overforinger' : 'oversikt'} byttFane={(f) => gaaTil(f === 'oversikt' ? 'privat' : `privat/${f}`)} />; break;
+    case 'budsjett':
+      innhold = erPrivat
+        ? <PrivatBudsjett gaaTil={gaaTil} fane={underside === 'overforinger' ? 'overforinger' : 'poster'} byttFane={(f) => gaaTil(`budsjett/${f}`)} nyRevisjon={() => setNyPrivatRevisjon(true)} />
+        : <Budsjett fane={(underside as 'poster' | 'overforinger' | 'inntekter') ?? 'poster'} byttFane={(f) => gaaTil(`budsjett/${f}`)} />;
+      break;
+    case 'oppfolging': innhold = <Oppfolging key={rute} visning={erPrivat ? 'privat' : 'felles'} maaned={rute.split('/').find((d) => /^\d{4}-\d{2}$/.test(d))} />; break;
+    case 'lister': innhold = <Lister listeId={underside} gaaTil={gaaTil} />; break;
+    case 'privat': innhold = null; break;
     case 'sparing': innhold = <Sparing />; break;
     case 'revisjoner': innhold = <Revisjoner gaaTil={gaaTil} />; break;
     case 'kontoer': innhold = <Kontoer />; break;
@@ -143,7 +178,7 @@ function Skall() {
     case 'personer': innhold = <Personer />; break;
     case 'data': innhold = <Data />; break;
     case 'mer': innhold = <Mer gaaTil={gaaTil} tema={tema} byttTema={byttTema} />; break;
-    default: innhold = <Oversikt gaaTil={gaaTil} />;
+    default: innhold = erPrivat ? <PrivatOversikt gaaTil={gaaTil} nyRevisjon={() => setNyPrivatRevisjon(true)} /> : <Oversikt gaaTil={gaaTil} />;
   }
 
   return (
@@ -173,12 +208,14 @@ function Skall() {
 
       <div>
         <header className={`topp${rullet ? ' rullet' : ''}`}>
-          <h1>{TITLER[side] ?? 'Oversikt'}</h1>
-          {visRevVelger && <RevisjonsVelger revisjoner={felles!.revisjoner} valgt={rev} velg={velgRev} nyRevisjon={() => gaaTil('revisjoner')} />}
+          <h1>{tittel}</h1>
+          {visRevVelger && (erPrivat
+            ? privat && <RevisjonsVelger revisjoner={privat.revisjoner} valgt={prev} velg={velgPrev} nyRevisjon={() => setNyPrivatRevisjon(true)} />
+            : <RevisjonsVelger revisjoner={felles!.revisjoner} valgt={rev} velg={velgRev} nyRevisjon={() => gaaTil('revisjoner')} />)}
           <Lagring status={status} />
         </header>
 
-        <main className={`innhold${visFab ? ' med-fab' : ''}`}>
+        <main className={`innhold${fabPlass ? ' med-fab' : ''}`}>
           {status === 'konflikt' && (
             <div className="banner varsel" role="alert">
               <Ikon navn="advarsel" />
@@ -192,6 +229,7 @@ function Skall() {
           {lager.modus === 'lokal' && side === 'oversikt' && (
             <div className="banner info"><Ikon navn="info" /><div><strong>Demomodus</strong> med oppdiktede tall. Du ser som {meg?.navn}. Bytt person under <a href="#/data">Import/eksport</a>.</div></div>
           )}
+          {medVisning && <VisningsBryter verdi={erPrivat ? 'privat' : 'felles'} endre={settVisning} />}
           {innhold}
         </main>
       </div>
@@ -207,12 +245,14 @@ function Skall() {
       {visFab && (
         <button className="fab" onClick={() => setForerUtgift(true)}><Ikon navn="pluss" storrelse={22} />Før utgift</button>
       )}
-      {forerUtgift && <UtgiftSkjema privatStart={privatFab} lukk={() => { setForerUtgift(false); if (side === 'ny') gaaTil('oversikt'); }} />}
+      {forerUtgift && <UtgiftSkjema privatStart={erPrivat} lukk={() => { setForerUtgift(false); if (side === 'ny') gaaTil('oversikt'); }} />}
+      {nyPrivatRevisjon && <NyPrivatRevisjon lukk={() => setNyPrivatRevisjon(false)} />}
 
       {toast && (
         <div className="toast" role="status">
           <span>{toast.tekst}</span>
           {toast.angre ? <button className="knapp liten" onClick={toast.angre}>Angre</button>
+            : toast.handling ? <button className="knapp liten" onClick={toast.handling.kjor}>{toast.handling.tekst}</button>
             : <button className="knapp liten ikon" onClick={() => visToast(null)} aria-label="Lukk"><Ikon navn="lukk" storrelse={16} /></button>}
         </div>
       )}

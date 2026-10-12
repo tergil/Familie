@@ -4,7 +4,7 @@ import type { Bank, Kategori, Konto, Post } from '../data/modell';
 import { FREKVENS_NAVN } from '../data/modell';
 import type { Detalj, Flyt, FlytNode } from '../logikk/flyt';
 import { postMnd, sorterRevisjoner, sum, iDag, aktivRevisjon } from '../logikk/beregning';
-import { Ark, Ikon, Prikk, Segment, kr, datoTekst } from './felles';
+import { Ark, Ikon, Prikk, Segment, kr, pst, datoTekst } from './felles';
 import { FlytTabell, Sankey } from './Sankey';
 
 // ---------------------------------------------------------------- Pengeflyt-kort
@@ -167,5 +167,48 @@ export function SeksjonHode({ tittel, children }: { tittel: string; children?: R
       <h2>{tittel}</h2>
       {children && <div className="knapperad">{children}</div>}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- Felles / privat
+
+export type Visning = 'felles' | 'privat';
+
+/** Bytter mellom fellesbudsjettet og ditt eget. Vises øverst på Oversikt, Budsjett og Oppfølging. */
+export function VisningsBryter({ verdi, endre }: { verdi: Visning; endre: (v: Visning) => void }) {
+  return (
+    <div className="visningsbryter">
+      <Segment etikett="Vis budsjett" full verdi={verdi} endre={endre}
+        valg={[{ verdi: 'felles', tekst: 'Felles', ikon: 'person' }, { verdi: 'privat', tekst: 'Privat', ikon: 'privat' }]} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- Fordeling per kategori
+
+export function KategoriFordeling({ fordeling, kategorier }: { fordeling: { kategoriId: string; belop: number }[]; kategorier: Kategori[] }) {
+  const total = sum(fordeling, (k) => k.belop);
+  const maks = Math.max(1, ...fordeling.map((k) => k.belop));
+  const kategori = (id: string) => kategorier.find((k) => k.id === id);
+  return (
+    <section className="kort">
+      <div className="kort-hode"><h2>Per kategori</h2></div>
+      <div className="liste" style={{ gap: 12 }}>
+        {fordeling.map((k) => {
+          const kat = kategori(k.kategoriId);
+          return (
+            <div key={k.kategoriId} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Prikk farge={kat?.farge} />
+                <span style={{ flex: 1, fontWeight: 500 }}>{kat?.navn ?? 'Uten kategori'}</span>
+                <span className="tall dempet liten">{pst(total > 0 ? (k.belop / total) * 100 : 0)}</span>
+                <span className="tall" style={{ fontWeight: 600, minWidth: 84, textAlign: 'right' }}>{kr(k.belop)}</span>
+              </div>
+              <div className="stolpe"><span style={{ width: `${(k.belop / maks) * 100}%`, background: `var(--k${kat?.farge ?? 0})` }} /></div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

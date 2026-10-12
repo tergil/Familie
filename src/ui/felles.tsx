@@ -28,6 +28,28 @@ export function datoTekst(iso: string): string {
   return new Date(a, m - 1, d).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+/** "5. des." */
+export function kortDato(iso: string): string {
+  const [a, m, d] = iso.split('-').map(Number);
+  return new Date(a, m - 1, d).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' });
+}
+
+/** "fre. 5. des." */
+export function ukedagDato(iso: string): string {
+  const [a, m, d] = iso.split('-').map(Number);
+  return new Date(a, m - 1, d).toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+/** Dager til en dato som tekst: «I dag», «Om 3 dager», «2 dager siden» */
+export function dagerTekst(dager: number): string {
+  if (dager === 0) return 'I dag';
+  if (dager === 1) return 'I morgen';
+  if (dager === -1) return 'I går';
+  return dager > 0 ? `Om ${dager} dager` : `${-dager} dager siden`;
+}
+
+export const MAANEDER_KORT = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'];
+
 export function maanedTekst(iso: string): string {
   const [a, m] = iso.split('-').map(Number);
   const s = new Date(a, m - 1, 1).toLocaleDateString('nb-NO', { month: 'long', year: 'numeric' });
@@ -77,6 +99,14 @@ const STIER: Record<string, ReactNode> = {
   rediger: <><path d="M4 20h4L19 9l-4-4L4 16v4z" /><path d="M13 7l4 4" /></>,
   sol: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
   mane: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />,
+  liste: <><path d="M10 6h10M10 12h10M10 18h10" /><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11" /><circle cx="5.2" cy="18" r="1.2" /></>,
+  kalender: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></>,
+  blad: <><path d="M5 19C5 11 10 5 20 5c0 10-6 15-14 15" /><path d="M5 19l8-8" /></>,
+  gave: <><rect x="3" y="8" width="18" height="5" rx="1" /><path d="M5 13v8h14v-8M12 8v13" /><path d="M12 8C10 4 6.5 4 6.5 6.2 6.5 8 9.5 8 12 8c2.5 0 5.5 0 5.5-1.8C17.5 4 14 4 12 8z" /></>,
+  stjerne: <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />,
+  lenke: <><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></>,
+  klokke: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+  sted: <><path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z" /><circle cx="12" cy="9" r="2.5" /></>,
   google: <></>,
 };
 
@@ -156,12 +186,12 @@ export function BelopFelt({ verdi, endre, autoFocus }: { verdi: number; endre: (
 }
 
 export function Segment<T extends string>({ valg, verdi, endre, full, etikett }: {
-  valg: { verdi: T; tekst: string }[]; verdi: T; endre: (v: T) => void; full?: boolean; etikett: string;
+  valg: { verdi: T; tekst: string; ikon?: string }[]; verdi: T; endre: (v: T) => void; full?: boolean; etikett: string;
 }) {
   return (
     <div className={`segment${full ? ' full' : ''}`} role="group" aria-label={etikett}>
       {valg.map((v) => (
-        <button key={v.verdi} type="button" aria-pressed={v.verdi === verdi} onClick={() => endre(v.verdi)}>{v.tekst}</button>
+        <button key={v.verdi} type="button" aria-pressed={v.verdi === verdi} onClick={() => endre(v.verdi)}>{v.ikon && <Ikon navn={v.ikon} storrelse={15} />}{v.tekst}</button>
       ))}
     </div>
   );

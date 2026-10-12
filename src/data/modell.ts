@@ -177,3 +177,56 @@ export function tomtFellesDok(): FellesDok {
 export function tomtPrivatDok(eierId: Id): PrivatDok {
   return { skjema: 1, eierId, kontoer: [], revisjoner: [] };
 }
+
+// ---------------------------------------------------------------------------
+// Huskelister: egne tabeller (liste, listepunkt), som utgiftene. privat = bare eieren ser listen.
+// ---------------------------------------------------------------------------
+
+/** Bestemmer hvilke statuser og felt punktene har, se LISTETYPER i logikk/lister.ts */
+export type ListeType = 'sjekk' | 'gave' | 'onske' | 'oppgave' | 'opplevelse' | 'serie' | 'hage' | 'kalender';
+
+export interface Liste {
+  id: Id;
+  navn: string;
+  /** Emoji */
+  ikon: string;
+  /** Fri tekst, f.eks. «Hus» eller «Jul». Listene grupperes på denne. */
+  kategori: string;
+  type: ListeType;
+  privat: boolean;
+  /** Egen mal – vises under Maler, ikke blant listene */
+  mal: boolean;
+  /** Kobling til budsjettet: en post (sammenlignes med årsbeløpet) eller en sparekonto med mål */
+  postId?: Id;
+  kontoId?: Id;
+  rekkefolge: number;
+  opprettet: string; // ÅÅÅÅ-MM-DD
+}
+
+export interface Punkt {
+  id: Id;
+  listeId: Id;
+  /** Underpunkt av et annet punkt (ett nivå) */
+  forelderId: Id | null;
+  tekst: string;
+  notat: string;
+  /** En av statusene til listetypen */
+  status: string;
+  belop: number | null;
+  /** Frist, besøksdato eller dato for kalenderluken */
+  dato: string | null;
+  rekkefolge: number;
+  lenke?: string;
+  /** Gaver: hvem gaven er til */
+  mottaker?: string;
+  /** 1–5 */
+  vurdering?: number;
+  /** Hage: hvor planten står */
+  plassering?: string;
+  /** Hage: måneder (1–12) det skal gjøres noe */
+  maaneder?: number[];
+  /** Settes når punktet blir kjøpt/ferdig – brukes i gavehistorikken */
+  ferdigDato?: string;
+  /** Hage: sist stelt */
+  sistGjort?: string;
+}

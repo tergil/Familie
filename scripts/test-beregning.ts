@@ -1,9 +1,13 @@
 // Tester beregningslogikken uten nettleser. Kjør: npm test
 import { avrundOpp, foreslaOverforinger, kopierRevisjon, oppsummerFelles, oppsummerPrivat, privateOverforinger, sammenlign, sum, tilMnd, aktivRevisjon } from '../src/logikk/beregning';
 import { fellesFlyt, privatFlyt } from '../src/logikk/flyt';
-import { demoFelles, demoPrivat } from '../src/data/demo';
+import { demoFelles, demoLister, demoPrivat } from '../src/data/demo';
 import { andelGaatt, avstem, dagerIMaaned, flyttMaaned, kategoriStatus, kontoPlan, kontoerFor, muligeDubletter, revisjonForMaaned } from '../src/logikk/oppfolging';
-import type { Post, Saldo, Utgift } from '../src/data/modell';
+import {
+  MALER, adventssondager, erFerdig, gavehistorikk, hageIMaaned, huskelapp, kalenderAar, kalenderLuker, kopierPunkter, lagTre, listeSum,
+  medStatus, nesteStatus, nullstill, punkterFraMal, tidligereGaver, tolkHurtig,
+} from '../src/logikk/lister';
+import type { Post, Punkt, Saldo, Utgift } from '../src/data/modell';
 
 let feil = 0;
 let ok = 0;
@@ -166,6 +170,53 @@ const penger = privateOverforinger(odok, orev, opriv2, oprev2);
 sjekk('private overføringer: til felles', sum(penger.overforinger.filter((o) => o.kilde === 'felles'), (o) => o.belop), tilFelles);
 sjekk('private overføringer: til egne kontoer', penger.overforinger.filter((o) => o.kilde === 'egen').map((o) => [o.konto.id, o.belop]), [[opriv2.kontoer[0].id, 2500], ['k-egen', 3000]]);
 sjekk('private overføringer: rest = som ikke budsjettert', Math.round(penger.rest), Math.round(oppsummerPrivat(odok, orev, oprev2, 'ola').ubudsjettert));
+
+// --- Huskelister: adventskalender
+sjekk('advent 2026', adventssondager(2026), ['2026-11-29', '2026-12-06', '2026-12-13', '2026-12-20']);
+sjekk('advent 2023 (julaften på søndag)', adventssondager(2023), ['2023-12-03', '2023-12-10', '2023-12-17', '2023-12-24']);
+sjekk('advent 2025', adventssondager(2025)[0], '2025-11-30');
+const sondager = kalenderLuker(2026, 'sondager', [{ navn: 'St. Lucia', dag: '12-13' }, { navn: 'Nissefest', dag: '12-05' }]);
+sjekk('søndager + egne dager, sortert', sondager.map((l) => l.dato), ['2026-11-29', '2026-12-05', '2026-12-06', '2026-12-13', '2026-12-20']);
+sjekk('St. Lucia på en adventssøndag slås sammen', sondager[3].tekst, '3. søndag i advent · St. Lucia');
+const alle24 = kalenderLuker(2026, 'alle', [{ navn: 'St. Lucia', dag: '12-13' }]);
+sjekk('24 luker', alle24.length, 24);
+sjekk('luke 13 heter St. Lucia', alle24[12].tekst, 'St. Lucia');
+sjekk('kalenderår før og etter jul', [kalenderAar('2026-10-11'), kalenderAar('2026-12-27')], [2026, 2027]);
+
+// --- Huskelister: status, sum og tre
+const lp = (id: string, ekstra: Partial<Punkt> = {}): Punkt => ({ id, listeId: 'l', forelderId: null, tekst: id, notat: '', status: 'ide', belop: null, dato: null, rekkefolge: 0, ...ekstra });
+sjekk('neste status går rundt', [nesteStatus('gave', 'ide'), nesteStatus('gave', 'gitt')], ['kjopt', 'ide']);
+sjekk('ukjent status regnes som første', erFerdig('sjekk', 'kjopt'), false);
+sjekk('ferdigDato settes ved kjøp', medStatus(lp('a'), 'gave', 'kjopt', '2026-10-11').ferdigDato, '2026-10-11');
+sjekk('ferdigDato beholdes ved gitt', medStatus(lp('a', { status: 'kjopt', ferdigDato: '2026-10-01' }), 'gave', 'gitt', '2026-12-24').ferdigDato, '2026-10-01');
+sjekk('ferdigDato fjernes ved tilbake til idé', medStatus(lp('a', { status: 'kjopt', ferdigDato: '2026-10-01' }), 'gave', 'ide', '2026-10-11').ferdigDato, undefined);
+sjekk('listesum: planlagt og kjøpt', listeSum('gave', [lp('a', { belop: 300 }), lp('b', { belop: 500, status: 'kjopt' }), lp('c', { belop: 200, status: 'gitt' }), lp('d')]),
+  { planlagt: 300, brukt: 700, antallMedBelop: 3 });
+const tre = lagTre([lp('barn', { forelderId: 'f', rekkefolge: 2 }), lp('f', { rekkefolge: 1 }), lp('foreldrelos', { forelderId: 'borte', rekkefolge: 3 })], 'sjekk');
+sjekk('tre: underpunkt under forelder, foreldreløse på toppnivå', tre.map((t) => [t.punkt.id, t.barn.map((b) => b.id)]), [['f', ['barn']], ['foreldrelos', []]]);
+sjekk('hurtig gave med mottaker', tolkHurtig('gave', 'Mamma: skjerf'), { mottaker: 'Mamma', tekst: 'skjerf' });
+sjekk('hurtig uten kolon i andre lister', tolkHurtig('sjekk', ' Kjøpe melk: lett '), { tekst: 'Kjøpe melk: lett' });
+
+// --- Maler, kopi og nullstilling
+const hytte = punkterFraMal(MALER.find((m) => m.id === 'pakke-hytte')!, 'ny');
+sjekk('mal: grupper med underpunkter', [hytte.filter((p) => !p.forelderId).length, hytte.filter((p) => p.forelderId).length], [4, 16]);
+const listeKopi = kopierPunkter([lp('f', { status: 'ferdig' }), lp('b', { forelderId: 'f', status: 'ferdig' })], 'ny', 'sjekk');
+sjekk('kopi: nye id-er, forelder pekes om, status nullstilt', [listeKopi[0].id !== 'f', listeKopi[1].forelderId === listeKopi[0].id, listeKopi.every((p) => p.status === 'apen' && p.listeId === 'ny')], [true, true, true]);
+sjekk('nullstill: bare endrede', nullstill([lp('a', { status: 'apen' }), lp('b', { status: 'ferdig', ferdigDato: '2026-01-01' })], 'sjekk').map((p) => [p.id, p.status, p.ferdigDato ?? null]), [['b', 'apen', null]]);
+
+// --- Huskelapp, hage og gavehistorikk (demodata regnet fra en fast dag)
+const dl = demoLister('2026-10-11');
+const lapp = huskelapp(dl.lister, dl.punkter, '2026-10-11');
+sjekk('huskelapp: forfalt først, ferdige og kalender ikke med', lapp.map((h) => [h.punkt.tekst, h.dager]), [['Fornye pass til barna', -2], ['Bestille EU-kontroll', 3], ['Utelys ved garasjen', 5]]);
+const hageOkt = hageIMaaned(dl.lister, dl.punkter, '2026-10-11');
+sjekk('hage i oktober', hageOkt.map((h) => `${h.forelder?.tekst}: ${h.punkt.tekst}`), ['Epletre: Høste epler', 'Plen: Rake løv']);
+const stelt = dl.punkter.map((p) => (p.tekst === 'Rake løv' ? { ...p, sistGjort: '2026-10-02' } : p));
+sjekk('hage: gjort denne måneden sorteres sist', hageIMaaned(dl.lister, stelt, '2026-10-11').map((h) => [h.punkt.tekst, h.gjort]), [['Høste epler', false], ['Rake løv', true]]);
+sjekk('hage: gjort i fjor teller ikke', hageIMaaned(dl.lister, dl.punkter.map((p) => ({ ...p, sistGjort: '2025-10-02' })), '2026-10-11').every((h) => !h.gjort), true);
+// Demodataene har også Karis private lister – lager.hentLister filtrerer dem bort for Ola
+const hist = gavehistorikk(dl.lister, dl.punkter);
+sjekk('gavehistorikk per mottaker', hist.map((m) => [m.navn, m.gaver.map((g) => `${g.aar} ${g.punkt.tekst}`)]), [['Mamma', ['2026 Skjerf', '2025 Lysestake']], ['Pappa', ['2025 Termokopp']]]);
+sjekk('tidligere gaver, uten store/små bokstaver', tidligereGaver(hist, ' mamma ').map((g) => g.punkt.tekst), ['Skjerf', 'Lysestake']);
 
 console.log(`\n${ok} ok, ${feil} feil`);
 if (feil) process.exit(1);

@@ -1,4 +1,5 @@
 // Privatbudsjettet – bare eieren kan lese dette (håndheves i databasen).
+// Vises på Oversikt og Budsjett når bryteren står på «Privat».
 import { useState } from 'react';
 import type { Post, PrivatRevisjon } from '../data/modell';
 import { ROLLE_NAVN, nyId } from '../data/modell';
@@ -6,99 +7,117 @@ import { useTilstand } from '../data/tilstand';
 import { kopierRevisjon, oppsummerPrivat, iDag, postMnd, privateOverforinger, sum, type PrivatOverforing } from '../logikk/beregning';
 import { privatFlyt } from '../logikk/flyt';
 import { Ikon, Kpi, Segment, Tom, kr, pst, maanedTekst } from '../ui/felles';
-import { FlytKort, PostListe, RevisjonsVelger } from '../ui/deler';
+import { FlytKort, KategoriFordeling, PostListe } from '../ui/deler';
 import { PostSkjema, RevisjonSkjema } from '../ui/skjemaer';
 import { DenneMaanedKort } from './Oppfolging';
+import { HuskelappKort } from './Lister';
 
-type Fane = 'oversikt' | 'overforinger';
+type Fane = 'poster' | 'overforinger';
 
-export function Privat({ gaaTil, fane, byttFane }: { gaaTil: (r: string) => void; fane: Fane; byttFane: (f: Fane) => void }) {
-  const { felles, privat, meg, prev, velgPrev, revForPrivat, endrePrivat } = useTilstand();
-  const [grupper, setGrupper] = useState<'kategori' | 'konto'>('kategori');
-  const [redigerer, setRedigerer] = useState<Post | 'ny' | null>(null);
-  const [nyRev, setNyRev] = useState(false);
+/** Felles sjekk for privatsidene: koblet til en person, og privatbudsjettet finnes */
+function usePrivat() {
+  const t = useTilstand();
+  return { ...t, klar: !!t.felles && !!t.meg && !!t.privat };
+}
 
+function IkkeKoblet({ gaaTil }: { gaaTil: (r: string) => void }) {
+  return (
+    <Tom ikon="privat" tittel="Du er ikke koblet til en person" tekst="E-posten du logget inn med finnes ikke blant personene i budsjettet.">
+      <button className="knapp" onClick={() => gaaTil('personer')}>Gå til Personer</button>
+    </Tom>
+  );
+}
+
+function IngenPrivat({ nyRevisjon }: { nyRevisjon: () => void }) {
+  return (
+    <Tom ikon="privat" tittel="Ingen privatbudsjett ennå" tekst="Lag ditt eget budsjett for det som er igjen etter fellesoverføringene.">
+      <button className="knapp primar" onClick={nyRevisjon}><Ikon navn="pluss" storrelse={18} />Opprett privatbudsjett</button>
+    </Tom>
+  );
+}
+
+// ---------------------------------------------------------------- Oversikt (privat)
+
+export function PrivatOversikt({ gaaTil, nyRevisjon }: { gaaTil: (r: string) => void; nyRevisjon: () => void }) {
+  const { felles, privat, meg, prev, revForPrivat, klar } = usePrivat();
   if (!felles) return null;
-  if (!meg || !privat) {
-    return (
-      <Tom ikon="privat" tittel="Du er ikke koblet til en person" tekst="E-posten du logget inn med finnes ikke blant personene i budsjettet.">
-        <button className="knapp" onClick={() => gaaTil('personer')}>Gå til Personer</button>
-      </Tom>
-    );
-  }
+  if (!klar) return <IkkeKoblet gaaTil={gaaTil} />;
+  if (!prev) return <IngenPrivat nyRevisjon={nyRevisjon} />;
 
-  const minKonto = felles.kontoer.find((k) => k.rolle === 'avsender' && k.eierId === meg.id);
-  const kontoer = [...(minKonto ? [minKonto] : []), ...privat.kontoer];
-  const opp = oppsummerPrivat(felles, revForPrivat, prev, meg.id);
-
-  function opprettRevisjon(v: { navn: string; gjelderFra: string; notat: string }) {
-    endrePrivat((d) => {
-      const kilde = d.revisjoner.find((r) => r.id === prev?.id);
-      const ny: PrivatRevisjon = kilde ? kopierRevisjon(kilde, v.navn, v.gjelderFra) : { id: nyId(), navn: v.navn, gjelderFra: v.gjelderFra, notat: '', poster: [] };
-      ny.notat = v.notat;
-      d.revisjoner.push(ny);
-      setTimeout(() => velgPrev(ny.id));
-    });
-    setNyRev(false);
-  }
-
-  const endrePrev = (f: (r: PrivatRevisjon) => void, angre?: string) =>
-    endrePrivat((d) => { const r = d.revisjoner.find((x) => x.id === prev!.id); if (r) f(r); }, angre);
+  const opp = oppsummerPrivat(felles, revForPrivat, prev, meg!.id);
+  const perKategori = [...new Set(prev.poster.map((p) => p.kategoriId))]
+    .map((kategoriId) => ({ kategoriId, belop: sum(prev.poster.filter((p) => p.kategoriId === kategoriId), postMnd) }))
+    .sort((a, b) => b.belop - a.belop);
 
   return (
     <>
       <div className="banner info">
         <Ikon navn="privat" />
-        <div><strong>Bare du ser denne siden.</strong> {felles.personer.filter((p) => p.id !== meg.id).map((p) => p.navn).join(' og ') || 'Andre'} ser kun hva du overfører til fellesbudsjettet.</div>
+        <div>
+          <strong>Bare du ser dette.</strong> {felles.personer.filter((p) => p.id !== meg!.id).map((p) => p.navn).join(' og ') || 'Andre'} ser kun hva du overfører til fellesbudsjettet.
+          {revForPrivat && <p className="dempet liten">Inntekt og overføringer hentes fra «{revForPrivat.navn}».</p>}
+        </div>
       </div>
 
-      {!prev ? (
-        <Tom ikon="privat" tittel="Ingen privatbudsjett ennå" tekst="Lag ditt eget budsjett for det som er igjen etter fellesoverføringene.">
-          <button className="knapp primar" onClick={() => setNyRev(true)}><Ikon navn="pluss" storrelse={18} />Opprett privatbudsjett</button>
-        </Tom>
-      ) : (
-        <>
-          <div className="knapperad" style={{ alignItems: 'center' }}>
-            <RevisjonsVelger revisjoner={privat.revisjoner} valgt={prev} velg={velgPrev} nyRevisjon={() => setNyRev(true)} />
-            {revForPrivat && <span className="dempet liten">Bruker inntekt og overføringer fra «{revForPrivat.navn}»</span>}
+      <div className="kpi-rad">
+        <Kpi hero etikett="Ikke budsjettert" verdi={kr(opp.ubudsjettert)}
+          under={opp.ubudsjettert >= 0 ? 'Til overs hver måned' : 'Du budsjetterer mer enn du har'} />
+        <Kpi etikett="Inntekt (netto)" verdi={kr(opp.inntekt)} />
+        <Kpi etikett="Til fellesbudsjettet" verdi={kr(opp.tilFelles)} under={opp.inntekt ? `${pst((opp.tilFelles / opp.inntekt) * 100)} av inntekten` : undefined} />
+        <Kpi etikett="Spareandel" verdi={pst(opp.spareandel * 100)} under={`Egen sparing ${kr(opp.sparing)} + din andel av felles`} />
+      </div>
+
+      <DenneMaanedKort gaaTil={gaaTil} visning="privat" />
+      <HuskelappKort gaaTil={gaaTil} />
+
+      <div className="rutenett to-en">
+        <FlytKort
+          tittel="Min pengeflyt" undertittel="Per måned"
+          lagFlyt={(d) => privatFlyt(felles, revForPrivat, privat!, prev, d)}
+          poster={prev.poster} kategorier={felles.kategorier}
+        />
+        {perKategori.length > 0 && <KategoriFordeling fordeling={perKategori} kategorier={felles.kategorier} />}
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------- Budsjett (privat)
+
+export function PrivatBudsjett({ gaaTil, fane, byttFane, nyRevisjon }: {
+  gaaTil: (r: string) => void; fane: Fane; byttFane: (f: Fane) => void; nyRevisjon: () => void;
+}) {
+  const { felles, privat, meg, prev, klar, endrePrivat } = usePrivat();
+  const [grupper, setGrupper] = useState<'kategori' | 'konto'>('kategori');
+  const [redigerer, setRedigerer] = useState<Post | 'ny' | null>(null);
+  if (!felles) return null;
+  if (!klar) return <IkkeKoblet gaaTil={gaaTil} />;
+  if (!prev) return <IngenPrivat nyRevisjon={nyRevisjon} />;
+
+  const minKonto = felles.kontoer.find((k) => k.rolle === 'avsender' && k.eierId === meg!.id);
+  const kontoer = [...(minKonto ? [minKonto] : []), ...privat!.kontoer];
+  const endrePrev = (f: (r: PrivatRevisjon) => void, angre?: string) =>
+    endrePrivat((d) => { const r = d.revisjoner.find((x) => x.id === prev.id); if (r) f(r); }, angre);
+
+  return (
+    <>
+      <Segment etikett="Visning" full verdi={fane} endre={byttFane}
+        valg={[{ verdi: 'poster', tekst: 'Poster' }, { verdi: 'overforinger', tekst: 'Overføringer' }]} />
+
+      {fane === 'overforinger' ? <Overforinger gaaTil={gaaTil} /> : (
+        <section className="kort">
+          <div className="kort-hode">
+            <div className="tittel"><h2>Mine poster</h2><span className="dempet liten">{prev.poster.length} poster · {kr(sum(prev.poster, postMnd))} per måned</span></div>
+            <div className="knapperad">
+              <Segment etikett="Grupper etter" verdi={grupper} endre={setGrupper}
+                valg={[{ verdi: 'kategori', tekst: 'Kategori' }, { verdi: 'konto', tekst: 'Konto' }]} />
+              <button className="knapp primar liten" onClick={() => setRedigerer('ny')}><Ikon navn="pluss" storrelse={18} />Ny post</button>
+            </div>
           </div>
-
-          <Segment etikett="Visning" full verdi={fane} endre={byttFane}
-            valg={[{ verdi: 'oversikt', tekst: 'Oversikt' }, { verdi: 'overforinger', tekst: 'Overføringer' }]} />
-
-          {fane === 'overforinger' ? <Overforinger gaaTil={gaaTil} /> : <>
-          <div className="kpi-rad">
-            <Kpi hero etikett="Ikke budsjettert" verdi={kr(opp.ubudsjettert)}
-              under={opp.ubudsjettert >= 0 ? 'Til overs hver måned' : 'Du budsjetterer mer enn du har'} />
-            <Kpi etikett="Inntekt (netto)" verdi={kr(opp.inntekt)} />
-            <Kpi etikett="Til fellesbudsjettet" verdi={kr(opp.tilFelles)} under={opp.inntekt ? `${pst((opp.tilFelles / opp.inntekt) * 100)} av inntekten` : undefined} />
-            <Kpi etikett="Spareandel" verdi={pst(opp.spareandel * 100)} under={`Egen sparing ${kr(opp.sparing)} + din andel av felles`} />
-          </div>
-
-          <DenneMaanedKort gaaTil={gaaTil} visning="privat" />
-
-          <div className="rutenett to">
-            <FlytKort
-              tittel="Min pengeflyt" undertittel="Per måned"
-              lagFlyt={(d) => privatFlyt(felles, revForPrivat, privat, prev, d)}
-              poster={prev.poster} kategorier={felles.kategorier}
-            />
-            <section className="kort">
-              <div className="kort-hode">
-                <div className="tittel"><h2>Mine poster</h2><span className="dempet liten">{kr(opp.utgifter + opp.sparing)} per måned</span></div>
-                <div className="knapperad">
-                  <Segment etikett="Grupper etter" verdi={grupper} endre={setGrupper}
-                    valg={[{ verdi: 'kategori', tekst: 'Kategori' }, { verdi: 'konto', tekst: 'Konto' }]} />
-                  <button className="knapp primar liten" onClick={() => setRedigerer('ny')}><Ikon navn="pluss" storrelse={18} />Ny</button>
-                </div>
-              </div>
-              <PostListe poster={prev.poster} kategorier={felles.kategorier} kontoer={kontoer} banker={felles.banker}
-                grupper={grupper} velg={setRedigerer}
-                tomTekst={<Tom ikon="budsjett" tittel="Ingen poster ennå" tekst="F.eks. bil, abonnementer, klær og egen sparing." />} />
-            </section>
-          </div>
-          </>}
-        </>
+          <PostListe poster={prev.poster} kategorier={felles.kategorier} kontoer={kontoer} banker={felles.banker}
+            grupper={grupper} velg={setRedigerer}
+            tomTekst={<Tom ikon="budsjett" tittel="Ingen poster ennå" tekst="F.eks. bil, abonnementer, klær og egen sparing." />} />
+        </section>
       )}
 
       {redigerer && (
@@ -110,15 +129,31 @@ export function Privat({ gaaTil, fane, byttFane }: { gaaTil: (r: string) => void
           slett={redigerer === 'ny' ? undefined : () => { endrePrev((r) => { r.poster = r.poster.filter((x) => x.id !== (redigerer as Post).id); }, `Slettet «${redigerer.navn}»`); setRedigerer(null); }}
         />
       )}
-      {nyRev && (
-        <RevisjonSkjema
-          tittel={prev ? 'Ny privat revisjon' : 'Opprett privatbudsjett'}
-          navn={`Privat ${maanedTekst(iDag()).toLowerCase()}`} gjelderFra={iDag()}
-          forklaring={prev ? `Kopierer alle postene fra «${prev.navn}».` : undefined}
-          lagre={opprettRevisjon} lukk={() => setNyRev(false)}
-        />
-      )}
     </>
+  );
+}
+
+// ---------------------------------------------------------------- Ny privat revisjon
+
+export function NyPrivatRevisjon({ lukk }: { lukk: () => void }) {
+  const { prev, velgPrev, endrePrivat } = useTilstand();
+  function opprett(v: { navn: string; gjelderFra: string; notat: string }) {
+    endrePrivat((d) => {
+      const kilde = d.revisjoner.find((r) => r.id === prev?.id);
+      const ny: PrivatRevisjon = kilde ? kopierRevisjon(kilde, v.navn, v.gjelderFra) : { id: nyId(), navn: v.navn, gjelderFra: v.gjelderFra, notat: '', poster: [] };
+      ny.notat = v.notat;
+      d.revisjoner.push(ny);
+      setTimeout(() => velgPrev(ny.id));
+    });
+    lukk();
+  }
+  return (
+    <RevisjonSkjema
+      tittel={prev ? 'Ny privat revisjon' : 'Opprett privatbudsjett'}
+      navn={`Privat ${maanedTekst(iDag()).toLowerCase()}`} gjelderFra={iDag()}
+      forklaring={prev ? `Kopierer alle postene fra «${prev.navn}».` : undefined}
+      lagre={opprett} lukk={lukk}
+    />
   );
 }
 

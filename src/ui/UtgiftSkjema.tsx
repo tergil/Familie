@@ -24,9 +24,17 @@ function flyttDato(dato: string, dager: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function UtgiftSkjema({ utgift, privatStart, lukk }: { utgift?: Utgift; privatStart: boolean; lukk: () => void }) {
+/** Forhåndsutfylling, f.eks. når et punkt i en huskeliste krysses av som kjøpt */
+export interface UtgiftForslag {
+  belop: number;
+  notat: string;
+  kategoriId?: string;
+  privat?: boolean;
+}
+
+export function UtgiftSkjema({ utgift, forslag, privatStart, lukk }: { utgift?: Utgift; forslag?: UtgiftForslag; privatStart: boolean; lukk: () => void }) {
   const { felles, privat, meg, visToast } = useTilstand();
-  const [privatValgt, setPrivatValgt] = useState(utgift?.privat ?? (privatStart && !!meg));
+  const [privatValgt, setPrivatValgt] = useState(utgift?.privat ?? ((forslag?.privat ?? privatStart) && !!meg));
   const visning = privatValgt ? 'privat' : 'felles';
   const kontoer = felles ? kontoerFor(felles, privat ?? undefined, visning) : [];
 
@@ -50,11 +58,11 @@ export function UtgiftSkjema({ utgift, privatStart, lukk }: { utgift?: Utgift; p
     return fulgt ?? liste[0]?.id ?? '';
   };
 
-  const [belopTekst, setBelopTekst] = useState(utgift ? String(utgift.belop) : '');
-  const [kategoriId, setKategoriId] = useState(utgift?.kategoriId ?? husk(`kategori.${visning}`) ?? kategorier[0]?.id ?? '');
+  const [belopTekst, setBelopTekst] = useState(utgift ? String(utgift.belop) : forslag ? String(forslag.belop) : '');
+  const [kategoriId, setKategoriId] = useState(utgift?.kategoriId ?? forslag?.kategoriId ?? husk(`kategori.${visning}`) ?? kategorier[0]?.id ?? '');
   const [kontoId, setKontoId] = useState(utgift?.kontoId ?? standardKonto(visning));
   const [dato, setDato] = useState(utgift?.dato ?? iDag());
-  const [notat, setNotat] = useState(utgift?.notat ?? '');
+  const [notat, setNotat] = useState(utgift?.notat ?? forslag?.notat ?? '');
   const [dubletter, setDubletter] = useState<Utgift[] | null>(null);
   const [lagrer, setLagrer] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);

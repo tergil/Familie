@@ -1,8 +1,8 @@
 // Lagring: Supabase når VITE_SUPABASE_URL er satt, ellers lokal demomodus i nettleseren.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { FellesDok, PrivatDok, Saldo, Utgift } from './modell';
+import type { FellesDok, Liste, Punkt, PrivatDok, Saldo, Utgift } from './modell';
 import { tomtPrivatDok } from './modell';
-import { demoFelles, demoOppfolging, demoPrivat } from './demo';
+import { demoFelles, demoLister, demoOppfolging, demoPrivat } from './demo';
 
 export interface Bruker {
   epost: string;
@@ -49,6 +49,17 @@ export interface Lager {
   hentSaldoer(): Promise<Saldo[]>;
   lagreSaldo(s: Saldo): Promise<void>;
   slettSaldo(id: string): Promise<void>;
+
+  // Huskelister – egne tabeller. Private lister (og punktene i dem) ser bare eieren.
+  /** Felles + egne private lister med alle punkter */
+  hentLister(): Promise<{ lister: Liste[]; punkter: Punkt[] }>;
+  /** Oppretter eller oppdaterer (etter id) */
+  lagreListe(l: Liste): Promise<void>;
+  /** Sletter listen og alle punktene i den */
+  slettListe(id: string): Promise<void>;
+  lagrePunkter(p: Punkt[]): Promise<void>;
+  /** Sletter punktene og underpunktene deres */
+  slettPunkter(ider: string[]): Promise<void>;
 }
 
 /** Varsler sider som viser utgifter/saldoer om at noe er endret */
@@ -184,6 +195,52 @@ class LokaltLager implements Lager {
   async slettSaldo(id: string) {
     skriv('saldoer', this.rader<Saldo>('saldoer').filter((x) => x.id !== id));
   }
+
+  private alleLister(): { lister: (Liste & { eier: string | null })[]; punkter: Punkt[] } {
+    let lister = les<(Liste & { eier: string | null })[]>('lister');
+    let punkter = les<Punkt[]>('listepunkter');
+    if (!lister || !punkter) {
+      ({ lister, punkter } = demoLister());
+      skriv('lister', lister);
+      skriv('listepunkter', punkter);
+    }
+    return { lister, punkter };
+  }
+
+  async hentLister() {
+    const { lister, punkter } = this.alleLister();
+    const synlige = lister.filter((l) => this.synlig(l));
+    const ider = new Set(synlige.map((l) => l.id));
+    return { lister: synlige.map(({ eier: _e, ...l }) => l as Liste), punkter: punkter.filter((p) => ider.has(p.listeId)) };
+  }
+
+  async lagreListe(l: Liste) {
+    const { lister } = this.alleLister();
+    const i = lister.findIndex((x) => x.id === l.id);
+    const ny = { ...l, eier: l.privat ? this.megEpost() : null };
+    if (i >= 0) lister[i] = ny; else lister.push(ny);
+    skriv('lister', lister);
+  }
+
+  async slettListe(id: string) {
+    const { lister, punkter } = this.alleLister();
+    skriv('lister', lister.filter((l) => l.id !== id));
+    skriv('listepunkter', punkter.filter((p) => p.listeId !== id));
+  }
+
+  async lagrePunkter(nye: Punkt[]) {
+    const { punkter } = this.alleLister();
+    for (const p of nye) {
+      const i = punkter.findIndex((x) => x.id === p.id);
+      if (i >= 0) punkter[i] = p; else punkter.push(p);
+    }
+    skriv('listepunkter', punkter);
+  }
+
+  async slettPunkter(ider: string[]) {
+    const borte = new Set(ider);
+    skriv('listepunkter', this.alleLister().punkter.filter((p) => !borte.has(p.id) && !borte.has(p.forelderId ?? '')));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -317,6 +374,58 @@ class SupabaseLager implements Lager {
 
   async slettSaldo(id: string) {
     const { error } = await this.db.from('saldo').delete().eq('id', id);
+    if (error) throw error;
+  }
+
+  // Felt som bare appen bruker ligger i «ekstra» (jsonb), så nye felt ikke krever endringer i databasen
+  async hentLister() {
+    const [l, p] = await Promise.all([
+      this.db.from('liste').select('id, eier, navn, ikon, kategori, type, mal, rekkefolge, ekstra, opprettet').limit(2000),
+      this.db.from('listepunkt').select('id, liste_id, forelder_id, tekst, notat, status, belop, dato, rekkefolge, ekstra').limit(20000),
+    ]);
+    if (l.error) throw l.error;
+    if (p.error) throw p.error;
+    return {
+      lister: (l.data ?? []).map((r): Liste => ({
+        ...(r.ekstra ?? {}),
+        id: r.id, navn: r.navn, ikon: r.ikon, kategori: r.kategori, type: r.type, privat: r.eier !== null, mal: r.mal,
+        rekkefolge: Number(r.rekkefolge), opprettet: String(r.opprettet).slice(0, 10),
+      })),
+      punkter: (p.data ?? []).map((r): Punkt => ({
+        ...(r.ekstra ?? {}),
+        id: r.id, listeId: r.liste_id, forelderId: r.forelder_id, tekst: r.tekst, notat: r.notat ?? '', status: r.status,
+        belop: r.belop === null ? null : Number(r.belop), dato: r.dato, rekkefolge: Number(r.rekkefolge),
+      })),
+    };
+  }
+
+  async lagreListe(l: Liste) {
+    const { id, navn, ikon, kategori, type, privat, mal, rekkefolge, opprettet, ...ekstra } = l;
+    const { error } = await this.db.from('liste').upsert({
+      id, eier: await this.eier(privat), navn, ikon, kategori, type, mal, rekkefolge, opprettet, ekstra,
+    });
+    if (error) throw error;
+  }
+
+  async slettListe(id: string) {
+    const { error } = await this.db.from('liste').delete().eq('id', id);
+    if (error) throw error;
+  }
+
+  async lagrePunkter(punkter: Punkt[]) {
+    if (!punkter.length) return;
+    // Forelder før underpunkt, ellers stopper fremmednøkkelen innsettingen
+    const sortert = [...punkter].sort((a, b) => Number(!!a.forelderId) - Number(!!b.forelderId));
+    const { error } = await this.db.from('listepunkt').upsert(sortert.map((p) => {
+      const { id, listeId, forelderId, tekst, notat, status, belop, dato, rekkefolge, ...ekstra } = p;
+      return { id, liste_id: listeId, forelder_id: forelderId, tekst, notat, status, belop, dato, rekkefolge, ekstra };
+    }));
+    if (error) throw error;
+  }
+
+  async slettPunkter(ider: string[]) {
+    if (!ider.length) return;
+    const { error } = await this.db.from('listepunkt').delete().in('id', ider);
     if (error) throw error;
   }
 }

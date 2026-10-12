@@ -4,8 +4,9 @@ import { useTilstand } from '../data/tilstand';
 import { oppsummerFelles, sammenlign, sorterRevisjoner } from '../logikk/beregning';
 import { fellesFlyt } from '../logikk/flyt';
 import { Endring, Ikon, Kpi, Prikk, Tom, kr, pst } from '../ui/felles';
-import { FlytKort } from '../ui/deler';
+import { FlytKort, KategoriFordeling } from '../ui/deler';
 import { DenneMaanedKort } from './Oppfolging';
+import { HuskelappKort } from './Lister';
 
 export function Oversikt({ gaaTil }: { gaaTil: (rute: string) => void }) {
   const { felles, rev } = useTilstand();
@@ -22,7 +23,6 @@ export function Oversikt({ gaaTil }: { gaaTil: (rute: string) => void }) {
   const forrigeOpp = forrige ? oppsummerFelles(felles, forrige) : undefined;
   const endringer = forrige ? sammenlign(forrige, rev).filter((d) => d.endring !== 'lik') : [];
   const kategori = (id: string) => felles.kategorier.find((k) => k.id === id);
-  const maksKat = Math.max(1, ...opp.kategorier.map((k) => k.belop));
   const underdekning = opp.kontoer.filter((k) => k.balanse < -0.5);
   const spareandel = opp.total > 0 ? (opp.sparing / opp.total) * 100 : 0;
   /** Kontoene en person overfører fra, f.eks. «Fra Lønn DNB» */
@@ -60,6 +60,7 @@ export function Oversikt({ gaaTil }: { gaaTil: (rute: string) => void }) {
       </div>
 
       <DenneMaanedKort gaaTil={gaaTil} />
+      <HuskelappKort gaaTil={gaaTil} />
 
       <div className="rutenett to-en">
         <FlytKort
@@ -100,25 +101,7 @@ export function Oversikt({ gaaTil }: { gaaTil: (rute: string) => void }) {
             </div>
           </section>
 
-          <section className="kort">
-            <div className="kort-hode"><h2>Per kategori</h2></div>
-            <div className="liste" style={{ gap: 12 }}>
-              {opp.kategorier.map((k) => {
-                const kat = kategori(k.kategoriId);
-                return (
-                  <div key={k.kategoriId} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Prikk farge={kat?.farge} />
-                      <span style={{ flex: 1, fontWeight: 500 }}>{kat?.navn ?? 'Uten kategori'}</span>
-                      <span className="tall dempet liten">{pst((k.belop / opp.total) * 100)}</span>
-                      <span className="tall" style={{ fontWeight: 600, minWidth: 84, textAlign: 'right' }}>{kr(k.belop)}</span>
-                    </div>
-                    <div className="stolpe"><span style={{ width: `${(k.belop / maksKat) * 100}%`, background: `var(--k${kat?.farge ?? 0})` }} /></div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <KategoriFordeling fordeling={opp.kategorier} kategorier={felles.kategorier} />
         </div>
       </div>
 

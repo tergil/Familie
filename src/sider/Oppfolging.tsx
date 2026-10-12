@@ -10,7 +10,7 @@ import {
   andelGaatt, avstem, flyttMaaned, kategoriStatus, kontoPlan, kontoerFor, maanedAv, muligeDubletter,
   revisjonForMaaned, type Avstemming, type KategoriStatus, type Tempo,
 } from '../logikk/oppfolging';
-import { Ark, BelopFelt, Ikon, Kpi, Prikk, Segment, Tom, datoTekst, kr, maanedTekst } from '../ui/felles';
+import { Ark, BelopFelt, Ikon, Kpi, Prikk, Tom, datoTekst, kr, maanedTekst } from '../ui/felles';
 import { UtgiftSkjema } from '../ui/UtgiftSkjema';
 
 type Visning = 'felles' | 'privat';
@@ -46,7 +46,7 @@ export function KategoriStolpe({ s, navn, farge, andel }: { s: KategoriStatus; n
   );
 }
 
-export function Oppfolging({ visning, byttVisning, maaned: startMaaned }: { visning: Visning; byttVisning: (v: Visning) => void; maaned?: string }) {
+export function Oppfolging({ visning, maaned: startMaaned }: { visning: Visning; maaned?: string }) {
   const { felles, privat, meg } = useTilstand();
   const [maaned, setMaaned] = useState(startMaaned && /^\d{4}-\d{2}$/.test(startMaaned) ? startMaaned : maanedAv(iDag()));
   const data = useOppfolging(maaned);
@@ -98,7 +98,6 @@ export function Oppfolging({ visning, byttVisning, maaned: startMaaned }: { visn
           <span className="tall">{maanedTekst(maaned)}</span>
           <button className="knapp ikon flat liten" onClick={() => setMaaned(flyttMaaned(maaned, 1))} aria-label="Neste måned" disabled={erInnevaerende}><Ikon navn="pilhoyre" storrelse={18} /></button>
         </div>
-        {meg && <Segment etikett="Budsjett" verdi={visning} endre={byttVisning} valg={[{ verdi: 'felles', tekst: 'Felles' }, { verdi: 'privat', tekst: 'Privat' }]} />}
       </div>
 
       {erPrivat && <div className="banner info"><Ikon navn="privat" /><div>Private utgifter og saldoer ser bare du.</div></div>}
@@ -332,7 +331,7 @@ export function DenneMaanedKort({ gaaTil, visning = 'felles' }: { gaaTil: (r: st
     <section className="kort">
       <div className="kort-hode">
         <div className="tittel"><h2>{maanedTekst(maaned)}</h2><span className="dempet liten">Førte {erPrivat ? 'private' : 'felles'} utgifter mot budsjett</span></div>
-        <button className="knapp liten flat" onClick={() => gaaTil(erPrivat ? 'oppfolging/privat' : 'oppfolging')}>Oppfølging<Ikon navn="pilhoyre" storrelse={16} /></button>
+        <button className="knapp liten flat" onClick={() => gaaTil('oppfolging')}>Oppfølging<Ikon navn="pilhoyre" storrelse={16} /></button>
       </div>
       <div className="rutenett to" style={{ gap: 16 }}>
         {status.slice(0, 4).map((s) => <KategoriStolpe key={s.kategoriId} s={s} navn={kategori(s.kategoriId)?.navn ?? 'Uten kategori'} farge={kategori(s.kategoriId)?.farge} andel={andelGaatt(maaned, iDag())} />)}

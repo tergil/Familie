@@ -188,6 +188,7 @@ html, body { overflow-x: clip; }
 /* Segmentvelger */
 .segment { display: inline-flex; padding: 3px; gap: 2px; background: var(--flate-2); border-radius: 999px; border: 1px solid var(--linje); }
 .segment button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   min-height: 34px; padding: 0 var(--a3); border: 0; border-radius: 999px; background: transparent;
   font-size: 13px; font-weight: 600; color: var(--dempet);
 }
@@ -249,7 +250,8 @@ button.rad { border-radius: 0; }
 }
 .felt textarea { padding: var(--a3); min-height: 80px; resize: vertical; }
 .felt input:focus, .felt select:focus, .felt textarea:focus { outline: 2px solid var(--aksent); outline-offset: -1px; border-color: var(--aksent); }
-.felt-rad { display: grid; grid-template-columns: 1fr 1fr; gap: var(--a3); }
+.felt-rad { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--a3); }
+.felt select { width: 100%; min-width: 0; }
 .belop-felt { position: relative; }
 .belop-felt input { width: 100%; padding-right: 44px; font-variant-numeric: tabular-nums; }
 .belop-felt::after { content: 'kr'; position: absolute; right: var(--a3); top: 50%; transform: translateY(-50%); color: var(--dempet); font-size: 14px; pointer-events: none; }
@@ -437,3 +439,157 @@ input.bryter:checked::after { transform: translateX(18px); }
 @media (min-width: 900px) { .fab { right: var(--a6); bottom: var(--a6); } }
 /* Plass til knappen nederst på sidene */
 .innhold.med-fab { padding-bottom: calc(var(--nav-hoyde) + env(safe-area-inset-bottom) + 96px); }
+
+/* ---------------------------------------------------------------- Felles / privat-bryter */
+
+.visningsbryter { max-width: 340px; }
+@media (max-width: 899px) { .visningsbryter { max-width: none; } }
+
+/* ---------------------------------------------------------------- Lister */
+
+.liste-ikon {
+  width: 40px; height: 40px; flex: none; display: grid; place-items: center;
+  border-radius: 12px; background: var(--flate-2); font-size: 20px; line-height: 1;
+}
+.liste-ikon.liten { width: 32px; height: 32px; border-radius: 10px; font-size: 16px; }
+.stolpe.tynn { display: block; height: 4px; margin-top: 6px; max-width: 220px; }
+.stolpe.delt { display: flex; gap: 2px; height: 10px; }
+.stolpe.delt > span { border-radius: 999px; }
+.planlagt { background: color-mix(in srgb, var(--aksent) 35%, transparent); }
+
+.liste-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--a2); margin-top: calc(-1 * var(--a2)); }
+.kort.kompakt { padding: var(--a3) var(--a4); }
+.budsjett-linje { display: flex; align-items: center; flex-wrap: wrap; gap: var(--a2) var(--a5); }
+.budsjett-linje > span { display: flex; flex-direction: column; }
+.budsjett-linje .knapp { margin-left: auto; }
+.kort.innfelt { box-shadow: none; background: var(--flate-2); display: flex; flex-direction: column; gap: var(--a3); }
+
+/* Hurtiginnlegging øverst i en liste */
+.hurtig { display: flex; gap: var(--a2); margin-bottom: var(--a2); }
+.hurtig input {
+  flex: 1; min-width: 0; min-height: 48px; padding: 0 var(--a4);
+  border: 1px solid var(--linje-sterk); border-radius: 999px; background: var(--flate); font-size: 16px;
+}
+.hurtig input:focus { outline: 2px solid var(--aksent); outline-offset: -1px; border-color: var(--aksent); }
+.hurtig .knapp { flex: none; }
+
+/* Punkt: avkrysning/status + trykkflate for detaljer */
+.rad-knapp {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--a3); min-height: 44px;
+  padding: 0; border: 0; background: none; text-align: left;
+}
+.rad-knapp:hover .navn { text-decoration: underline; text-decoration-color: var(--linje-sterk); text-underline-offset: 3px; }
+.avkryss {
+  position: relative; flex: none; width: 26px; height: 26px; padding: 0; border-radius: 50%;
+  border: 2px solid var(--linje-sterk); background: var(--flate); color: transparent;
+  display: grid; place-items: center; transition: background .15s, border-color .15s;
+}
+.avkryss::before { content: ''; position: absolute; inset: -9px; } /* trykkflate 44 px */
+.avkryss:hover { border-color: var(--aksent); }
+.avkryss[aria-checked='true'] { background: var(--aksent); border-color: var(--aksent); color: var(--paa-aksent); }
+.punkt.ferdig > .rad .navn, .gruppe-punkt.ferdig > .gruppe-topp .navn, .rad.gjort .navn { text-decoration: line-through; color: var(--dempet); }
+.punkt-ikon { flex: none; width: 26px; display: grid; place-items: center; color: var(--k4); }
+.status-knapp { flex: none; min-height: 30px; min-width: 72px; justify-content: center; border: 0; cursor: pointer; }
+.info .frist { font-weight: 600; color: var(--blekk-2); }
+.info .frist.varsel { color: var(--varsel); }
+.info .frist.feil { color: var(--feil); }
+.info .frist svg { vertical-align: -1px; margin-right: 2px; }
+.status-knapp:hover { filter: brightness(.96); }
+/* Hver punktrad har strek under, unntatt helt nederst i listen */
+.punkt > .rad { border-bottom: 1px solid var(--linje); }
+.liste > .punkt:last-child > .rad:last-child { border-bottom: 0; }
+.knapp-hode { width: 100%; border: 0; background: none; text-align: left; cursor: pointer; border-top: 1px solid var(--linje); margin-top: var(--a2); }
+.fare-rad, .fare-rad svg { color: var(--feil); }
+
+/* Ikonvalg */
+.emoji-valg { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
+.emoji-valg button { height: 44px; padding: 0; border-radius: 10px; border: 1px solid var(--linje); background: var(--flate); font-size: 22px; line-height: 1; }
+.emoji-valg button[aria-pressed='true'] { border: 2px solid var(--aksent); background: var(--aksent-myk); }
+
+/* Månedsvalg (hage) */
+.maaned-valg { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.maaned-valg button {
+  min-height: 40px; border-radius: 10px; border: 1px solid var(--linje-sterk); background: var(--flate);
+  font-size: 13px; font-weight: 600; color: var(--blekk-2);
+}
+.maaned-valg button.naa { border-color: var(--aksent); }
+.maaned-valg button[aria-pressed='true'] { background: var(--aksent); border-color: var(--aksent); color: var(--paa-aksent); }
+
+/* Vurdering */
+.stjerner { display: flex; gap: 2px; }
+.stjerner button { width: 44px; height: 44px; padding: 0; border: 0; background: none; display: grid; place-items: center; color: var(--linje-sterk); }
+.stjerner button[aria-pressed='true'] { color: var(--aksent); }
+
+/* Kalender (adventskalender) */
+.kalender { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--a3); }
+@media (max-width: 480px) { .kalender { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.luke {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-height: 132px; padding: var(--a3);
+  border: 1px solid var(--linje); border-radius: var(--radius); background: var(--flate); box-shadow: var(--skygge); text-align: left;
+}
+.luke:hover { background: var(--flate-2); }
+.luke-topp { display: flex; width: 100%; align-items: flex-start; justify-content: space-between; gap: 6px; }
+.luke .dag { font-family: var(--font-tittel); font-size: 30px; font-weight: 600; line-height: 1; }
+.luke .mnd { font-size: 12px; color: var(--dempet); font-weight: 600; }
+.luke-navn { font-size: 12px; font-weight: 600; color: var(--aksent); }
+.luke .ide { font-size: 13px; color: var(--blekk-2); display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.luke.klar { background: var(--aksent-myk); border-color: color-mix(in srgb, var(--aksent) 45%, transparent); }
+.luke.i-dag { outline: 2px solid var(--aksent); outline-offset: 2px; }
+
+.valgchips button .dempet { font-weight: 500; font-size: 12px; }
+
+/* Egen dag i adventskalenderen: navn over, dato og knapp under */
+.egen-dag { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--a2); margin-top: 4px; }
+.egen-dag input { min-width: 0; min-height: 44px; padding: 0 var(--a3); border: 1px solid var(--linje-sterk); border-radius: var(--radius-liten); background: var(--flate); font-size: 16px; }
+.egen-dag input:first-child { grid-column: 1 / -1; }
+
+/* Tre nivåer i en liste:
+   1. Seksjon (status eller gavemottaker) – overskrift/boks
+   2. Hovedpunkt – vanlig rad, fetere tekst og pil
+   3. Underpunkt – innrykk med strek, litt mindre tekst */
+.seksjon + .seksjon, .liste + .seksjon { margin-top: var(--a4); }
+.seksjon-hode { display: flex; align-items: center; gap: var(--a3); padding: var(--a2) var(--a1); border-bottom: 1px solid var(--linje-sterk); }
+.seksjon-hode .tittel { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.seksjon-hode .navn { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--blekk-2); }
+.seksjon-hode .antall { color: var(--dempet); font-weight: 600; }
+.seksjon-hode .sum { font-size: 13px; font-weight: 600; color: var(--blekk-2); font-variant-numeric: tabular-nums; }
+.seksjon-hode .under { font-size: 12px; color: var(--dempet); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seksjon-knapp { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; color: var(--dempet); }
+.seksjon-knapp:hover .seksjon-hode { background: var(--flate-2); }
+
+/* Gavemottaker: egen boks med navnebokstav */
+.seksjon.boks { border: 1px solid var(--linje); border-radius: var(--radius); padding: 0 var(--a3) var(--a1); background: var(--flate); }
+.seksjon-hode.person { padding: var(--a3) 0; border-bottom-color: var(--linje); }
+.seksjon-hode.person .navn { font-size: 16px; text-transform: none; letter-spacing: 0; font-weight: 650; color: var(--blekk); }
+.seksjon-hode.person .sum { font-size: 15px; color: var(--blekk); }
+.avatar.noytral { background: var(--flate-3); color: var(--blekk-2); }
+
+/* Hovedpunkt med underpunkter */
+.gruppe-punkt { border-bottom: 1px solid var(--linje); }
+.liste > .gruppe-punkt:last-child { border-bottom: 0; }
+.rad.gruppe-topp { border-bottom: 0; }
+.gruppe-topp .navn { font-weight: 600; }
+.gruppe-pil { flex: none; color: var(--dempet); }
+.gruppe-pil svg { transition: transform .15s; }
+.gruppe-punkt.lukket .gruppe-pil svg { transform: rotate(-90deg); }
+.gruppe-barn { margin: 0 0 var(--a2) 12px; padding-left: var(--a4); border-left: 2px solid var(--linje-sterk); }
+.gruppe-barn .rad { min-height: 42px; padding-top: 4px; padding-bottom: 4px; }
+.gruppe-barn .navn { font-size: 14px; }
+.gruppe-barn .avkryss { width: 22px; height: 22px; }
+.legg-til-barn {
+  display: flex; align-items: center; gap: var(--a2); min-height: 40px; padding: 0 var(--a1);
+  color: var(--dempet); font-size: 14px; border-bottom: 1px solid transparent;
+}
+.legg-til-barn:focus-within { color: var(--aksent); border-bottom-color: var(--aksent); }
+.legg-til-barn input { flex: 1; min-width: 0; min-height: 40px; padding: 0; border: 0; background: none; font-size: 16px; outline: none; }
+.legg-til-barn input::placeholder { color: var(--dempet); font-size: 14px; }
+
+/* Feltet øverst: velg om nytt punkt legges under et hovedpunkt */
+.hurtig-skjema { margin-bottom: var(--a2); }
+.hurtig-skjema .hurtig { margin-bottom: var(--a2); }
+.hurtig-under { display: inline-flex; align-items: center; gap: var(--a2); max-width: 100%; padding-left: var(--a3); font-size: 13px; color: var(--dempet); }
+.hurtig-under select {
+  min-width: 0; max-width: 100%; min-height: 36px; padding: 0 var(--a3); border-radius: 999px;
+  border: 1px solid var(--linje-sterk); background: var(--flate); font-size: 14px; font-weight: 600; color: var(--blekk-2);
+}
+.hurtig-under.valgt select { border-color: var(--aksent); background: var(--aksent-myk); color: var(--aksent); }

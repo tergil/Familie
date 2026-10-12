@@ -19,6 +19,8 @@ function feiltekst(e: unknown): string {
 interface Toast {
   tekst: string;
   angre?: () => void;
+  /** Annen knapp i stedet for «Angre», f.eks. «Før utgift» */
+  handling?: { tekst: string; kjor: () => void };
 }
 
 interface Tilstand {

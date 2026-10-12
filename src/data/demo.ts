@@ -1,7 +1,8 @@
 // OPPDIKTEDE demodata for lokal kjøring. Ingen ekte tall her – repoet kan være offentlig.
-import type { FellesDok, PrivatDok, Post, Revisjon, Saldo, Utgift } from './modell';
+import type { FellesDok, Liste, PrivatDok, Post, Punkt, Revisjon, Saldo, Utgift } from './modell';
 import { foreslaOverforinger, iDag, kopierRevisjon } from '../logikk/beregning';
 import { flyttMaaned, kontoPlan, maanedAv, revisjonForMaaned } from '../logikk/oppfolging';
+import { FORSLAG_DAGER, LISTETYPER, kalenderLuker } from '../logikk/lister';
 
 const p = (id: string, navn: string, belop: number, kategoriId: string, kontoId: string, type: Post['type'] = 'utgift', frekvens: Post['frekvens'] = 'mnd'): Post =>
   ({ id, navn, belop, frekvens, type, kategoriId, kontoId });
@@ -146,4 +147,83 @@ export function demoOppfolging(idag = iDag()): { utgifter: Rad<Utgift>[]; saldoe
     saldoer.push({ id: `demo-s${k.id}-2`, kontoId: k.id, maaned: forrige, belop: Math.round(slutt), privat: false, fortAv: 'ola@example.com', eier: null });
   });
   return { utgifter, saldoer };
+}
+
+/** Oppdiktede huskelister. Datoene regnes fra i dag, så huskelappen og hagesesongen alltid har noe å vise. */
+export function demoLister(idag = iDag()): { lister: Rad<Liste>[]; punkter: Punkt[] } {
+  const aar = Number(idag.slice(0, 4));
+  const om = (dager: number) => { const d = new Date(`${idag}T12:00:00`); d.setDate(d.getDate() + dager); return d.toISOString().slice(0, 10); };
+  const lister: Rad<Liste>[] = [];
+  const punkter: Punkt[] = [];
+  let n = 0;
+  const liste = (navn: string, ikon: string, kategori: string, type: Liste['type'], ekstra: Partial<Rad<Liste>> = {}) => {
+    const l: Rad<Liste> = { id: `demo-l${lister.length + 1}`, navn, ikon, kategori, type, privat: false, mal: false, rekkefolge: lister.length + 1, opprettet: `${aar}-01-05`, eier: null, ...ekstra };
+    lister.push(l);
+    return l.id;
+  };
+  const punkt = (listeId: string, tekst: string, ekstra: Partial<Punkt> = {}) => {
+    const type = lister.find((l) => l.id === listeId)!.type;
+    const p: Punkt = { id: `demo-p${++n}`, listeId, forelderId: null, tekst, notat: '', status: LISTETYPER[type].statuser[0].id, belop: null, dato: null, rekkefolge: n, ...ekstra };
+    punkter.push(p);
+    return p.id;
+  };
+
+  const huske = liste('Huskeliste', '📝', 'Annet', 'sjekk');
+  punkt(huske, 'Bestille EU-kontroll', { dato: om(3) });
+  punkt(huske, 'Fornye pass til barna', { dato: om(-2), notat: 'Time hos politiet' });
+  punkt(huske, 'Rydde boden', { status: 'ferdig', ferdigDato: om(-10) });
+
+  const el = liste('Til elektrikeren', '⚡', 'Hus', 'oppgave');
+  punkt(el, 'Ny stikkontakt på badet', { belop: 2500 });
+  punkt(el, 'Utelys ved garasjen', { belop: 4000, status: 'bestilt', dato: om(5), notat: 'Elektrikeren kommer kl. 08' });
+  punkt(el, 'Sjekke sikringsskapet', { belop: 3000 });
+
+  const hus = liste('Ønsker til huset', '🏠', 'Hus', 'onske', { kontoId: 'k-hus' });
+  punkt(hus, 'Ny sofa', { belop: 14000 });
+  punkt(hus, 'Robotstøvsuger', { belop: 4500 });
+  punkt(hus, 'Utemøbler', { belop: 9000, status: 'kjopt', ferdigDato: `${aar}-05-12` });
+
+  const hytte = liste('Pakkeliste hyttetur', '🏔️', 'Reise', 'sjekk');
+  for (const [gruppe, ting] of [['Klær', ['Ullundertøy', 'Sokker', 'Lue og votter']], ['Annet', ['Ladere', 'Sengetøy', 'Brettspill']]] as const) {
+    const f = punkt(hytte, gruppe);
+    ting.forEach((t, i) => punkt(hytte, t, { forelderId: f, status: i === 0 ? 'ferdig' : 'apen' }));
+  }
+
+  const hage = liste('Hagen', '🌱', 'Hage', 'hage');
+  const roser = punkt(hage, 'Roser', { plassering: 'Sørveggen' });
+  punkt(hage, 'Beskjære', { forelderId: roser, maaneder: [4] });
+  punkt(hage, 'Gjødsle', { forelderId: roser, maaneder: [5, 6] });
+  const eple = punkt(hage, 'Epletre', { plassering: 'Bakhagen', notat: 'Aroma' });
+  punkt(hage, 'Beskjære', { forelderId: eple, maaneder: [2, 3] });
+  punkt(hage, 'Høste epler', { forelderId: eple, maaneder: [9, 10] });
+  const plen = punkt(hage, 'Plen', { plassering: 'Foran huset' });
+  punkt(hage, 'Rake løv', { forelderId: plen, maaneder: [10, 11] });
+  punkt(hage, 'Kalke', { forelderId: plen, maaneder: [4] });
+  punkt(hage, 'Hekk', { plassering: 'Langs veien', maaneder: [6, 8], notat: 'Klippes to ganger' });
+
+  const mat = liste('Restauranter vi vil prøve', '🍽️', 'Fritid', 'opplevelse');
+  punkt(mat, 'Brygga Fiskerestaurant', { notat: 'Bestill bord ved vinduet' });
+  punkt(mat, 'Pizzeria Fjordlys');
+  punkt(mat, 'Tante Olgas kafé', { status: 'besokt', vurdering: 5, ferdigDato: `${aar}-06-20` });
+
+  const tv = liste('Serier og filmer', '📺', 'Fritid', 'serie');
+  punkt(tv, 'Fjellstua', { status: 'ser' });
+  punkt(tv, 'Havets hemmeligheter');
+  punkt(tv, 'Nattoget', { status: 'sett', vurdering: 4 });
+
+  // Private gavelister for Kari – Ola ser dem ikke
+  const kari = { privat: true, eier: 'kari@example.com' };
+  const ifjor = liste(`Gaver jul ${aar - 1}`, '🎁', 'Gaver', 'gave', { ...kari, opprettet: `${aar - 1}-11-01` });
+  punkt(ifjor, 'Lysestake', { mottaker: 'Mamma', belop: 600, status: 'gitt', ferdigDato: `${aar - 1}-12-24` });
+  punkt(ifjor, 'Termokopp', { mottaker: 'Pappa', belop: 350, status: 'gitt', ferdigDato: `${aar - 1}-12-24` });
+  const gaver = liste(`Gaver jul ${aar}`, '🎁', 'Gaver', 'gave', kari);
+  punkt(gaver, 'Skjerf', { mottaker: 'Mamma', belop: 450, status: 'kjopt', ferdigDato: om(-4) });
+  punkt(gaver, 'Kokebok', { mottaker: 'Pappa', belop: 400 });
+  punkt(gaver, 'Konsertbilletter', { mottaker: 'Ola', belop: 1200 });
+
+  const adv = liste(`Adventskalender ${aar}`, '🕯️', 'Jul', 'kalender');
+  kalenderLuker(aar, 'sondager', [FORSLAG_DAGER[0]]).forEach((l, i) =>
+    punkt(adv, l.tekst, { dato: l.dato, notat: ['Pepperkakebaking', 'Lucia-boller og kakao', 'Kinotur', '', ''][i] ?? '', status: i < 1 ? 'klar' : 'apen' }));
+
+  return { lister, punkter };
 }
