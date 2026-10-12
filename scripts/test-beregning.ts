@@ -4,7 +4,7 @@ import { fellesFlyt, privatFlyt } from '../src/logikk/flyt';
 import { demoFelles, demoLister, demoPrivat } from '../src/data/demo';
 import { andelGaatt, avstem, dagerIMaaned, flyttMaaned, kategoriStatus, kontoPlan, kontoerFor, muligeDubletter, revisjonForMaaned } from '../src/logikk/oppfolging';
 import {
-  MALER, adventssondager, erFerdig, gavehistorikk, hageIMaaned, huskelapp, kalenderAar, kalenderLuker, kopierPunkter, lagTre, listeSum,
+  MALER, adventssondager, erFerdig, erGjort, fremdrift, gavehistorikk, hageIMaaned, huskelapp, kalenderAar, kalenderLuker, kopierPunkter, lagTre, listeSum,
   medStatus, nesteStatus, nullstill, punkterFraMal, tidligereGaver, tolkHurtig,
 } from '../src/logikk/lister';
 import type { Post, Punkt, Saldo, Utgift } from '../src/data/modell';
@@ -194,6 +194,13 @@ sjekk('listesum: planlagt og kjøpt', listeSum('gave', [lp('a', { belop: 300 }),
   { planlagt: 300, brukt: 700, antallMedBelop: 3 });
 const tre = lagTre([lp('barn', { forelderId: 'f', rekkefolge: 2 }), lp('f', { rekkefolge: 1 }), lp('foreldrelos', { forelderId: 'borte', rekkefolge: 3 })], 'sjekk');
 sjekk('tre: underpunkt under forelder, foreldreløse på toppnivå', tre.map((t) => [t.punkt.id, t.barn.map((b) => b.id)]), [['f', ['barn']], ['foreldrelos', []]]);
+// Pakkeliste: man krysser av tingene, ikke overskriften «Klær»
+const klaer = lp('klaer', { status: 'apen' });
+const ting = [lp('sokk', { forelderId: 'klaer', status: 'ferdig' }), lp('lue', { forelderId: 'klaer', status: 'ferdig' })];
+sjekk('hovedpunkt gjort når alle underpunktene er gjort', erGjort('sjekk', klaer, ting), true);
+sjekk('hovedpunkt ikke gjort når ett underpunkt mangler', erGjort('sjekk', klaer, [ting[0], { ...ting[1], status: 'apen' }]), false);
+sjekk('punkt uten underpunkter følger egen status', erGjort('sjekk', klaer, []), false);
+sjekk('fremdrift teller ikke overskrifter', fremdrift('sjekk', [klaer, ...ting, lp('mat', { status: 'apen' })]), { ferdig: 2, totalt: 3 });
 sjekk('hurtig gave med mottaker', tolkHurtig('gave', 'Mamma: skjerf'), { mottaker: 'Mamma', tekst: 'skjerf' });
 sjekk('hurtig uten kolon i andre lister', tolkHurtig('sjekk', ' Kjøpe melk: lett '), { tekst: 'Kjøpe melk: lett' });
 

@@ -7,7 +7,7 @@ import { listeLager, useLister } from '../data/lister';
 import { useTilstand } from '../data/tilstand';
 import { aktivRevisjon, iDag, postMnd, sum, tilMnd } from '../logikk/beregning';
 import {
-  FORSLAG_DAGER, LISTETYPER, MALER, STANDARD_KATEGORIER, adventssondager, erBrukt, erFerdig, fremdrift, gavehistorikk,
+  FORSLAG_DAGER, LISTETYPER, MALER, STANDARD_KATEGORIER, adventssondager, erBrukt, erFerdig, erGjort, fremdrift, gavehistorikk,
   hageIMaaned, huskelapp, kalenderAar, kalenderLuker, kopierPunkter, lagTre, listeSum, medStatus, nesteRekkefolge,
   nesteStatus, nullstill, nyttPunkt, punkterFraMal, statusTekst, tidligereGaver, tolkHurtig, dagerMellom,
   type EgenDag, type HageOppgave, type KalenderModus, type Mal,
@@ -661,6 +661,13 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
   }
   const settStatus = (p: Punkt, status: string) => lagre(p, medStatus(p, type, status, idag));
 
+  /** Hovedpunkt: krysser av (eller fjerner avkrysningen på) hovedpunktet og alle underpunktene */
+  function krysseAvGruppe(p: Punkt, barn: Punkt[], pa: boolean) {
+    const statuser = info.statuser;
+    const status = pa ? statuser[statuser.length - 1].id : statuser[0].id;
+    void listeLager.lagrePunkter([p, ...barn].filter((x) => x.status !== status).map((x) => medStatus(x, type, status, idag)));
+  }
+
   // Nullstill: gjenbruk listen (f.eks. pakkelisten før neste tur) i stedet for å kopiere den
   const tilbakestill = nullstill(mine, type);
   const kanNullstille = type === 'sjekk' && tilbakestill.length > 0;
@@ -697,7 +704,7 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
   }
 
   const rad = (p: Punkt, barn: Punkt[]): ReactNode => {
-    const ferdig = erFerdig(type, p.status);
+    const ferdig = erGjort(type, p, barn);
     const dager = p.dato ? dagerMellom(idag, p.dato) : null;
     // Nær frist vises i farge i infolinjen (plass til beløp og status på mobil)
     const frist = dager !== null && !ferdig && type !== 'kalender' && dager <= 14 ? dager : null;
@@ -716,7 +723,7 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
     const radInnhold = (
       <>
           {medAvkryss(type)
-            ? <Avkryss pa={ferdig} etikett={p.tekst} endre={() => settStatus(p, nesteStatus(type, p.status))} />
+            ? <Avkryss pa={ferdig} etikett={p.tekst} endre={() => (barn.length ? krysseAvGruppe(p, barn, !ferdig) : settStatus(p, nesteStatus(type, p.status)))} />
             : info.statuser.length > 1 ? null : <span className="punkt-ikon"><Ikon navn="blad" storrelse={18} /></span>}
           <button className="rad-knapp" onClick={() => aapne(p)}>
             <span className="hoved">
@@ -805,8 +812,8 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
       );
     });
   } else if (medAvkryss(type)) {
-    const aapne_ = tre.filter(({ punkt }) => !erFerdig(type, punkt.status));
-    const ferdige = tre.filter(({ punkt }) => erFerdig(type, punkt.status));
+    const aapne_ = tre.filter(({ punkt, barn }) => !erGjort(type, punkt, barn));
+    const ferdige = tre.filter(({ punkt, barn }) => erGjort(type, punkt, barn));
     innhold = (
       <>
         <div className="liste">{aapne_.map(({ punkt, barn }) => rad(punkt, barn))}</div>

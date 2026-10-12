@@ -318,10 +318,18 @@ export function listeSum(type: ListeType, punkter: Punkt[]): ListeSum {
   return { planlagt, brukt, antallMedBelop };
 }
 
-/** Fremdrift: antall ferdige av alle (hage og lister uten ferdig-status teller ikke) */
+/** Et hovedpunkt er gjort når det selv er krysset av, eller når alle underpunktene er det */
+export function erGjort(type: ListeType, p: Punkt, barn: Punkt[]): boolean {
+  return erFerdig(type, p.status) || (barn.length > 0 && barn.every((b) => erFerdig(type, b.status)));
+}
+
+/** Fremdrift: antall ferdige av alle. Hovedpunkter med underpunkter er overskrifter og telles ikke.
+ *  Hage og lister uten ferdig-status har ingen fremdrift. */
 export function fremdrift(type: ListeType, punkter: Punkt[]): { ferdig: number; totalt: number } {
-  if (LISTETYPER[type].statuser.length < 2) return { ferdig: 0, totalt: punkter.length };
-  return { ferdig: punkter.filter((p) => erFerdig(type, p.status)).length, totalt: punkter.length };
+  const foreldre = new Set(punkter.map((p) => p.forelderId).filter(Boolean));
+  const telles = punkter.filter((p) => !foreldre.has(p.id));
+  if (LISTETYPER[type].statuser.length < 2) return { ferdig: 0, totalt: telles.length };
+  return { ferdig: telles.filter((p) => erFerdig(type, p.status)).length, totalt: telles.length };
 }
 
 // ---------------------------------------------------------------- Huskelapp og hagesesong
