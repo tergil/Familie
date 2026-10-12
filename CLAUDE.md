@@ -18,6 +18,11 @@ Personlige arbeidsinstrukser ligger i `~/.claude/CLAUDE.md`. Denne fila handler 
   gavehistorikk, hagesesong per måned og huskelapp med frister (også på Oversikt). En liste kan kobles til en budsjettpost
   (sammenlignes med årsbeløpet) eller et sparemål. «Kjøpt» på et punkt med beløp tilbyr «Før utgift».
   Punkter kan dras i ny rekkefølge (håndtaket ⋮⋮, innenfor samme nivå) og ha bilder/PDF som vedlegg.
+- **Gaveår** (listetype `gaveaar`, `sider/Gaveaar.tsx`, `logikk/gaveaar.ts`): ett felles + ett privat per person.
+  Mottaker = hovedpunkt med `anledninger` (bursdag, jul, morsdag/farsdag regnes ut, egne – evt. «bare én gang») og budsjett.
+  Gaver/ideer = underpunkter; `anledning` = «<anledning-id>:<år>», tom = idébanken (følger med til neste år).
+  `betaler` = person-id når en felles gave går av én persons gavekonto. Juleplan/morsdag/farsdag (`#/lister/plan/jul/2026`)
+  samler felles + eget gaveår med potter «Felles» / «Fra deg». Varsler på huskelappen 3 uker før hvis ingenting er kjøpt.
 - **Deling** (Valg → Del liste): som tekst (øyeblikksbilde) eller lenke `#/delt/<nøkkel>` som vises uten innlogging
   (`sider/Delt.tsx`). Bare det som ikke er kjøpt/gjort deles, og aldri vedlegg.
 - Status: POC i grenen `poc`.

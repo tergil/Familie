@@ -17,6 +17,8 @@ import {
 } from '../logikk/lister';
 import { Ark, BelopFelt, Felt, Ikon, MAANEDER_KORT, Segment, Tom, dagerTekst, kortDato, kr, ukedagDato } from '../ui/felles';
 import { UtgiftSkjema, type UtgiftForslag } from '../ui/UtgiftSkjema';
+import { ANLEDNING_IKON, anledningsNavn, anledningsValg, gaveVarsler, mottakere as mottakereI, forekomster, nokkelTekst } from '../logikk/gaveaar';
+import { AnledningsPlan, GaveaarSide } from './Gaveaar';
 
 const EMOJI = ['📝', '🎁', '🎄', '🕯️', '🧳', '🏔️', '☀️', '🍽️', '📺', '🎬', '📚', '🌱', '🌷', '🔧', '⚡', '🏠', '🛋️', '🎉', '❤️', '⭐', '🚗', '👶', '🐶', '💡'];
 
@@ -28,11 +30,11 @@ const MAANED_NAVN =['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli',
 /** Sjekklister og kalendere har avkrysning. De andre typene viser statusen som en knapp. */
 const medAvkryss = (type: ListeType) => type === 'sjekk' || type === 'kalender';
 
-function Laster() {
+export function Laster() {
   return <div className="laster"><div className="spinner" aria-label="Laster" /></div>;
 }
 
-function FeilBanner({ feil }: { feil: string | null }) {
+export function FeilBanner({ feil }: { feil: string | null }) {
   if (!feil) return null;
   return (
     <div className="banner feil" role="alert">
@@ -43,13 +45,14 @@ function FeilBanner({ feil }: { feil: string | null }) {
   );
 }
 
-export function Lister({ listeId, gaaTil }: { listeId?: string; gaaTil: (r: string) => void }) {
+export function Lister({ listeId, rest = [], gaaTil }: { listeId?: string; rest?: string[]; gaaTil: (r: string) => void }) {
+  if (listeId === 'plan') return <AnledningsPlan key={rest.join('/')} type={rest[0]} aar={rest[1]} gaaTil={gaaTil} />;
   return listeId ? <ListeSide key={listeId} id={listeId} gaaTil={gaaTil} /> : <ListeOversikt gaaTil={gaaTil} />;
 }
 
 // ---------------------------------------------------------------- Små byggeklosser
 
-function Avkryss({ pa, endre, etikett }: { pa: boolean; endre: () => void; etikett: string }) {
+export function Avkryss({ pa, endre, etikett }: { pa: boolean; endre: () => void; etikett: string }) {
   return (
     <button type="button" className="avkryss" role="checkbox" aria-checked={pa} aria-label={etikett} onClick={endre}>
       <Ikon navn="sjekk" storrelse={15} />
@@ -57,7 +60,7 @@ function Avkryss({ pa, endre, etikett }: { pa: boolean; endre: () => void; etike
   );
 }
 
-function StatusKnapp({ type, status, endre }: { type: ListeType; status: string; endre: () => void }) {
+export function StatusKnapp({ type, status, endre }: { type: ListeType; status: string; endre: () => void }) {
   const statuser = LISTETYPER[type].statuser;
   const i = statuser.findIndex((s) => s.id === status);
   const klasse = erFerdig(type, status) ? 'bra' : i > 0 ? 'aksent' : '';
@@ -84,7 +87,7 @@ function Stjerner({ verdi, endre }: { verdi?: number; endre: (v: number | undefi
 }
 
 /** Overskrift for en seksjon i listen. Status: liten etikett. Person (gavemottaker): navn med bokstav. */
-function SeksjonHode({ tittel, antall, sum: total, under, person, children }: {
+export function SeksjonHode({ tittel, antall, sum: total, under, person, children }: {
   tittel: string; antall?: number; sum?: number; under?: string; person?: boolean; children?: ReactNode;
 }) {
   return (
@@ -104,7 +107,7 @@ const stjerneTekst = (v?: number) => (v ? '★'.repeat(v) + '☆'.repeat(5 - v) 
 const maanederTekst = (m?: number[]) => (m?.length ? [...m].sort((a, b) => a - b).map((x) => MAANEDER_KORT[x - 1]).join(', ') : '');
 
 /** Merkelapp for en frist: rød når den er passert, gul når den er nær */
-function FristMerke({ dager }: { dager: number }) {
+export function FristMerke({ dager }: { dager: number }) {
   const klasse = dager < 0 ? 'feil' : dager <= 2 ? 'varsel' : '';
   return <span className={`merkelapp ${klasse}`}>{dager < 0 && <Ikon navn="advarsel" storrelse={12} />}{dagerTekst(dager)}</span>;
 }
@@ -146,7 +149,7 @@ function koblingValg(felles: FellesDok | null, privat: PrivatDok | null, erPriva
   ].filter((g) => g.valg.length);
 }
 
-function BudsjettKort({ liste, punkter, endre }: { liste: Liste; punkter: Punkt[]; endre: () => void }) {
+export function BudsjettKort({ liste, punkter, endre }: { liste: Liste; punkter: Punkt[]; endre: () => void }) {
   const { felles, privat } = useTilstand();
   const s = listeSum(liste.type, punkter);
   const kobling = finnKobling(liste, felles, privat);
@@ -157,7 +160,7 @@ function BudsjettKort({ liste, punkter, endre }: { liste: Liste; punkter: Punkt[
       <section className="kort kompakt">
         <div className="budsjett-linje">
           <span><span className="dempet liten">Planlagt</span><strong className="tall">{kr(s.planlagt)}</strong></span>
-          <span><span className="dempet liten">{liste.type === 'gave' || liste.type === 'onske' ? 'Kjøpt' : 'Ferdig'}</span><strong className="tall">{kr(s.brukt)}</strong></span>
+          <span><span className="dempet liten">{liste.type === 'gave' || liste.type === 'gaveaar' || liste.type === 'onske' ? 'Kjøpt' : 'Ferdig'}</span><strong className="tall">{kr(s.brukt)}</strong></span>
           <button className="knapp liten flat" onClick={endre}><Ikon navn="budsjett" storrelse={16} />Koble til budsjettet</button>
         </div>
       </section>
@@ -182,7 +185,7 @@ function BudsjettKort({ liste, punkter, endre }: { liste: Liste; punkter: Punkt[
           <span className="planlagt" style={{ width: `${(s.planlagt / skala) * 100}%` }} />
         </div>
         <div className="forklaring">
-          <span><span className="prikk" style={{ background: 'var(--aksent)' }} />{liste.type === 'gave' || liste.type === 'onske' ? 'Kjøpt' : 'Ferdig'} {kr(s.brukt)}</span>
+          <span><span className="prikk" style={{ background: 'var(--aksent)' }} />{liste.type === 'gave' || liste.type === 'gaveaar' || liste.type === 'onske' ? 'Kjøpt' : 'Ferdig'} {kr(s.brukt)}</span>
           <span><span className="prikk planlagt" />Planlagt {kr(s.planlagt)}</span>
         </div>
       </section>
@@ -222,12 +225,13 @@ export function HuskelappKort({ gaaTil, paaListesiden }: { gaaTil: (r: string) =
   const huske = huskelapp(lister, punkter, idag);
   // Hagen vises som egen boks på listesiden, og som én linje her
   const hage = paaListesiden ? [] : hageIMaaned(lister, punkter, idag).filter((h) => !h.gjort);
-  if (!huske.length && !hage.length) return null;
+  const gaver = gaveVarsler(lister, punkter, idag);
+  if (!huske.length && !hage.length && !gaver.length) return null;
 
   return (
     <section className="kort">
       <div className="kort-hode">
-        <div className="tittel"><h2>Huskelapp</h2><span className="dempet liten">Frister de neste 14 dagene</span></div>
+        <div className="tittel"><h2>Huskelapp</h2><span className="dempet liten">Frister de neste 14 dagene{gaver.length ? ', gaver 3 uker før' : ''}</span></div>
         {!paaListesiden && <button className="knapp liten flat" onClick={() => gaaTil('lister')}>Lister<Ikon navn="pilhoyre" storrelse={16} /></button>}
       </div>
       <div className="liste">
@@ -245,6 +249,16 @@ export function HuskelappKort({ gaaTil, paaListesiden }: { gaaTil: (r: string) =
               <FristMerke dager={dager} />
             </button>
           </div>
+        ))}
+        {gaver.map((f) => (
+          <button className="rad" key={f.nokkel + f.liste.id} onClick={() => gaaTil(`lister/${f.liste.id}`)}>
+            <span className="liste-ikon liten">{ANLEDNING_IKON[f.anledning.type]}</span>
+            <span className="hoved">
+              <span className="navn">{anledningsNavn(f.anledning)} – {f.mottaker.tekst}</span>
+              <span className="info">{ukedagDato(f.dato)} · {f.ideer ? `${f.ideer} ${f.ideer === 1 ? 'idé' : 'ideer'}` : 'ingen ideer'} · ingenting kjøpt{f.liste.privat ? ' · privat' : ''}</span>
+            </span>
+            <FristMerke dager={f.dager} />
+          </button>
         ))}
         {hage.length > 0 && (
           <button className="rad" onClick={() => gaaTil(`lister/${hage[0].liste.id}`)}>
@@ -293,6 +307,7 @@ function HageSesong({ oppgaver }: { oppgaver: HageOppgave[] }) {
 // ---------------------------------------------------------------- Oversikt over listene
 
 function ListeRad({ liste, punkter, aapne }: { liste: Liste; punkter: Punkt[]; aapne: () => void }) {
+  if (liste.type === 'gaveaar' && !liste.mal) return <GaveaarRad liste={liste} punkter={punkter} aapne={aapne} />;
   const egne = punkter.filter((p) => p.listeId === liste.id);
   const f = fremdrift(liste.type, egne);
   const s = listeSum(liste.type, egne);
@@ -456,7 +471,7 @@ function ListeFelt({ u, sett, visType }: { u: Utkast; sett: (e: Partial<Utkast>)
   );
 }
 
-function ListeSkjema({ liste, lukk }: { liste: Liste; lukk: () => void }) {
+export function ListeSkjema({ liste, lukk }: { liste: Liste; lukk: () => void }) {
   const { felles, privat } = useTilstand();
   const [u, setU] = useState<Utkast>({ ...liste, kobling: koblingAv(liste) });
   const gyldigKobling = koblingValg(felles, privat, u.privat).some((g) => g.valg.some((v) => v.verdi === u.kobling)) ? u.kobling : '';
@@ -638,6 +653,7 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
     );
   }
 
+  if (liste.type === 'gaveaar') return <GaveaarSide liste={liste} gaaTil={gaaTil} />;
   const type = liste.type;
   const info = LISTETYPER[type];
   const mine = punkter.filter((p) => p.listeId === id);
@@ -942,7 +958,7 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
 
   const plassholder: Record<ListeType, string> = {
     sjekk: 'Legg til punkt …', gave: 'F.eks. Mamma: skjerf', onske: 'F.eks. Ny sofa', oppgave: 'F.eks. Ny stikkontakt på badet',
-    opplevelse: 'Navn på restaurant eller sted', serie: 'Tittel', hage: 'Plante eller ting, f.eks. Roser', kalender: '',
+    opplevelse: 'Navn på restaurant eller sted', serie: 'Tittel', hage: 'Plante eller ting, f.eks. Roser', kalender: '', gaveaar: 'Ny idé',
   };
   const f = fremdrift(type, mine);
 
@@ -1015,7 +1031,7 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
 
 // ---------------------------------------------------------------- Ett punkt
 
-function PunktArk({ liste, start, ny, alle, historikk, lagre, lukk, aapne, forUtgift }: {
+export function PunktArk({ liste, start, ny, alle, historikk, lagre, lukk, aapne, forUtgift }: {
   liste: Liste; start: Punkt; ny: boolean; alle: Punkt[]; historikk: ReturnType<typeof gavehistorikk>;
   lagre: (foer: Punkt | undefined, etter: Punkt) => void; lukk: () => void; aapne: (p: Punkt) => void; forUtgift: (p: Punkt) => void;
 }) {
@@ -1065,7 +1081,7 @@ function PunktArk({ liste, start, ny, alle, historikk, lagre, lukk, aapne, forUt
   const idag = iDag();
 
   const tekstEtikett: Record<ListeType, string> = {
-    sjekk: 'Tekst', gave: 'Gave', onske: 'Hva', oppgave: 'Oppgave', opplevelse: 'Sted', serie: 'Tittel', hage: 'Plante, ting eller oppgave', kalender: 'Luke',
+    sjekk: 'Tekst', gave: 'Gave', onske: 'Hva', oppgave: 'Oppgave', opplevelse: 'Sted', serie: 'Tittel', hage: 'Plante, ting eller oppgave', kalender: 'Luke', gaveaar: 'Gave eller idé',
   };
 
   function send(e: FormEvent) {
@@ -1101,6 +1117,8 @@ function PunktArk({ liste, start, ny, alle, historikk, lagre, lukk, aapne, forUt
               valg={info.statuser.map((s) => ({ verdi: s.id, tekst: s.tekst }))} />
           </div>
         )}
+
+        {type === 'gaveaar' && <GaveaarFelt p={p} sett={sett} liste={liste} alle={alle} />}
 
         {har('mottaker') && (
           <Felt etikett="Til">
@@ -1180,7 +1198,7 @@ function PunktArk({ liste, start, ny, alle, historikk, lagre, lukk, aapne, forUt
           )}
         </div>
 
-        {type !== 'kalender' && barn.length === 0 && mulige.length > 0 && (
+        {type !== 'kalender' && type !== 'gaveaar' && barn.length === 0 && mulige.length > 0 && (
           <Felt etikett="Underpunkt av">
             <select value={p.forelderId ?? ''} onChange={(e) => sett({ forelderId: e.target.value || null })}>
               <option value="">Ingen (eget punkt)</option>
@@ -1189,7 +1207,7 @@ function PunktArk({ liste, start, ny, alle, historikk, lagre, lukk, aapne, forUt
           </Felt>
         )}
 
-        {!ny && !p.forelderId && type !== 'kalender' && (
+        {!ny && !p.forelderId && type !== 'kalender' && type !== 'gaveaar' && (
           <div className="felt">
             <span>Underpunkter</span>
             {barn.length > 0 && (
@@ -1246,7 +1264,7 @@ function flyttAar(p: Punkt, aar: number): Punkt {
   return { ...p, dato: sondag ? adventssondager(nyttAar)[Number(sondag[1]) - 1] : `${nyttAar}${p.dato.slice(4)}` };
 }
 
-function ValgArk({ liste, punkter, lukk, endre, del, gaaTil }: { liste: Liste; punkter: Punkt[]; lukk: () => void; endre: () => void; del: () => void; gaaTil: (r: string) => void }) {
+export function ValgArk({ liste, punkter, lukk, endre, del, gaaTil }: { liste: Liste; punkter: Punkt[]; lukk: () => void; endre: () => void; del: () => void; gaaTil: (r: string) => void }) {
   const { lister } = useLister();
   const { visToast } = useTilstand();
   const [bekreft, setBekreft] = useState(false);
@@ -1267,10 +1285,10 @@ function ValgArk({ liste, punkter, lukk, endre, del, gaaTil }: { liste: Liste; p
 
   const valg: { ikon: string; tekst: string; info: string; gjor: () => void; fare?: boolean; skjul?: boolean; av?: boolean }[] = [
     { ikon: 'rediger', tekst: 'Endre liste', info: 'Navn, ikon, kategori, privat og budsjettkobling', gjor: endre },
-    { ikon: 'del', tekst: 'Del liste', skjul: liste.mal, info: liste.deling ? 'Delingslenken er på. Del som tekst eller lenke.' : 'Med familie og venner – som tekst eller lenke', gjor: del },
+    { ikon: 'del', tekst: 'Del liste', skjul: liste.mal || liste.type === 'gaveaar', info: liste.deling ? 'Delingslenken er på. Del som tekst eller lenke.' : 'Med familie og venner – som tekst eller lenke', gjor: del },
     {
       // Alltid synlig (når listetypen har status), nedtonet når ingenting er krysset av
-      ikon: 'revisjon', tekst: 'Nullstill', skjul: LISTETYPER[liste.type].statuser.length < 2, av: !tilbake.length,
+      ikon: 'revisjon', tekst: 'Nullstill', skjul: LISTETYPER[liste.type].statuser.length < 2 || liste.type === 'gaveaar', av: !tilbake.length,
       info: tilbake.length
         ? `Setter ${tilbake.length} punkter tilbake til «${forste}» – f.eks. pakkelisten før neste tur. Kan angres.`
         : `Ingenting å nullstille – alle punktene står allerede som «${forste}»`,
@@ -1282,11 +1300,11 @@ function ValgArk({ liste, punkter, lukk, endre, del, gaaTil }: { liste: Liste; p
       },
     },
     {
-      ikon: 'kopi', tekst: liste.mal ? 'Lag liste fra malen' : 'Kopier til ny liste',
+      ikon: 'kopi', tekst: liste.mal ? 'Lag liste fra malen' : 'Kopier til ny liste', skjul: liste.type === 'gaveaar',
       info: liste.mal ? 'Ny liste med de samme punktene' : /\b20\d\d\b/.test(liste.navn) ? `Lager «${nyttNavn(liste.navn).navn}» med datoene flyttet ett år frem` : 'Samme punkter, alt satt tilbake til start',
       gjor: () => void kopier(false),
     },
-    { ikon: 'liste', tekst: 'Lagre som mal', skjul: liste.mal, info: 'Gjenbruk listen – den dukker opp under «Ny liste»', gjor: () => void kopier(true) },
+    { ikon: 'liste', tekst: 'Lagre som mal', skjul: liste.mal || liste.type === 'gaveaar', info: 'Gjenbruk listen – den dukker opp under «Ny liste»', gjor: () => void kopier(true) },
   ];
 
   return (
@@ -1315,7 +1333,7 @@ function ValgArk({ liste, punkter, lukk, endre, del, gaaTil }: { liste: Liste; p
 
 // ---------------------------------------------------------------- Gavehistorikk
 
-function GavehistorikkArk({ lukk }: { lukk: () => void }) {
+export function GavehistorikkArk({ lukk }: { lukk: () => void }) {
   const { lister, punkter } = useLister();
   const historikk = gavehistorikk(lister, punkter);
   return (
@@ -1411,3 +1429,49 @@ function DelArk({ liste, punkter, lukk }: { liste: Liste; punkter: Punkt[]; lukk
     </Ark>
   );
 }
+
+// ---------------------------------------------------------------- Gaveår i listeoversikten og punktarket
+
+function GaveaarRad({ liste, punkter, aapne }: { liste: Liste; punkter: Punkt[]; aapne: () => void }) {
+  const antall = mottakereI(liste.id, punkter).length;
+  const neste = forekomster([liste], punkter, iDag())[0];
+  return (
+    <button className="rad" onClick={aapne}>
+      <span className="liste-ikon">{liste.ikon || '🎂'}</span>
+      <span className="hoved">
+        <span className="navn">{liste.navn}</span>
+        <span className="info">{antall} {antall === 1 ? 'mottaker' : 'mottakere'}{neste ? ` · neste: ${anledningsNavn(neste.anledning).toLowerCase()} – ${neste.mottaker.tekst} ${kortDato(neste.dato)}` : ''}</span>
+      </span>
+      {liste.privat && <span className="merkelapp" title="Bare du ser listen"><Ikon navn="privat" storrelse={12} />Privat</span>}
+      <Ikon navn="pilhoyre" storrelse={16} />
+    </button>
+  );
+}
+
+/** «Til anledning» og «Betales av» for en gave i et gaveår */
+function GaveaarFelt({ p, sett, liste, alle }: { p: Punkt; sett: (e: Partial<Punkt>) => void; liste: Liste; alle: Punkt[] }) {
+  const { felles } = useTilstand();
+  const mottaker = alle.find((x) => x.id === p.forelderId);
+  const valg = mottaker ? anledningsValg(mottaker, iDag()) : [];
+  const harValgt = !p.anledning || valg.some((v) => v.nokkel === p.anledning);
+  return (
+    <>
+      <Felt etikett="Til anledning" hjelp="Ideer uten anledning blir liggende i idébanken og følger med til neste år.">
+        <select value={p.anledning ?? ''} onChange={(e) => sett({ anledning: e.target.value || undefined })}>
+          <option value="">Idébanken (ikke bestemt)</option>
+          {!harValgt && <option value={p.anledning}>{nokkelTekst(mottaker, p.anledning!)}</option>}
+          {valg.map((v) => <option key={v.nokkel} value={v.nokkel}>{v.tekst} ({kortDato(v.dato)})</option>)}
+        </select>
+      </Felt>
+      {!liste.privat && felles && felles.personer.length > 0 && (
+        <Felt etikett="Betales av" hjelp="Felles gave som én av dere betaler – teller i den personens gavebudsjett.">
+          <select value={p.betaler ?? ''} onChange={(e) => sett({ betaler: e.target.value || undefined })}>
+            <option value="">Felles</option>
+            {felles.personer.map((x) => <option key={x.id} value={x.id}>{x.navn}</option>)}
+          </select>
+        </Felt>
+      )}
+    </>
+  );
+}
+

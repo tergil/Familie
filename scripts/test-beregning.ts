@@ -2,6 +2,7 @@
 import { avrundOpp, foreslaOverforinger, kopierRevisjon, oppsummerFelles, oppsummerPrivat, privateOverforinger, sammenlign, sum, tilMnd, aktivRevisjon } from '../src/logikk/beregning';
 import { fellesFlyt, privatFlyt } from '../src/logikk/flyt';
 import { demoFelles, demoLister, demoPrivat } from '../src/data/demo';
+import { andreSondag, anledningsDato, anledningsPlan, flyttGavelister, forekomster, gaveVarsler, personbudsjett, potter } from '../src/logikk/gaveaar';
 import { andelGaatt, avstem, dagerIMaaned, flyttMaaned, kategoriStatus, kontoPlan, kontoerFor, muligeDubletter, revisjonForMaaned } from '../src/logikk/oppfolging';
 import {
   MALER, adventssondager, delingsTekst, erFerdig, erGjort, flyttEtSteg, fremdrift, gavehistorikk, nyRekkefolge, punkterForDeling, hageIMaaned, huskelapp, kalenderAar, kalenderLuker, kopierPunkter, lagTre, listeSum,
@@ -241,8 +242,43 @@ sjekk('hage: gjort denne måneden sorteres sist', hageIMaaned(dl.lister, stelt, 
 sjekk('hage: gjort i fjor teller ikke', hageIMaaned(dl.lister, dl.punkter.map((p) => ({ ...p, sistGjort: '2025-10-02' })), '2026-10-11').every((h) => !h.gjort), true);
 // Demodataene har også Karis private lister – lager.hentLister filtrerer dem bort for Ola
 const hist = gavehistorikk(dl.lister, dl.punkter);
-sjekk('gavehistorikk per mottaker', hist.map((m) => [m.navn, m.gaver.map((g) => `${g.aar} ${g.punkt.tekst}`)]), [['Mamma', ['2026 Skjerf', '2025 Lysestake']], ['Pappa', ['2025 Termokopp']]]);
+sjekk('gavehistorikk per mottaker', hist.map((m) => [m.navn, m.gaver.map((g) => `${g.aar} ${g.punkt.tekst}`)]), [['Bestemor', ['2026 Pledd']], ['Mamma', ['2026 Skjerf', '2025 Lysestake']], ['Pappa', ['2025 Termokopp']]]);
 sjekk('tidligere gaver, uten store/små bokstaver', tidligereGaver(hist, ' mamma ').map((g) => g.punkt.tekst), ['Skjerf', 'Lysestake']);
+
+// --- Gaveår: datoer for anledninger
+sjekk('morsdag 2026 (2. søndag i februar)', andreSondag(2026, 2), '2026-02-08');
+sjekk('morsdag 2027', andreSondag(2027, 2), '2027-02-14');
+sjekk('farsdag 2026 (2. søndag i november)', andreSondag(2026, 11), '2026-11-08');
+sjekk('jul', anledningsDato({ id: 'j', type: 'jul' }, 2026), '2026-12-24');
+sjekk('bursdag uten dato', anledningsDato({ id: 'b', type: 'bursdag' }, 2026), null);
+sjekk('engangsanledning bare sitt år', [anledningsDato({ id: 'k', type: 'egen', dag: '05-09', aar: 2027 }, 2026), anledningsDato({ id: 'k', type: 'egen', dag: '05-09', aar: 2027 }, 2027)], [null, '2027-05-09']);
+
+// --- Gaveår: tidslinje, varsler og juleplan (demodata regnet fra 11. oktober 2026)
+const ga = demoLister('2026-10-11');
+const tidslinje = forekomster(ga.lister, ga.punkter, '2026-10-11');
+sjekk('årshjul: første anledninger', tidslinje.slice(0, 3).map((f) => `${f.anledning.type} ${f.mottaker.tekst} ${f.dato}`),
+  ['bursdag Mamma 2026-10-29', 'farsdag Pappa 2026-11-08', 'jul Bestemor 2026-12-24']);
+sjekk('årshjul: konfirmasjon neste år er med', tidslinje.some((f) => f.anledning.navn === 'Konfirmasjon' && f.dato === '2027-05-09'), true);
+sjekk('varsel 3 uker før når ingenting er kjøpt', gaveVarsler(ga.lister, ga.punkter, '2026-10-11').map((f) => `${f.mottaker.tekst} ${f.dager}`), ['Mamma 18']);
+const kjoptTilMamma = ga.punkter.map((p) => (p.tekst === 'Strikkebok' ? { ...p, status: 'kjopt', anledning: 'a-m-b:2026' } : p));
+sjekk('ingen varsel når gaven er kjøpt', gaveVarsler(ga.lister, kjoptTilMamma, '2026-10-11').length, 0);
+const jul = anledningsPlan(ga.lister, ga.punkter, 'jul', 2026);
+sjekk('juleplan: felles og private mottakere', jul.map((p) => p.navn), ['Bestemor', 'Lena', 'Mamma', 'Ola', 'Pappa']);
+sjekk('juleplan: valgt gave og ideer', [jul[0].deler[0].gaver.map((g) => g.tekst), jul[0].deler[0].ideer.map((g) => g.tekst)], [['Pledd'], ['Puslespill']]);
+sjekk('potter: felles gave betalt av Kari teller på Kari', potter(jul, 'kari'), [{ id: 'kari', planlagt: 0, brukt: 700, antall: 1 }]);
+const fellesGa = ga.lister.find((l) => l.navn === 'Gaveår')!;
+sjekk('personbudsjett jul, felles', personbudsjett(jul, fellesGa.id), 800 + 400 + 600 + 600);
+
+// --- Flytte gamle gavelister inn i gaveåret
+const mittGa = ga.lister.find((l) => l.navn === 'Mitt gaveår')!;
+const flytt = flyttGavelister(ga.lister, ga.punkter, { felles: fellesGa, privat: mittGa });
+sjekk('flytting: lister og gaver', [flytt.flyttet.map((l) => l.navn), flytt.gaver.length], [['Gaver jul 2025', 'Gaver jul 2026'], 5]);
+sjekk('flytting: nye mottakere (Ola finnes fra før)', flytt.mottakere.map((m) => m.tekst).sort(), ['Mamma', 'Pappa']);
+const olaId = ga.punkter.find((p) => p.tekst === 'Ola' && p.listeId === mittGa.id)!.id;
+sjekk('flytting: gave til eksisterende mottaker', flytt.gaver.find((g) => g.tekst === 'Konsertbilletter')!.forelderId, olaId);
+const lysestake = flytt.gaver.find((g) => g.tekst === 'Lysestake')!;
+const nyMamma = flytt.mottakere.find((m) => m.tekst === 'Mamma')!;
+sjekk('flytting: jul fra listenavnet med riktig år', [lysestake.anledning === `${nyMamma.anledninger![0].id}:2025`, lysestake.status, lysestake.listeId], [true, 'gitt', mittGa.id]);
 
 console.log(`\n${ok} ok, ${feil} feil`);
 if (feil) process.exit(1);

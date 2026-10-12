@@ -68,6 +68,8 @@ export interface Lager {
   /** Midlertidig adresse til filen (gyldig en time) */
   vedleggUrl(sti: string): Promise<string>;
   slettVedlegg(stier: string[]): Promise<void>;
+  /** Kopierer en fil til ny sti (når et punkt flyttes til en annen liste) */
+  kopierVedlegg(fra: string, til: string): Promise<void>;
 }
 
 /** Varsler sider som viser utgifter/saldoer om at noe er endret */
@@ -272,6 +274,11 @@ class LokaltLager implements Lager {
     const url = les<string>(`vedlegg.${sti}`);
     if (!url) throw new Error('Fant ikke vedlegget');
     return url;
+  }
+
+  async kopierVedlegg(fra: string, til: string) {
+    const url = les<string>(`vedlegg.${fra}`);
+    if (url) skriv(`vedlegg.${til}`, url);
   }
 
   async slettVedlegg(stier: string[]) {
@@ -492,6 +499,11 @@ class SupabaseLager implements Lager {
     const { data, error } = await this.db.storage.from('vedlegg').createSignedUrl(sti, 3600);
     if (error) throw error;
     return data.signedUrl;
+  }
+
+  async kopierVedlegg(fra: string, til: string) {
+    const { error } = await this.db.storage.from('vedlegg').copy(fra, til);
+    if (error) throw error;
   }
 
   async slettVedlegg(stier: string[]) {

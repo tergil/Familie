@@ -64,6 +64,11 @@ export const LISTETYPER: Record<ListeType, TypeInfo> = {
     statuser: [{ id: 'apen', tekst: 'Ikke klar' }, { id: 'klar', tekst: 'Klar' }], brukt: ['klar'],
     felt: ['dato', 'belop'],
   },
+  gaveaar: {
+    navn: 'Gaveår', beskrivelse: 'Faste mottakere med bursdag, jul og andre anledninger, idébank og budsjett per person', ikon: '🎂',
+    statuser: [{ id: 'ide', tekst: 'Idé' }, { id: 'kjopt', tekst: 'Kjøpt' }, { id: 'gitt', tekst: 'Gitt' }], brukt: ['kjopt', 'gitt'],
+    felt: ['belop', 'lenke'],
+  },
 };
 
 export const STANDARD_KATEGORIER = ['Hus', 'Hage', 'Jul', 'Gaver', 'Reise', 'Fritid', 'Annet'];
@@ -191,6 +196,11 @@ export const MALER: Mal[] = [
     id: 'jul', navn: 'Juleforberedelser', ikon: '🎄', kategori: 'Jul', type: 'sjekk',
     beskrivelse: 'Det som må gjøres før jul. Kopier fra i fjor neste år.',
     punkter: ['Lage gaveliste', 'Sende julekort', 'Kjøpe juletre', 'Bake', 'Pynte', 'Handle julemat', 'Pakke inn gaver'],
+  },
+  {
+    id: 'gaveaar', navn: 'Gaveår', ikon: '🎂', kategori: 'Gaver', type: 'gaveaar',
+    beskrivelse: 'Faste mottakere med bursdag, jul, morsdag og farsdag. Ideer samles gjennom året og følger med til neste år.',
+    punkter: [],
   },
   {
     id: 'gaver', navn: 'Gaver', ikon: '🎁', kategori: 'Gaver', type: 'gave', privat: true,
@@ -390,17 +400,22 @@ export interface Mottaker {
   gaver: Gave[];
 }
 
-/** Kjøpte og gitte gaver per mottaker, nyeste først. Mottakere skilles ikke på store/små bokstaver. */
+/** Kjøpte og gitte gaver per mottaker, nyeste først. Mottakere skilles ikke på store/små bokstaver.
+ *  Gavelister: mottaker-feltet. Gaveår: mottakeren er hovedpunktet, gavene underpunktene. */
 export function gavehistorikk(lister: Liste[], punkter: Punkt[]): Mottaker[] {
-  const gavelister = new Map(lister.filter((l) => !l.mal && l.type === 'gave').map((l) => [l.id, l]));
+  const gavelister = new Map(lister.filter((l) => !l.mal && (l.type === 'gave' || l.type === 'gaveaar')).map((l) => [l.id, l]));
+  const navnPaa = new Map(punkter.map((p) => [p.id, p.tekst]));
   const per = new Map<string, Mottaker>();
   for (const p of punkter) {
     const liste = gavelister.get(p.listeId);
-    const navn = p.mottaker?.trim();
-    if (!liste || !navn || !erBrukt('gave', p.status)) continue;
+    if (!liste) continue;
+    const navn = (liste.type === 'gaveaar' ? (p.forelderId ? navnPaa.get(p.forelderId) : undefined) : p.mottaker)?.trim();
+    if (!navn || !erBrukt('gave', p.status)) continue;
     const nokkel = navn.toLocaleLowerCase('nb');
     if (!per.has(nokkel)) per.set(nokkel, { navn, gaver: [] });
-    per.get(nokkel)!.gaver.push({ punkt: p, liste, aar: (p.ferdigDato ?? liste.opprettet).slice(0, 4) });
+    // Gaveår: året til anledningen gaven var til (f.eks. «jul:2025»), ellers når den ble kjøpt
+    const aar = p.anledning?.split(':')[1] ?? (p.ferdigDato ?? liste.opprettet).slice(0, 4);
+    per.get(nokkel)!.gaver.push({ punkt: p, liste, aar });
   }
   const ut = [...per.values()].sort((a, b) => a.navn.localeCompare(b.navn, 'nb'));
   for (const m of ut) m.gaver.sort((a, b) => b.aar.localeCompare(a.aar) || a.punkt.tekst.localeCompare(b.punkt.tekst, 'nb'));

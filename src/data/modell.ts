@@ -183,7 +183,7 @@ export function tomtPrivatDok(eierId: Id): PrivatDok {
 // ---------------------------------------------------------------------------
 
 /** Bestemmer hvilke statuser og felt punktene har, se LISTETYPER i logikk/lister.ts */
-export type ListeType = 'sjekk' | 'gave' | 'onske' | 'oppgave' | 'opplevelse' | 'serie' | 'hage' | 'kalender';
+export type ListeType = 'sjekk' | 'gave' | 'onske' | 'oppgave' | 'opplevelse' | 'serie' | 'hage' | 'kalender' | 'gaveaar';
 
 export interface Liste {
   id: Id;
@@ -201,6 +201,8 @@ export interface Liste {
   kontoId?: Id;
   /** Hemmelig nøkkel for delingslenken (#/delt/<nøkkel>). null/mangler = ikke delt. */
   deling?: string | null;
+  /** Gaveår: samlet budsjett for en anledning, nøkkel «jul:2026» */
+  anledningsBudsjett?: Record<string, number>;
   rekkefolge: number;
   opprettet: string; // ÅÅÅÅ-MM-DD
 }
@@ -233,6 +235,27 @@ export interface Punkt {
   sistGjort?: string;
   /** Bilder og PDF i Supabase Storage (bøtta «vedlegg») */
   vedlegg?: Vedlegg[];
+  /** Gaveår, mottaker (hovedpunkt): anledningene personen får gave til */
+  anledninger?: Anledning[];
+  /** Gaveår, gave (underpunkt): hvilken anledning og år den er til, «<anledning-id>:<år>». Tom = idébanken. */
+  anledning?: string;
+  /** Gaveår, felles: person-id til den som betaler. Tom = felles. */
+  betaler?: Id;
+}
+
+export type AnledningType = 'bursdag' | 'jul' | 'morsdag' | 'farsdag' | 'egen';
+
+export interface Anledning {
+  id: Id;
+  type: AnledningType;
+  /** Egen anledning, f.eks. «Konfirmasjon» */
+  navn?: string;
+  /** MM-DD for bursdag og egne. Jul, morsdag og farsdag regnes ut. */
+  dag?: string;
+  /** Bare én gang (f.eks. konfirmasjon): året. Mangler = hvert år. */
+  aar?: number;
+  /** Budsjett for gaven hver gang */
+  budsjett?: number;
 }
 
 export interface Vedlegg {

@@ -8,6 +8,8 @@ import { Budsjett } from './sider/Budsjett';
 import { NyPrivatRevisjon, PrivatBudsjett, PrivatOversikt } from './sider/Privat';
 import { Lister } from './sider/Lister';
 import { DeltSide } from './sider/Delt';
+import { ANLEDNING_IKON, planTittel } from './logikk/gaveaar';
+import type { AnledningType } from './data/modell';
 import { useLister } from './data/lister';
 import { Sparing } from './sider/Sparing';
 import { Revisjoner } from './sider/Revisjoner';
@@ -173,7 +175,10 @@ function Skall() {
   const fabPlass = visFab || (side === 'lister' && !underside);
   const visRevVelger = felles && ['oversikt', 'budsjett', 'personer'].includes(side);
   const aapenListe = side === 'lister' && underside ? lister.find((l) => l.id === underside) : undefined;
-  const tittel = aapenListe ? `${aapenListe.ikon} ${aapenListe.navn}` : TITLER[side] ?? 'Oversikt';
+  const [, , planType, planAar] = rute.split('/');
+  const tittel = side === 'lister' && underside === 'plan'
+    ? `${ANLEDNING_IKON[planType as AnledningType] ?? '🎁'} ${planTittel((planType as AnledningType) || 'jul', planAar ?? '')}`
+    : aapenListe ? `${aapenListe.ikon} ${aapenListe.navn}` : TITLER[side] ?? 'Oversikt';
 
   let innhold;
   switch (side) {
@@ -183,7 +188,7 @@ function Skall() {
         : <Budsjett fane={(underside as 'poster' | 'overforinger' | 'inntekter') ?? 'poster'} byttFane={(f) => gaaTil(`budsjett/${f}`)} />;
       break;
     case 'oppfolging': innhold = <Oppfolging key={rute} visning={erPrivat ? 'privat' : 'felles'} maaned={rute.split('/').find((d) => /^\d{4}-\d{2}$/.test(d))} />; break;
-    case 'lister': innhold = <Lister listeId={underside} gaaTil={gaaTil} />; break;
+    case 'lister': innhold = <Lister listeId={underside} rest={rute.split('/').slice(2)} gaaTil={gaaTil} />; break;
     case 'privat': innhold = null; break;
     case 'sparing': innhold = <Sparing />; break;
     case 'revisjoner': innhold = <Revisjoner gaaTil={gaaTil} />; break;
