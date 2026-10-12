@@ -8,8 +8,7 @@ import { Budsjett } from './sider/Budsjett';
 import { NyPrivatRevisjon, PrivatBudsjett, PrivatOversikt } from './sider/Privat';
 import { Lister } from './sider/Lister';
 import { DeltSide } from './sider/Delt';
-import { ANLEDNING_IKON, planTittel } from './logikk/gaveaar';
-import type { AnledningType } from './data/modell';
+import { PLAN_IKON, planTittel, tilPlanType } from './logikk/gaveaar';
 import { useLister } from './data/lister';
 import { Sparing } from './sider/Sparing';
 import { Revisjoner } from './sider/Revisjoner';
@@ -68,8 +67,8 @@ function Innlogging({ feil }: { feil: string | null }) {
     <main className="innlogging">
       <div className="kort">
         <img src={LOGO} width={64} height={64} alt="" style={{ borderRadius: 16 }} />
-        <h1>Familiebudsjett</h1>
-        <p className="dempet">Logg inn for å se budsjettet deres.</p>
+        <h1>Familie</h1>
+        <p className="dempet">Logg inn for å se budsjett, lister og gaver.</p>
         {feil && <div className="banner feil" style={{ textAlign: 'left' }}><Ikon navn="advarsel" /><div>{feil}</div></div>}
         <button className="knapp full" disabled={venter} onClick={async () => { setVenter(true); await lager.loggInn(); }}>
           <Ikon navn="google" />{venter ? 'Sender deg til Google …' : 'Logg inn med Google'}
@@ -177,7 +176,7 @@ function Skall() {
   const aapenListe = side === 'lister' && underside ? lister.find((l) => l.id === underside) : undefined;
   const [, , planType, planAar] = rute.split('/');
   const tittel = side === 'lister' && underside === 'plan'
-    ? `${ANLEDNING_IKON[planType as AnledningType] ?? '🎁'} ${planTittel((planType as AnledningType) || 'jul', planAar ?? '')}`
+    ? `${PLAN_IKON[tilPlanType(planType)]} ${planTittel(tilPlanType(planType), planAar ?? '')}`
     : aapenListe ? `${aapenListe.ikon} ${aapenListe.navn}` : TITLER[side] ?? 'Oversikt';
 
   let innhold;
@@ -205,7 +204,7 @@ function Skall() {
       <nav className="sidebar" aria-label="Hovedmeny">
         <div className="merke">
           <img src={LOGO} width={28} height={28} alt="" />
-          Familiebudsjett
+          Familie
         </div>
         {HOVED.map(([r, ikon, tekst]) => (
           <a key={r} href={`#/${r}`} aria-current={side === r ? 'page' : undefined}><Ikon navn={ikon} />{tekst}</a>

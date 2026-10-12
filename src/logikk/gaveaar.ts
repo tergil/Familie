@@ -13,8 +13,31 @@ export const ANLEDNING_IKON: Record<AnledningType, string> = {
   bursdag: '🎂', jul: '🎄', morsdag: '💐', farsdag: '👔', egen: '🎉',
 };
 
-/** Anledningene som har egen samlet plan (Juleplan osv.) */
-export const PLAN_TYPER: AnledningType[] = ['jul', 'morsdag', 'farsdag'];
+/** Samlede planer på tvers av gaveårene: jul, bursdager og «andre» (alt annet enn jul og bursdag) */
+export type PlanType = 'jul' | 'bursdag' | 'andre';
+export const PLAN_TYPER: PlanType[] = ['jul', 'bursdag', 'andre'];
+export const PLAN_NAVN: Record<PlanType, string> = { jul: 'Jul', bursdag: 'Bursdager', andre: 'Andre' };
+export const PLAN_IKON: Record<PlanType, string> = { jul: '🎄', bursdag: '🎂', andre: '🎉' };
+
+/** Gamle lenker (morsdag, farsdag) havner under «andre» */
+export function tilPlanType(t: string | undefined): PlanType {
+  return t === 'jul' || t === 'bursdag' ? t : t ? 'andre' : 'jul';
+}
+
+/** Hører anledningen til planen? */
+export function iPlan(type: PlanType, a: Anledning): boolean {
+  return type === 'andre' ? a.type !== 'jul' && a.type !== 'bursdag' : a.type === type;
+}
+
+/** Alderen personen fyller på datoen (fødselsdato ÅÅÅÅ-MM-DD) */
+export function alder(fodt: string | undefined, dato: string): number | undefined {
+  if (!fodt || !/^\d{4}-\d{2}-\d{2}$/.test(fodt)) return undefined;
+  const aar = Number(dato.slice(0, 4)) - Number(fodt.slice(0, 4)) - (dato.slice(5) < fodt.slice(5) ? 1 : 0);
+  return aar >= 0 ? aar : undefined;
+}
+
+/** Runde dager: 10, 20, 30 … */
+export const rundDag = (a: number | undefined) => !!a && a >= 10 && a % 10 === 0;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -72,6 +95,8 @@ export interface Forekomst {
   gaver: Punkt[];
   /** Ideer i idébanken til mottakeren */
   ideer: number;
+  /** Bursdag med kjent fødselsdato: alderen personen fyller */
+  alder?: number;
 }
 
 /** Alle anledninger de neste 12 månedene (fra i dag), sortert på dato */
@@ -89,7 +114,10 @@ export function forekomster(lister: Liste[], punkter: Punkt[], iDag: string, dag
           const dager = dagerMellom(iDag, dato);
           if (dager < 0 || dager > dagerFrem) continue;
           const nokkel = anledningsNokkel(anledning, aar);
-          ut.push({ liste, mottaker, anledning, aar, dato, dager, nokkel, gaver: alle.filter((g) => g.anledning === nokkel), ideer });
+          ut.push({
+            liste, mottaker, anledning, aar, dato, dager, nokkel, gaver: alle.filter((g) => g.anledning === nokkel), ideer,
+            alder: anledning.type === 'bursdag' ? alder(mottaker.fodt, dato) : undefined,
+          });
         }
       }
     }
@@ -146,27 +174,42 @@ export interface PlanDel {
 
 export interface PlanPerson {
   navn: string;
+  /** Anledningen, f.eks. «Bursdag» eller «Konfirmasjon» */
+  tittel: string;
+  type: AnledningType;
+  dato: string;
+  /** Bursdag med kjent fødselsdato */
+  alder?: number;
   deler: PlanDel[];
 }
 
-/** Alle mottakere med anledningen dette året, fra alle gaveårene du ser. Samme navn slås sammen. */
-export function anledningsPlan(lister: Liste[], punkter: Punkt[], type: AnledningType, aar: number): PlanPerson[] {
+/**
+ * Alle mottakere med anledninger i planen dette året, fra alle gaveårene du ser.
+ * Samme person og anledning i felles og privat gaveår slås sammen.
+ * Jul sorteres på navn (samme dag for alle), bursdager og andre på dato.
+ */
+export function anledningsPlan(lister: Liste[], punkter: Punkt[], type: PlanType, aar: number): PlanPerson[] {
   const per = new Map<string, PlanPerson>();
   for (const liste of gaveaar(lister)) {
     for (const mottaker of mottakere(liste.id, punkter)) {
-      const anledning = mottaker.anledninger?.find((a) => a.type === type && anledningsDato(a, aar));
-      if (!anledning) continue;
       const alle = gaverTil(mottaker.id, punkter);
-      const nokkel = mottaker.tekst.trim().toLocaleLowerCase('nb');
-      if (!per.has(nokkel)) per.set(nokkel, { navn: mottaker.tekst.trim(), deler: [] });
-      per.get(nokkel)!.deler.push({
-        liste, mottaker, anledning,
-        gaver: alle.filter((g) => g.anledning === anledningsNokkel(anledning, aar)),
-        ideer: alle.filter((g) => !g.anledning && !erBrukt('gaveaar', g.status)),
-      });
+      for (const anledning of mottaker.anledninger ?? []) {
+        const dato = iPlan(type, anledning) ? anledningsDato(anledning, aar) : null;
+        if (!dato) continue;
+        const navn = mottaker.tekst.trim();
+        const nokkel = `${navn.toLocaleLowerCase('nb')}|${anledningsNavn(anledning).toLocaleLowerCase('nb')}`;
+        if (!per.has(nokkel)) per.set(nokkel, { navn, tittel: anledningsNavn(anledning), type: anledning.type, dato, deler: [] });
+        const rad = per.get(nokkel)!;
+        if (anledning.type === 'bursdag') rad.alder ??= alder(mottaker.fodt, dato);
+        rad.deler.push({
+          liste, mottaker, anledning,
+          gaver: alle.filter((g) => g.anledning === anledningsNokkel(anledning, aar)),
+          ideer: alle.filter((g) => !g.anledning && !erBrukt('gaveaar', g.status)),
+        });
+      }
     }
   }
-  return [...per.values()].sort((a, b) => a.navn.localeCompare(b.navn, 'nb'));
+  return [...per.values()].sort((a, b) => (type === 'jul' ? 0 : a.dato.localeCompare(b.dato)) || a.navn.localeCompare(b.navn, 'nb'));
 }
 
 export interface Pott {
@@ -201,12 +244,12 @@ export function personbudsjett(plan: PlanPerson[], listeId: Id): number {
   return plan.flatMap((p) => p.deler).filter((d) => d.liste.id === listeId).reduce((s, d) => s + (d.anledning.budsjett ?? 0), 0);
 }
 
-/** «Juleplan 2026», «Morsdag 2027» */
-export function planTittel(type: AnledningType, aar: number | string): string {
-  return type === 'jul' ? `Juleplan ${aar}` : `${ANLEDNING_NAVN[type]} ${aar}`;
+/** «Juleplan 2026», «Bursdager 2026», «Andre anledninger 2026» */
+export function planTittel(type: PlanType, aar: number | string): string {
+  return type === 'jul' ? `Juleplan ${aar}` : type === 'bursdag' ? `Bursdager ${aar}` : `Andre anledninger ${aar}`;
 }
 
-export const planNokkel = (type: AnledningType, aar: number) => `${type}:${aar}`;
+export const planNokkel = (type: PlanType, aar: number) => `${type}:${aar}`;
 
 // ---------------------------------------------------------------- Flytte gamle gavelister inn i gaveåret
 

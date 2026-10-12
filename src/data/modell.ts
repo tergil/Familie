@@ -237,6 +237,8 @@ export interface Punkt {
   vedlegg?: Vedlegg[];
   /** Gaveår, mottaker (hovedpunkt): anledningene personen får gave til */
   anledninger?: Anledning[];
+  /** Gaveår, mottaker: fødselsdato ÅÅÅÅ-MM-DD – gir bursdagen og alderen */
+  fodt?: string;
   /** Gaveår, gave (underpunkt): hvilken anledning og år den er til, «<anledning-id>:<år>». Tom = idébanken. */
   anledning?: string;
   /** Gaveår, felles: person-id til den som betaler. Tom = felles. */

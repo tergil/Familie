@@ -223,20 +223,20 @@ export function demoLister(idag = iDag()): { lister: Rad<Liste>[]; punkter: Punk
 
   // Gaveår: felles for begge, og Karis private (Ola ser det ikke)
   const ga = liste('Gaveår', '🎂', 'Gaver', 'gaveaar');
-  const bm = punkt(ga, 'Bestemor', { anledninger: [{ id: 'a-bm-b', type: 'bursdag', dag: '03-14', budsjett: 500 }, { id: 'a-bm-j', type: 'jul', budsjett: 800 }] });
+  const bm = punkt(ga, 'Bestemor', { fodt: '1941-03-14', anledninger: [{ id: 'a-bm-b', type: 'bursdag', dag: '03-14', budsjett: 500 }, { id: 'a-bm-j', type: 'jul', budsjett: 800 }] });
   punkt(ga, 'Pledd', { forelderId: bm, belop: 700, status: 'kjopt', anledning: `a-bm-j:${aar}`, betaler: 'kari', ferdigDato: om(-3) });
   punkt(ga, 'Puslespill', { forelderId: bm, belop: 300 });
-  const mor = punkt(ga, 'Mamma', { anledninger: [
+  const mor = punkt(ga, 'Mamma', { fodt: `1956-${om(18).slice(5)}`, anledninger: [
     { id: 'a-m-b', type: 'bursdag', dag: om(18).slice(5), budsjett: 600 }, { id: 'a-m-j', type: 'jul', budsjett: 600 }, { id: 'a-m-md', type: 'morsdag', budsjett: 300 },
   ] });
   punkt(ga, 'Strikkebok', { forelderId: mor, belop: 399, lenke: 'https://example.com/strikkebok' });
   punkt(ga, 'Spa-gavekort', { forelderId: mor, belop: 800 });
-  const far = punkt(ga, 'Pappa', { anledninger: [{ id: 'a-p-b', type: 'bursdag', dag: '06-02', budsjett: 600 }, { id: 'a-p-j', type: 'jul', budsjett: 600 }, { id: 'a-p-fd', type: 'farsdag', budsjett: 300 }] });
+  const far = punkt(ga, 'Pappa', { fodt: '1954-06-02', anledninger: [{ id: 'a-p-b', type: 'bursdag', dag: '06-02', budsjett: 600 }, { id: 'a-p-j', type: 'jul', budsjett: 600 }, { id: 'a-p-fd', type: 'farsdag', budsjett: 300 }] });
   punkt(ga, 'Termos', { forelderId: far, belop: 350 });
   const lena = punkt(ga, 'Lena', { anledninger: [{ id: 'a-l-k', type: 'egen', navn: 'Konfirmasjon', dag: '05-09', aar: aar + 1, budsjett: 1500 }, { id: 'a-l-j', type: 'jul', budsjett: 400 }] });
   punkt(ga, 'Smykke', { forelderId: lena, belop: 1200, anledning: `a-l-k:${aar + 1}` });
   const mitt = liste('Mitt gaveår', '🎂', 'Gaver', 'gaveaar', kari);
-  const ola = punkt(mitt, 'Ola', { anledninger: [{ id: 'a-o-b', type: 'bursdag', dag: '02-20', budsjett: 1000 }, { id: 'a-o-j', type: 'jul', budsjett: 1500 }] });
+  const ola = punkt(mitt, 'Ola', { fodt: '1985-02-20', anledninger: [{ id: 'a-o-b', type: 'bursdag', dag: '02-20', budsjett: 1000 }, { id: 'a-o-j', type: 'jul', budsjett: 1500 }] });
   punkt(mitt, 'Ny lommebok', { forelderId: ola, belop: 600 });
   punkt(mitt, 'Kokekurs for to', { forelderId: ola, belop: 1800 });
 

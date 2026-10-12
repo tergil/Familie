@@ -1,20 +1,18 @@
 // Lager app-ikonene i public/ fra én SVG. Kjør på nytt etter endring: npm run ikoner
-// Logoen er et lite sankey-diagram: én inntekt som deler seg i tre strømmer.
+// Logoen er et hus med et hjerte: familien og hjemmet – budsjett, lister og gaver.
 import sharp from 'sharp';
 import { writeFileSync } from 'node:fs';
 
 const TERRAKOTTA = '#A84F2B';
 const KREM = '#FAF6F0';
 
-// Motivet holdes innenfor midtre ~62 % så det tåler avrunding (iOS) og «maskable»-beskjæring (Android)
+// Motivet holdes innenfor midtre ~62 % så det tåler avrunding (iOS) og «maskable»-beskjæring (Android).
+// Huset er fylt krem med avrundede hjørner (strek i samme farge), hjertet er skåret ut i terrakotta.
 const motiv = `
-  <path d="M160 196 C256 196 256 124 352 124 L352 164 C256 164 256 236 160 236 Z" fill="${KREM}" opacity=".82"/>
-  <path d="M160 236 C256 236 256 236 352 236 L352 276 C256 276 256 276 160 276 Z" fill="${KREM}" opacity=".62"/>
-  <path d="M160 276 C256 276 256 348 352 348 L352 388 C256 388 256 316 160 316 Z" fill="${KREM}" opacity=".45"/>
-  <rect x="132" y="196" width="30" height="120" rx="7" fill="${KREM}"/>
-  <rect x="350" y="124" width="30" height="40" rx="7" fill="${KREM}"/>
-  <rect x="350" y="236" width="30" height="40" rx="7" fill="${KREM}"/>
-  <rect x="350" y="348" width="30" height="40" rx="7" fill="${KREM}"/>`;
+  <path d="M256 142 L384 254 L346 254 L346 372 L166 372 L166 254 L128 254 Z"
+    fill="${KREM}" stroke="${KREM}" stroke-width="30" stroke-linejoin="round"/>
+  <path d="M256 344 C214 318 194 296 194 272 C194 252 209 238 227 238 C240 238 250 245 256 256 C262 245 272 238 285 238 C303 238 318 252 318 272 C318 296 298 318 256 344 Z"
+    fill="${TERRAKOTTA}"/>`;
 
 /** Fullflate-ikon (hjemskjerm). Plattformen runder hjørnene selv. */
 const fullflate = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="${TERRAKOTTA}"/>${motiv}</svg>`;

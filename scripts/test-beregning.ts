@@ -2,7 +2,7 @@
 import { avrundOpp, foreslaOverforinger, kopierRevisjon, oppsummerFelles, oppsummerPrivat, privateOverforinger, sammenlign, sum, tilMnd, aktivRevisjon } from '../src/logikk/beregning';
 import { fellesFlyt, privatFlyt } from '../src/logikk/flyt';
 import { demoFelles, demoLister, demoPrivat } from '../src/data/demo';
-import { andreSondag, anledningsDato, anledningsPlan, flyttGavelister, forekomster, gaveVarsler, personbudsjett, potter } from '../src/logikk/gaveaar';
+import { alder, andreSondag, anledningsDato, anledningsPlan, flyttGavelister, forekomster, gaveVarsler, personbudsjett, potter, rundDag, tilPlanType } from '../src/logikk/gaveaar';
 import { andelGaatt, avstem, dagerIMaaned, flyttMaaned, kategoriStatus, kontoPlan, kontoerFor, muligeDubletter, revisjonForMaaned } from '../src/logikk/oppfolging';
 import {
   MALER, adventssondager, delingsTekst, erFerdig, erGjort, flyttEtSteg, fremdrift, gavehistorikk, nyRekkefolge, punkterForDeling, hageIMaaned, huskelapp, kalenderAar, kalenderLuker, kopierPunkter, lagTre, listeSum,
@@ -268,6 +268,18 @@ sjekk('juleplan: valgt gave og ideer', [jul[0].deler[0].gaver.map((g) => g.tekst
 sjekk('potter: felles gave betalt av Kari teller på Kari', potter(jul, 'kari'), [{ id: 'kari', planlagt: 0, brukt: 700, antall: 1 }]);
 const fellesGa = ga.lister.find((l) => l.navn === 'Gaveår')!;
 sjekk('personbudsjett jul, felles', personbudsjett(jul, fellesGa.id), 800 + 400 + 600 + 600);
+
+// --- Gaveår: alder, bursdager og «andre»
+sjekk('alder før og på bursdagen', [alder('1956-10-29', '2026-10-28'), alder('1956-10-29', '2026-10-29')], [69, 70]);
+sjekk('alder uten fødselsdato', alder(undefined, '2026-10-29'), undefined);
+sjekk('runde dager', [rundDag(70), rundDag(71), rundDag(0), rundDag(undefined)], [true, false, false, false]);
+sjekk('gamle lenker til morsdag/farsdag går til «andre»', [tilPlanType('morsdag'), tilPlanType('jul'), tilPlanType(undefined)], ['andre', 'jul', 'jul']);
+const bursdager = anledningsPlan(ga.lister, ga.punkter, 'bursdag', 2026);
+sjekk('bursdager sortert på dato, med alder', bursdager.map((p) => `${p.dato} ${p.navn} ${p.alder ?? '-'}`),
+  ['2026-02-20 Ola 41', '2026-03-14 Bestemor 85', '2026-06-02 Pappa 72', '2026-10-29 Mamma 70']);
+sjekk('andre: alt unntatt jul og bursdag', anledningsPlan(ga.lister, ga.punkter, 'andre', 2027).map((p) => `${p.tittel} ${p.navn}`),
+  ['Morsdag Mamma', 'Konfirmasjon Lena', 'Farsdag Pappa']);
+sjekk('årshjul: alder på bursdag', tidslinje.find((f) => f.anledning.type === 'bursdag')!.alder, 70);
 
 // --- Flytte gamle gavelister inn i gaveåret
 const mittGa = ga.lister.find((l) => l.navn === 'Mitt gaveår')!;

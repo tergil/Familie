@@ -87,14 +87,19 @@ function Stjerner({ verdi, endre }: { verdi?: number; endre: (v: number | undefi
 }
 
 /** Overskrift for en seksjon i listen. Status: liten etikett. Person (gavemottaker): navn med bokstav. */
-export function SeksjonHode({ tittel, antall, sum: total, under, person, children }: {
-  tittel: string; antall?: number; sum?: number; under?: string; person?: boolean; children?: ReactNode;
+export function SeksjonHode({ tittel, antall, sum: total, under, person, merke, etterTittel, children }: {
+  tittel: string; antall?: number; sum?: number; under?: string; person?: boolean;
+  /** I stedet for navnebokstaven, f.eks. en dato */
+  merke?: ReactNode;
+  /** Etter tittelen, f.eks. «fyller 70» */
+  etterTittel?: ReactNode;
+  children?: ReactNode;
 }) {
   return (
     <div className={`seksjon-hode${person ? ' person' : ''}`}>
-      {person && <span className="avatar noytral" aria-hidden="true">{tittel.slice(0, 1).toUpperCase()}</span>}
+      {merke ?? (person && <span className="avatar noytral" aria-hidden="true">{tittel.slice(0, 1).toUpperCase()}</span>)}
       <span className="tittel">
-        <span className="navn">{tittel}{antall !== undefined && !person && <span className="antall"> · {antall}</span>}</span>
+        <span className="navn">{tittel}{antall !== undefined && !person && <span className="antall"> · {antall}</span>}{etterTittel && <> {etterTittel}</>}</span>
         {under && <span className="under">{under}</span>}
       </span>
       {total ? <span className="sum">{kr(total)}</span> : null}
@@ -254,7 +259,7 @@ export function HuskelappKort({ gaaTil, paaListesiden }: { gaaTil: (r: string) =
           <button className="rad" key={f.nokkel + f.liste.id} onClick={() => gaaTil(`lister/${f.liste.id}`)}>
             <span className="liste-ikon liten">{ANLEDNING_IKON[f.anledning.type]}</span>
             <span className="hoved">
-              <span className="navn">{anledningsNavn(f.anledning)} – {f.mottaker.tekst}</span>
+              <span className="navn">{anledningsNavn(f.anledning)} – {f.mottaker.tekst}{f.alder !== undefined ? ` (fyller ${f.alder})` : ''}</span>
               <span className="info">{ukedagDato(f.dato)} · {f.ideer ? `${f.ideer} ${f.ideer === 1 ? 'idé' : 'ideer'}` : 'ingen ideer'} · ingenting kjøpt{f.liste.privat ? ' · privat' : ''}</span>
             </span>
             <FristMerke dager={f.dager} />

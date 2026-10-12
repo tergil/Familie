@@ -1,4 +1,4 @@
-# Familiebudsjett – prosjektfakta
+# Familie – prosjektfakta
 
 Personlige arbeidsinstrukser ligger i `~/.claude/CLAUDE.md`. Denne fila handler bare om prosjektet.
 
@@ -21,7 +21,8 @@ Personlige arbeidsinstrukser ligger i `~/.claude/CLAUDE.md`. Denne fila handler 
 - **Gaveår** (listetype `gaveaar`, `sider/Gaveaar.tsx`, `logikk/gaveaar.ts`): ett felles + ett privat per person.
   Mottaker = hovedpunkt med `anledninger` (bursdag, jul, morsdag/farsdag regnes ut, egne – evt. «bare én gang») og budsjett.
   Gaver/ideer = underpunkter; `anledning` = «<anledning-id>:<år>», tom = idébanken (følger med til neste år).
-  `betaler` = person-id når en felles gave går av én persons gavekonto. Juleplan/morsdag/farsdag (`#/lister/plan/jul/2026`)
+  `betaler` = person-id når en felles gave går av én persons gavekonto. `fodt` på mottakeren gir bursdag og alder.
+  Planer (`#/lister/plan/<jul|bursdag|andre>/<år>`): Juleplan, Bursdager og Andre (alt unntatt jul og bursdag),
   samler felles + eget gaveår med potter «Felles» / «Fra deg». Varsler på huskelappen 3 uker før hvis ingenting er kjøpt.
 - **Deling** (Valg → Del liste): som tekst (øyeblikksbilde) eller lenke `#/delt/<nøkkel>` som vises uten innlogging
   (`sider/Delt.tsx`). Bare det som ikke er kjøpt/gjort deles, og aldri vedlegg.

@@ -320,8 +320,8 @@ export function Data() {
       <section className="kort">
         <div className="kort-hode"><div className="tittel"><h2>Eksport</h2><span className="dempet liten">Sikkerhetskopi som JSON-fil</span></div></div>
         <div className="knapperad">
-          <button className="knapp" onClick={() => lastNed(`familiebudsjett-felles-${new Date().toISOString().slice(0, 10)}.json`, { felles })}><Ikon navn="lastned" storrelse={18} />Fellesbudsjett</button>
-          {privat && meg && <button className="knapp" onClick={() => lastNed(`familiebudsjett-privat-${meg.navn.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`, { privat })}><Ikon navn="lastned" storrelse={18} />Mitt privatbudsjett</button>}
+          <button className="knapp" onClick={() => lastNed(`familie-felles-${new Date().toISOString().slice(0, 10)}.json`, { felles })}><Ikon navn="lastned" storrelse={18} />Fellesbudsjett</button>
+          {privat && meg && <button className="knapp" onClick={() => lastNed(`familie-privat-${meg.navn.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`, { privat })}><Ikon navn="lastned" storrelse={18} />Mitt privatbudsjett</button>}
         </div>
       </section>
 

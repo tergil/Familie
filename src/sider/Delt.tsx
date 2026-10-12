@@ -54,7 +54,7 @@ export function DeltSide({ nokkel }: { nokkel: string }) {
             </section>
           </>
         )}
-        <p className="delt-fot dempet liten"><img src={LOGO} width={16} height={16} alt="" /> Delt fra Familiebudsjett</p>
+        <p className="delt-fot dempet liten"><img src={LOGO} width={16} height={16} alt="" /> Delt fra Familie-appen</p>
       </div>
     </main>
   );

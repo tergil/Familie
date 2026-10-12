@@ -1,4 +1,4 @@
-# Familiebudsjett
+# Familie
 
 Privat budsjett-dashboard for to personer: fellesbudsjett, privatbudsjett per person,
 sankey-diagram av pengeflyten, sparemål og revisjoner. Bygget for mobil først.
