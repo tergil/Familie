@@ -347,38 +347,39 @@ function forekomster$1(lister, punkter, iDag, dagerFrem = 365) {
 }
 //#endregion
 //#region src/logikk/kalender.ts
-const KATEGORIER = {
-	barnehage: {
+/** Kategoriene dere starter med. Kan endres, legges til og slettes i kalenderen (lagres i fellesdokumentet). */
+const STANDARD_KALENDERKATEGORIER = [
+	{
+		id: "barnehage",
 		navn: "Barnehage/skole",
-		ikon: "🎒",
 		farge: 1
 	},
-	trening: {
+	{
+		id: "trening",
 		navn: "Trening og aktivitet",
-		ikon: "⚽",
 		farge: 4
 	},
-	sosialt: {
+	{
+		id: "sosialt",
 		navn: "Sosialt",
-		ikon: "🥂",
 		farge: 6
 	},
-	mote: {
+	{
+		id: "mote",
 		navn: "Møte",
-		ikon: "🗓️",
 		farge: 5
 	},
-	besok: {
+	{
+		id: "besok",
 		navn: "Besøk og reise",
-		ikon: "🧳",
 		farge: 2
 	},
-	annet: {
+	{
+		id: "annet",
 		navn: "Annet",
-		ikon: "📌",
 		farge: 7
 	}
-};
+];
 const DAG = 864e5;
 const utc = (iso) => {
 	const [a, m, d] = iso.split("-").map(Number);
@@ -471,10 +472,10 @@ function forekomster(hendelser, fra, til) {
 function kalenderPoster(hendelser, lister, punkter, fra, til, valg = {
 	anledninger: true,
 	frister: true
-}) {
+}, kategorier = STANDARD_KALENDERKATEGORIER) {
 	const ut = forekomster(hendelser, fra, til).map((f) => {
 		const h = f.hendelse;
-		const k = KATEGORIER[h.kategori] ?? KATEGORIER.annet;
+		const farge = kategorier.find((k) => k.id === h.kategori)?.farge ?? -1;
 		const forskyvning = varighet(h);
 		return {
 			nokkel: f.nokkel,
@@ -483,8 +484,7 @@ function kalenderPoster(hendelser, lister, punkter, fra, til, valg = {
 			fra: h.fra,
 			til: h.til,
 			tittel: h.tittel,
-			ikon: k.ikon,
-			farge: k.farge,
+			farge,
 			hvem: h.hvem ?? [],
 			ansvarlig: h.ansvarlig,
 			sted: h.sted,
@@ -514,7 +514,6 @@ function kalenderPoster(hendelser, lister, punkter, fra, til, valg = {
 					kilde: "anledning",
 					hvem: [],
 					farge: 0,
-					ikon: ANLEDNING_IKON[a.type],
 					tittel: a.type === "bursdag" ? `${m.tekst} har bursdag${fyller !== void 0 ? ` (${fyller} år)` : ""}` : `${anledningsNavn(a)} – ${m.tekst}`,
 					url: `#/lister/${liste.id}`
 				});
@@ -532,7 +531,6 @@ function kalenderPoster(hendelser, lister, punkter, fra, til, valg = {
 				kilde: "frist",
 				hvem: [],
 				farge: 3,
-				ikon: l.ikon || "📝",
 				tittel: `Frist: ${p.tekst}`,
 				url: `#/lister/${l.id}`
 			});
@@ -704,7 +702,7 @@ function beregnVarsler(lister, punkter, innstillinger, iDag, kal) {
 			type: "avtaler",
 			nokkel,
 			nokler: [nokkel],
-			tittel: `📅 ${d === 0 ? "I dag" : "I morgen"}: ${poster.length} ${poster.length === 1 ? "avtale" : "avtaler"}`,
+			tittel: `${d === 0 ? "I dag" : "I morgen"}: ${poster.length} ${poster.length === 1 ? "avtale" : "avtaler"}`,
 			tekst: poster.slice(0, 5).map((x) => avtaleLinje(x, kal.navn)).join("\n") + (poster.length > 5 ? `\n… og ${poster.length - 5} til` : ""),
 			url: "#/kalender"
 		});
@@ -734,7 +732,7 @@ function forVarsler(hendelser, naa, kal, vindu = 15) {
 			type: "avtaleFor",
 			nokkel,
 			nokler: [nokkel],
-			tittel: `⏰ ${p.tittel} ${p.dato === naa.dato ? "kl." : "i morgen kl."} ${p.fra}`,
+			tittel: `${p.tittel} ${p.dato === naa.dato ? "kl." : "i morgen kl."} ${p.fra}`,
 			tekst: [ansvarlig ? p.ansvarlig === kal.personId ? "Det er du som henter/leverer" : `${ansvarlig} henter/leverer` : "", p.sted ?? ""].filter(Boolean).join(" · ") || "Påminnelse",
 			url: "#/kalender"
 		});

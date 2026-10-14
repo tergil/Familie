@@ -207,13 +207,6 @@ const ANLEDNING_NAVN = {
 	farsdag: "Farsdag",
 	egen: "Annen anledning"
 };
-const ANLEDNING_IKON = {
-	bursdag: "🎂",
-	jul: "🎄",
-	morsdag: "💐",
-	farsdag: "👔",
-	egen: "🎉"
-};
 /** Alderen personen fyller på datoen (fødselsdato ÅÅÅÅ-MM-DD) */
 function alder(fodt, dato) {
 	if (!fodt || !/^\d{4}-\d{2}-\d{2}$/.test(fodt)) return void 0;
@@ -245,38 +238,39 @@ const gaveaar = (lister) => lister.filter((l) => !l.mal && l.type === "gaveaar")
 const mottakere = (listeId, punkter) => punkter.filter((p) => p.listeId === listeId && !p.forelderId).sort((a, b) => a.rekkefolge - b.rekkefolge);
 //#endregion
 //#region src/logikk/kalender.ts
-const KATEGORIER = {
-	barnehage: {
+/** Kategoriene dere starter med. Kan endres, legges til og slettes i kalenderen (lagres i fellesdokumentet). */
+const STANDARD_KALENDERKATEGORIER = [
+	{
+		id: "barnehage",
 		navn: "Barnehage/skole",
-		ikon: "🎒",
 		farge: 1
 	},
-	trening: {
+	{
+		id: "trening",
 		navn: "Trening og aktivitet",
-		ikon: "⚽",
 		farge: 4
 	},
-	sosialt: {
+	{
+		id: "sosialt",
 		navn: "Sosialt",
-		ikon: "🥂",
 		farge: 6
 	},
-	mote: {
+	{
+		id: "mote",
 		navn: "Møte",
-		ikon: "🗓️",
 		farge: 5
 	},
-	besok: {
+	{
+		id: "besok",
 		navn: "Besøk og reise",
-		ikon: "🧳",
 		farge: 2
 	},
-	annet: {
+	{
+		id: "annet",
 		navn: "Annet",
-		ikon: "📌",
 		farge: 7
 	}
-};
+];
 const DAG = 864e5;
 const utc = (iso) => {
 	const [a, m, d] = iso.split("-").map(Number);
@@ -369,10 +363,10 @@ function forekomster(hendelser, fra, til) {
 function kalenderPoster(hendelser, lister, punkter, fra, til, valg = {
 	anledninger: true,
 	frister: true
-}) {
+}, kategorier = STANDARD_KALENDERKATEGORIER) {
 	const ut = forekomster(hendelser, fra, til).map((f) => {
 		const h = f.hendelse;
-		const k = KATEGORIER[h.kategori] ?? KATEGORIER.annet;
+		const farge = kategorier.find((k) => k.id === h.kategori)?.farge ?? -1;
 		const forskyvning = varighet(h);
 		return {
 			nokkel: f.nokkel,
@@ -381,8 +375,7 @@ function kalenderPoster(hendelser, lister, punkter, fra, til, valg = {
 			fra: h.fra,
 			til: h.til,
 			tittel: h.tittel,
-			ikon: k.ikon,
-			farge: k.farge,
+			farge,
 			hvem: h.hvem ?? [],
 			ansvarlig: h.ansvarlig,
 			sted: h.sted,
@@ -412,7 +405,6 @@ function kalenderPoster(hendelser, lister, punkter, fra, til, valg = {
 					kilde: "anledning",
 					hvem: [],
 					farge: 0,
-					ikon: ANLEDNING_IKON[a.type],
 					tittel: a.type === "bursdag" ? `${m.tekst} har bursdag${fyller !== void 0 ? ` (${fyller} år)` : ""}` : `${anledningsNavn(a)} – ${m.tekst}`,
 					url: `#/lister/${liste.id}`
 				});
@@ -430,7 +422,6 @@ function kalenderPoster(hendelser, lister, punkter, fra, til, valg = {
 				kilde: "frist",
 				hvem: [],
 				farge: 3,
-				ikon: l.ikon || "📝",
 				tittel: `Frist: ${p.tekst}`,
 				url: `#/lister/${l.id}`
 			});

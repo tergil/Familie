@@ -106,6 +106,8 @@ export interface FellesDok {
   revisjoner: Revisjon[];
   /** Andre i familien uten innlogging (f.eks. barna) – brukes i kalenderen */
   familie?: Familiemedlem[];
+  /** Egne kalenderkategorier. Mangler = standardkategoriene i logikk/kalender.ts. */
+  kalenderKategorier?: KalenderKategoriDef[];
   /** Hemmelig nøkkel for kalenderabonnementet (#/… → Edge Function «kalender»). Mangler = av. */
   kalenderNokkel?: string;
 }
@@ -336,7 +338,15 @@ export interface VarselEnhet {
 // Kalender: felles avtaler. Egen tabell «hendelse» (supabase/kalender.sql). Gjentakelser utvides i logikk/kalender.ts.
 // ---------------------------------------------------------------------------
 
-export type KalenderKategori = 'barnehage' | 'trening' | 'sosialt' | 'mote' | 'besok' | 'annet';
+/** Id til en kalenderkategori (se FellesDok.kalenderKategorier) */
+export type KalenderKategori = string;
+
+export interface KalenderKategoriDef {
+  id: Id;
+  navn: string;
+  /** Plass i fargepaletten (--k0 … --k7) */
+  farge: number;
+}
 
 export interface Gjentak {
   frekvens: 'dag' | 'uke' | 'maaned' | 'aar';

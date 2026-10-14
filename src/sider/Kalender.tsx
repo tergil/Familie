@@ -2,7 +2,7 @@
 // bursdager fra gaveårene og frister fra listene. Abonnement for telefonens kalender (Edge Function «kalender»).
 // Logikk: logikk/kalender.ts. Data: data/kalender.ts (tabellen «hendelse»).
 import { useMemo, useState, type FormEvent } from 'react';
-import type { Gjentak, KalenderKategori } from '../data/modell';
+import type { Gjentak, KalenderKategoriDef } from '../data/modell';
 import { nyId } from '../data/modell';
 import { endreKalender, lukkKalenderFeil, useKalender } from '../data/kalender';
 import { useLister } from '../data/lister';
@@ -10,10 +10,10 @@ import { useTilstand } from '../data/tilstand';
 import { lager } from '../data/lager';
 import { iDag } from '../logikk/beregning';
 import {
-  KATEGORIER, UKEDAGER_KORT, angreEndring, endreForekomst, gjentakTekst, kalenderPoster, leggTilDager, mandagI, paaDato,
+  UKEDAGER_KORT, angreEndring, kalenderKategorier, endreForekomst, gjentakTekst, kalenderPoster, leggTilDager, mandagI, paaDato,
   slettForekomst, ukedag, type Avtale, type KalenderPost, type Modus,
 } from '../logikk/kalender';
-import { Ark, Felt, Ikon, Segment } from '../ui/felles';
+import { Ark, Fargevalg, Felt, Ikon, Prikk, Segment } from '../ui/felles';
 
 // ---------------------------------------------------------------- Hjelpere
 
@@ -39,6 +39,15 @@ function lagreValg(nokkel: string, verdi: string) {
   try { localStorage.setItem(nokkel, verdi); } catch { /* ignorer */ }
 }
 
+/** Kalenderkategoriene (egne, eller standard) */
+function useKategorier(): KalenderKategoriDef[] {
+  const { felles } = useTilstand();
+  return kalenderKategorier(felles);
+}
+
+/** Farge for en post: kategorifargen, eller nøytral når kategorien er slettet */
+const fargeVar = (farge: number) => (farge >= 0 ? `var(--k${farge})` : 'var(--noytral-flyt)');
+
 /** Personer (Terje, Ingrid) og familiemedlemmer (barna) */
 function useFolk() {
   const { felles, meg } = useTilstand();
@@ -52,21 +61,22 @@ function useFolk() {
 
 function PostRad({ post, navn, aapne }: { post: KalenderPost; navn: (id: string) => string | undefined; aapne: () => void }) {
   const hvem = post.hvem.map(navn).filter(Boolean).join(', ');
-  const info = [
-    post.ansvarlig && navn(post.ansvarlig) ? `🚗 ${navn(post.ansvarlig)}` : '',
-    hvem,
-    post.sted ?? '',
-    post.sluttDato ? `til ${kortDag(post.sluttDato)}` : '',
-  ].filter(Boolean).join(' · ');
+  const ansvarlig = post.ansvarlig ? navn(post.ansvarlig) : undefined;
+  const info = [hvem, post.sted ?? '', post.sluttDato ? `til ${kortDag(post.sluttDato)}` : ''].filter(Boolean).join(' · ');
   return (
-    <button className="rad kal-post" onClick={aapne} style={{ ['--farge' as string]: `var(--k${post.farge})` }}>
+    <button className="rad kal-post" onClick={aapne} style={{ ['--farge' as string]: fargeVar(post.farge) }}>
       <span className="kal-tid tall">
         {post.fra ? <><strong>{post.fra}</strong>{post.til && <span>{post.til}</span>}</> : <span>Heldag</span>}
       </span>
       <span className="kal-strek" aria-hidden="true" />
       <span className="hoved">
-        <span className="navn">{post.ikon} {post.tittel}</span>
-        {info && <span className="info">{info}</span>}
+        <span className="navn">{post.tittel}</span>
+        {(info || ansvarlig) && (
+          <span className="info">
+            {ansvarlig && <span className="kal-ansvarlig" title="Henter, leverer eller følger"><Ikon navn="person" storrelse={12} />{ansvarlig}</span>}
+            {ansvarlig && info ? ' · ' : ''}{info}
+          </span>
+        )}
       </span>
       {post.endret && <span className="merkelapp varsel" title="Endret for denne dagen">Endret</span>}
       {post.gjentar && !post.endret && <span className="dempet" title="Gjentas" aria-label="Gjentas"><Ikon navn="revisjon" storrelse={14} /></span>}
@@ -100,7 +110,9 @@ export function Kalender({ gaaTil }: { gaaTil: (r: string) => void }) {
   const { hendelser, lastet, feil } = useKalender();
   const { lister, punkter } = useLister();
   const { navn } = useFolk();
+  const kategorier = useKategorier();
   const idag = iDag();
+  const [kategoriArk, setKategoriArk] = useState(false);
   const [visning, setVisningRaa] = useState<Visning>(() => (lesValg('familie.kalender.visning') as Visning) ?? (window.innerWidth < 640 ? 'uke' : 'maaned'));
   const setVisning = (v: Visning) => { setVisningRaa(v); lagreValg('familie.kalender.visning', v); };
   const [anker, setAnker] = useState(idag);
@@ -113,7 +125,7 @@ export function Kalender({ gaaTil }: { gaaTil: (r: string) => void }) {
   const sisteIMnd = leggTilDager(`${leggTilDager(forsteIMnd, 32).slice(0, 7)}-01`, -1);
   const til = visning === 'uke' ? leggTilDager(fra, 6) : leggTilDager(mandagI(sisteIMnd), 6);
   const dager = useMemo(() => { const ut: string[] = []; for (let d = fra; d <= til; d = leggTilDager(d, 1)) ut.push(d); return ut; }, [fra, til]);
-  const poster = useMemo(() => kalenderPoster(hendelser, lister, punkter, fra, til), [hendelser, lister, punkter, fra, til]);
+  const poster = useMemo(() => kalenderPoster(hendelser, lister, punkter, fra, til, undefined, kategorier), [hendelser, lister, punkter, fra, til, kategorier]);
   const paa = (d: string) => poster.filter((p) => paaDato(p, d));
 
   const flytt = (retning: -1 | 1) => {
@@ -171,7 +183,7 @@ export function Kalender({ gaaTil }: { gaaTil: (r: string) => void }) {
                     className={`kal-celle${utenfor ? ' utenfor' : ''}${d === idag ? ' i-dag' : ''}`} aria-label={`${dagTittel(d)}: ${her.length} avtaler`}>
                     <span className="kal-nr">{Number(d.slice(8))}</span>
                     <span className="kal-biter">
-                      {her.slice(0, 3).map((p) => <span key={p.nokkel} className="kal-bit" style={{ ['--farge' as string]: `var(--k${p.farge})` }}>{p.fra ? `${p.fra} ` : ''}{p.tittel}</span>)}
+                      {her.slice(0, 3).map((p) => <span key={p.nokkel} className="kal-bit" style={{ ['--farge' as string]: fargeVar(p.farge) }}>{p.fra ? `${p.fra} ` : ''}{p.tittel}</span>)}
                       {her.length > 3 && <span className="kal-flere">+{her.length - 3}</span>}
                     </span>
                   </button>
@@ -186,14 +198,16 @@ export function Kalender({ gaaTil }: { gaaTil: (r: string) => void }) {
       )}
 
       <div className="forklaring" aria-label="Fargeforklaring">
-        {(Object.keys(KATEGORIER) as KalenderKategori[]).map((k) => <span key={k}><span className="prikk" style={{ background: `var(--k${KATEGORIER[k].farge})` }} />{KATEGORIER[k].navn}</span>)}
-        <span><span className="prikk" style={{ background: 'var(--k0)' }} />Bursdager</span>
-        <span><span className="prikk" style={{ background: 'var(--k3)' }} />Frister</span>
+        {kategorier.map((k) => <span key={k.id}><Prikk farge={k.farge} />{k.navn}</span>)}
+        <span><Prikk farge={0} />Bursdager</span>
+        <span><Prikk farge={3} />Frister</span>
+        <button className="lenkeknapp" onClick={() => setKategoriArk(true)}>Endre kategorier</button>
       </div>
 
       <button className="fab" onClick={() => setArk({ dato: nyDato })}><Ikon navn="pluss" storrelse={22} />Ny avtale</button>
       {ark && <AvtaleArk post={ark.post} startDato={ark.dato} lukk={() => setArk(null)} />}
       {abonner && <AbonnerArk lukk={() => setAbonner(false)} />}
+      {kategoriArk && <KategoriArk lukk={() => setKategoriArk(false)} />}
     </>
   );
 }
@@ -229,10 +243,12 @@ function AvtaleArk({ post, startDato, lukk }: { post?: KalenderPost; startDato: 
   const { hendelser } = useKalender();
   const { visToast } = useTilstand();
   const { voksne, barn } = useFolk();
+  const kategorier = useKategorier();
+  const [kategoriArk, setKategoriArk] = useState(false);
   const f = post?.forekomst;
   const h = f?.hendelse;
   const [tittel, setTittel] = useState(h?.tittel ?? '');
-  const [kategori, setKategori] = useState<KalenderKategori>(h?.kategori ?? 'annet');
+  const [kategori, setKategori] = useState(h?.kategori ?? kategorier.find((k) => k.id === 'annet')?.id ?? kategorier[kategorier.length - 1]?.id ?? '');
   const [dato, setDato] = useState(f?.dato ?? startDato);
   const [heldag, setHeldag] = useState(h ? !h.fra : false);
   const [fra, setFra] = useState(h?.fra ?? '16:00');
@@ -282,6 +298,7 @@ function AvtaleArk({ post, startDato, lukk }: { post?: KalenderPost; startDato: 
   const veksle = (liste: string[], id: string) => (liste.includes(id) ? liste.filter((x) => x !== id) : [...liste, id]);
 
   return (
+    kategoriArk ? <KategoriArk lukk={() => setKategoriArk(false)} /> : (
     <Ark tittel={f ? 'Endre avtale' : 'Ny avtale'} lukk={lukk}>
       <form className="skjema" onSubmit={send}>
         {erSerie && (
@@ -295,11 +312,12 @@ function AvtaleArk({ post, startDato, lukk }: { post?: KalenderPost; startDato: 
         <div className="felt">
           <span>Kategori</span>
           <div className="valgchips" role="radiogroup" aria-label="Kategori">
-            {(Object.keys(KATEGORIER) as KalenderKategori[]).map((k) => (
-              <button key={k} type="button" role="radio" aria-checked={k === kategori} onClick={() => setKategori(k)}>
-                <span className="prikk" style={{ background: `var(--k${KATEGORIER[k].farge})` }} />{KATEGORIER[k].navn}
+            {kategorier.map((k) => (
+              <button key={k.id} type="button" role="radio" aria-checked={k.id === kategori} onClick={() => setKategori(k.id)}>
+                <Prikk farge={k.farge} />{k.navn}
               </button>
             ))}
+            <button type="button" className="valgchip-lenke" onClick={() => setKategoriArk(true)}><Ikon navn="rediger" storrelse={14} />Endre</button>
           </div>
         </div>
 
@@ -359,7 +377,7 @@ function AvtaleArk({ post, startDato, lukk }: { post?: KalenderPost; startDato: 
             <span>Henter, leverer eller følger</span>
             <div className="valgchips" role="radiogroup" aria-label="Hvem henter eller leverer">
               <button type="button" role="radio" aria-checked={!ansvarlig} onClick={() => setAnsvarlig('')}>Ingen</button>
-              {voksne.map((p) => <button key={p.id} type="button" role="radio" aria-checked={ansvarlig === p.id} onClick={() => setAnsvarlig(p.id)}>🚗 {p.navn}</button>)}
+              {voksne.map((p) => <button key={p.id} type="button" role="radio" aria-checked={ansvarlig === p.id} onClick={() => setAnsvarlig(p.id)}>{p.navn}</button>)}
             </div>
           </div>
         )}
@@ -395,6 +413,7 @@ function AvtaleArk({ post, startDato, lukk }: { post?: KalenderPost; startDato: 
         )}
       </form>
     </Ark>
+    )
   );
 }
 
@@ -455,7 +474,8 @@ export function KommendeKort({ gaaTil }: { gaaTil: (r: string) => void }) {
   const idag = iDag();
   const imorgen = leggTilDager(idag, 1);
   const til = leggTilDager(idag, 6);
-  const poster = useMemo(() => kalenderPoster(hendelser, lister, punkter, idag, til, { anledninger: true, frister: false }), [hendelser, lister, punkter, idag, til]);
+  const kategorier = useKategorier();
+  const poster = useMemo(() => kalenderPoster(hendelser, lister, punkter, idag, til, { anledninger: true, frister: false }, kategorier), [hendelser, lister, punkter, idag, til, kategorier]);
   if (!lastet) return null;
 
   const senere: { d: string; p: KalenderPost }[] = [];
@@ -498,5 +518,59 @@ export function KommendeKort({ gaaTil }: { gaaTil: (r: string) => void }) {
         </div>
       )}
     </section>
+  );
+}
+
+// ---------------------------------------------------------------- Egne kategorier
+
+function KategoriArk({ lukk }: { lukk: () => void }) {
+  const { felles, endreFelles } = useTilstand();
+  const { hendelser } = useKalender();
+  const kategorier = kalenderKategorier(felles);
+  const [aapen, setAapen] = useState<string | null>(null);
+  const lagre = (ny: KalenderKategoriDef[], angre?: string) => endreFelles((d) => { d.kalenderKategorier = ny; }, angre);
+  const antall = (id: string) => hendelser.filter((h) => h.kategori === id && !h.serieId).length;
+
+  function leggTil() {
+    // Første farge som ikke er i bruk
+    const ledig = [1, 4, 6, 5, 2, 7, 3, 0].find((f) => !kategorier.some((k) => k.farge === f)) ?? 7;
+    const ny = { id: nyId(), navn: 'Ny kategori', farge: ledig };
+    lagre([...kategorier, ny]);
+    setAapen(ny.id);
+  }
+
+  return (
+    <Ark tittel="Kategorier i kalenderen" lukk={lukk}>
+      <div className="skjema">
+        <p className="dempet liten">Fargen viser kategorien i kalenderen. Fargene er valgt så de kan skilles også ved fargeblindhet.
+          Bursdager og frister har faste farger.</p>
+        <div className="liste">
+          {kategorier.map((k) => aapen === k.id ? (
+            <div className="kategori-rediger" key={k.id}>
+              <Felt etikett="Navn"><input value={k.navn} autoFocus onChange={(e) => lagre(kategorier.map((x) => (x.id === k.id ? { ...x, navn: e.target.value } : x)))} /></Felt>
+              <div className="felt"><span>Farge</span><Fargevalg verdi={k.farge} endre={(farge) => lagre(kategorier.map((x) => (x.id === k.id ? { ...x, farge } : x)))} /></div>
+              <div className="knapperad slutt">
+                <button className="knapp flat fare dytt" onClick={() => { lagre(kategorier.filter((x) => x.id !== k.id), `Slettet «${k.navn}»`); setAapen(null); }}>
+                  <Ikon navn="slett" storrelse={18} />Slett{antall(k.id) ? ` (${antall(k.id)} ${antall(k.id) === 1 ? 'avtale blir' : 'avtaler blir'} uten kategori)` : ''}
+                </button>
+                <button className="knapp primar" onClick={() => setAapen(null)} disabled={!k.navn.trim()}>Ferdig</button>
+              </div>
+            </div>
+          ) : (
+            <button className="rad" key={k.id} onClick={() => setAapen(k.id)}>
+              <Prikk farge={k.farge} />
+              <span className="hoved"><span className="navn">{k.navn || 'Uten navn'}</span><span className="info">{antall(k.id) === 1 ? '1 avtale' : `${antall(k.id) || 'Ingen'} avtaler`}</span></span>
+              <Ikon navn="rediger" storrelse={16} />
+            </button>
+          ))}
+        </div>
+        <div className="knapperad">
+          <button className="knapp" onClick={leggTil}><Ikon navn="pluss" storrelse={18} />Ny kategori</button>
+          {felles?.kalenderKategorier && <button className="knapp flat liten" onClick={() => endreFelles((d) => { delete d.kalenderKategorier; }, 'Tilbake til standardkategoriene')}>Tilbakestill</button>}
+        </div>
+        {kategorier.length > 8 && <div className="banner varsel"><Ikon navn="info" /><div>Mer enn 8 kategorier gjør at farger går igjen.</div></div>}
+        <div className="knapperad slutt"><button className="knapp primar" onClick={lukk}>Ferdig</button></div>
+      </div>
+    </Ark>
   );
 }

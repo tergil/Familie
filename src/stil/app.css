@@ -795,3 +795,9 @@ body.drar-punkt [data-dra-id] { transition: transform .15s ease; }
 .kal-senere:last-child { border-bottom: 0; }
 .kal-senere .rad { border-bottom: 0; flex: 1; min-width: 0; }
 .kal-senere-dag { flex: none; width: 44px; font-size: 12px; font-weight: 700; color: var(--dempet); padding-left: var(--a1); }
+
+/* Kalender: den som henter, og egne kategorier */
+.kal-ansvarlig { display: inline-flex; align-items: center; gap: 3px; font-weight: 600; color: var(--blekk-2); }
+.kal-ansvarlig svg { flex: none; }
+.valgchips .valgchip-lenke { border-style: dashed; color: var(--dempet); }
+.kategori-rediger { display: flex; flex-direction: column; gap: var(--a3); padding: var(--a3); margin: var(--a2) 0; border-radius: var(--radius); background: var(--flate-2); }

@@ -362,21 +362,21 @@ sjekk('ics: torsdag med Ingrid som henter', ['SUMMARY:Henting barnehagen (Ingrid
 sjekk('ics: CRLF og tidssone', [ics.includes('\r\nBEGIN:VTIMEZONE\r\n'), ics.endsWith('END:VCALENDAR\r\n')], [true, true]);
 sjekk('ics: tekst beskyttes', icsTekst('Middag; vin, ost\nkl. 19'), 'Middag\\; vin\\, ost\\nkl. 19');
 sjekk('ics: lange linjer brettes på 75 byte', brett('SUMMARY:' + 'æ'.repeat(60)).split('\r\n').map((l) => new TextEncoder().encode(l).length <= 75), [true, true]);
-const heldag = lagIcs([{ nokkel: 'a|1', dato: '2026-10-29', tittel: 'Mamma har bursdag', ikon: '', farge: 0, hvem: [], kilde: 'anledning' }], () => undefined);
+const heldag = lagIcs([{ nokkel: 'a|1', dato: '2026-10-29', tittel: 'Mamma har bursdag', farge: 0, hvem: [], kilde: 'anledning' }], () => undefined);
 sjekk('ics: hele dagen', ['DTSTART;VALUE=DATE:20261029', 'DTEND;VALUE=DATE:20261030'].every((l) => heldag.includes(l)), true);
 
 // --- Varsler for avtaler
 const navnKal = (id: string) => ({ terje: 'Terje', ingrid: 'Ingrid', barn: 'Emma' } as Record<string, string>)[id];
 const medVarsel = medIngrid.map((h) => (h.id === 'h1' || h.serieId === 'h1' ? { ...h, varselMin: 30 } : h));
 const morgen = beregnVarsler([], [], vInn, '2026-10-15', { hendelser: medIngrid, navn: navnKal });
-sjekk('morgenoversikt i dag', morgen.filter((v) => v.type === 'avtaler').map((v) => [v.tittel, v.tekst]), [['📅 I dag: 1 avtale', '16:00 Henting barnehagen – Ingrid']]);
+sjekk('morgenoversikt i dag', morgen.filter((v) => v.type === 'avtaler').map((v) => [v.tittel, v.tekst]), [['I dag: 1 avtale', '16:00 Henting barnehagen – Ingrid']]);
 const gamle = { time: 7, bareUtenGave: true, typer: { ...vInn.typer } } as VarselInnstillinger;
 delete (gamle.typer as Partial<VarselInnstillinger['typer']>).avtaler;
 sjekk('gamle innstillinger uten avtaler fylles ut', medStandard(gamle).typer.avtaler, STANDARD_VARSLER.typer.avtaler);
 const voksne = new Set(['terje', 'ingrid']);
 const kl = (t: string) => ({ dato: '2026-10-15', minutt: Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) });
 sjekk('varsel 30 min før til den som henter', forVarsler(medVarsel, kl('15:30'), { hendelser: medVarsel, navn: navnKal, personId: 'ingrid', voksne }).map((v) => [v.tittel, v.tekst]),
-  [['⏰ Henting barnehagen kl. 16:00', 'Det er du som henter/leverer']]);
+  [['Henting barnehagen kl. 16:00', 'Det er du som henter/leverer']]);
 sjekk('ikke til den som ikke henter', forVarsler(medVarsel, kl('15:30'), { hendelser: medVarsel, navn: navnKal, personId: 'terje', voksne }).length, 0);
 sjekk('bare innenfor kvarteret', [kl('15:14'), kl('15:44')].map((k) => forVarsler(medVarsel, k, { hendelser: medVarsel, navn: navnKal, personId: 'ingrid', voksne }).length), [0, 1]);
 

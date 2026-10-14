@@ -169,7 +169,7 @@ export function beregnVarsler(lister: Liste[], punkter: Punkt[], innstillinger: 
       const nokkel = `avtaler:${dato}:${d}`;
       ut.push({
         type: 'avtaler', nokkel, nokler: [nokkel],
-        tittel: `📅 ${d === 0 ? 'I dag' : 'I morgen'}: ${poster.length} ${poster.length === 1 ? 'avtale' : 'avtaler'}`,
+        tittel: `${d === 0 ? 'I dag' : 'I morgen'}: ${poster.length} ${poster.length === 1 ? 'avtale' : 'avtaler'}`,
         tekst: poster.slice(0, 5).map((x) => avtaleLinje(x, kal.navn)).join('\n') + (poster.length > 5 ? `\n… og ${poster.length - 5} til` : ''),
         url: '#/kalender',
       });
@@ -197,7 +197,7 @@ export function forVarsler(hendelser: Hendelse[], naa: { dato: string; minutt: n
     const ansvarlig = p.ansvarlig ? kal.navn(p.ansvarlig) : undefined;
     ut.push({
       type: 'avtaleFor', nokkel, nokler: [nokkel],
-      tittel: `⏰ ${p.tittel} ${p.dato === naa.dato ? 'kl.' : 'i morgen kl.'} ${p.fra}`,
+      tittel: `${p.tittel} ${p.dato === naa.dato ? 'kl.' : 'i morgen kl.'} ${p.fra}`,
       tekst: [ansvarlig ? (p.ansvarlig === kal.personId ? 'Det er du som henter/leverer' : `${ansvarlig} henter/leverer`) : '', p.sted ?? ''].filter(Boolean).join(' · ') || 'Påminnelse',
       url: '#/kalender',
     });

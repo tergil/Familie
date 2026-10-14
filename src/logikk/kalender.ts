@@ -1,19 +1,22 @@
 // Kalender: utvider gjentakende avtaler til forekomster, håndterer unntak («bare denne»), og endrer serier.
 // Bursdager og andre anledninger fra gaveårene og frister fra listene vises også i kalenderen.
 // Ren logikk uten React – testes i scripts/test-beregning.ts. Brukes også av Edge Functions (varsler, kalender).
-import type { Gjentak, Hendelse, Id, KalenderKategori, Liste, Punkt } from '../data/modell';
+import type { FellesDok, Gjentak, Hendelse, Id, KalenderKategoriDef, Liste, Punkt } from '../data/modell';
 import { nyId } from '../data/modell';
-import { ANLEDNING_IKON, anledningsDato, anledningsNavn, alder, gaveaar, mottakere } from './gaveaar';
+import { anledningsDato, anledningsNavn, alder, gaveaar, mottakere } from './gaveaar';
 import { dagerMellom, erBrukt, erFerdig } from './lister';
 
-export const KATEGORIER: Record<KalenderKategori, { navn: string; ikon: string; farge: number }> = {
-  barnehage: { navn: 'Barnehage/skole', ikon: '🎒', farge: 1 },
-  trening: { navn: 'Trening og aktivitet', ikon: '⚽', farge: 4 },
-  sosialt: { navn: 'Sosialt', ikon: '🥂', farge: 6 },
-  mote: { navn: 'Møte', ikon: '🗓️', farge: 5 },
-  besok: { navn: 'Besøk og reise', ikon: '🧳', farge: 2 },
-  annet: { navn: 'Annet', ikon: '📌', farge: 7 },
-};
+/** Kategoriene dere starter med. Kan endres, legges til og slettes i kalenderen (lagres i fellesdokumentet). */
+export const STANDARD_KALENDERKATEGORIER: KalenderKategoriDef[] = [
+  { id: 'barnehage', navn: 'Barnehage/skole', farge: 1 },
+  { id: 'trening', navn: 'Trening og aktivitet', farge: 4 },
+  { id: 'sosialt', navn: 'Sosialt', farge: 6 },
+  { id: 'mote', navn: 'Møte', farge: 5 },
+  { id: 'besok', navn: 'Besøk og reise', farge: 2 },
+  { id: 'annet', navn: 'Annet', farge: 7 },
+];
+
+export const kalenderKategorier = (felles: FellesDok | null | undefined) => felles?.kalenderKategorier ?? STANDARD_KALENDERKATEGORIER;
 /** Farger for det som kommer fra resten av appen */
 export const FARGE_ANLEDNING = 0;
 export const FARGE_FRIST = 3;
@@ -208,8 +211,7 @@ export interface KalenderPost {
   fra?: string;
   til?: string;
   tittel: string;
-  ikon: string;
-  /** Plass i fargepaletten (--k0 … --k7) */
+  /** Plass i fargepaletten (--k0 … --k7). -1 = ingen kategori (nøytral farge). */
   farge: number;
   hvem: Id[];
   ansvarlig?: Id;
@@ -226,14 +228,16 @@ export interface KalenderPost {
 
 /** Avtaler, anledninger fra gaveårene (unntatt jul) og frister fra listene i perioden */
 export function kalenderPoster(hendelser: Hendelse[], lister: Liste[], punkter: Punkt[], fra: string, til: string,
-  valg: { anledninger?: boolean; frister?: boolean } = { anledninger: true, frister: true }): KalenderPost[] {
+  valg: { anledninger?: boolean; frister?: boolean } = { anledninger: true, frister: true },
+  kategorier: KalenderKategoriDef[] = STANDARD_KALENDERKATEGORIER): KalenderPost[] {
   const ut: KalenderPost[] = forekomster(hendelser, fra, til).map((f) => {
     const h = f.hendelse;
-    const k = KATEGORIER[h.kategori] ?? KATEGORIER.annet;
+    // Slettet kategori: nøytral farge
+    const farge = kategorier.find((k) => k.id === h.kategori)?.farge ?? -1;
     const forskyvning = varighet(h);
     return {
       nokkel: f.nokkel, dato: f.dato, sluttDato: forskyvning ? leggTilDager(f.dato, forskyvning) : undefined, fra: h.fra, til: h.til,
-      tittel: h.tittel, ikon: k.ikon, farge: k.farge, hvem: h.hvem ?? [], ansvarlig: h.ansvarlig, sted: h.sted, notat: h.notat,
+      tittel: h.tittel, farge, hvem: h.hvem ?? [], ansvarlig: h.ansvarlig, sted: h.sted, notat: h.notat,
       kilde: 'avtale', forekomst: f, gjentar: !!f.serie.gjentak, endret: !!f.unntak,
     };
   });
@@ -255,7 +259,7 @@ export function kalenderPoster(hendelser: Hendelse[], lister: Liste[], punkter: 
             sett.add(nokkel);
             const fyller = a.type === 'bursdag' ? alder(m.fodt, dato) : undefined;
             ut.push({
-              nokkel: `anledning|${m.id}|${a.id}|${dato}`, dato, kilde: 'anledning', hvem: [], farge: FARGE_ANLEDNING, ikon: ANLEDNING_IKON[a.type],
+              nokkel: `anledning|${m.id}|${a.id}|${dato}`, dato, kilde: 'anledning', hvem: [], farge: FARGE_ANLEDNING,
               tittel: a.type === 'bursdag' ? `${m.tekst} har bursdag${fyller !== undefined ? ` (${fyller} år)` : ''}` : `${anledningsNavn(a)} – ${m.tekst}`,
               url: `#/lister/${liste.id}`,
             });
@@ -270,7 +274,7 @@ export function kalenderPoster(hendelser: Hendelse[], lister: Liste[], punkter: 
     for (const p of punkter) {
       const l = aktuelle.get(p.listeId);
       if (!l || !p.dato || p.dato < fra || p.dato > til || erFerdig(l.type, p.status) || erBrukt(l.type, p.status)) continue;
-      ut.push({ nokkel: `frist|${p.id}`, dato: p.dato, kilde: 'frist', hvem: [], farge: FARGE_FRIST, ikon: l.ikon || '📝', tittel: `Frist: ${p.tekst}`, url: `#/lister/${l.id}` });
+      ut.push({ nokkel: `frist|${p.id}`, dato: p.dato, kilde: 'frist', hvem: [], farge: FARGE_FRIST, tittel: `Frist: ${p.tekst}`, url: `#/lister/${l.id}` });
     }
   }
 
