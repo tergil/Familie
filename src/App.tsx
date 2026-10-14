@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { IkkeMedlemFeil, lager, type Bruker } from './data/lager';
 import { TilstandGiver, useTilstand, type LagreStatus } from './data/tilstand';
-import { Avatar, Ikon } from './ui/felles';
+import { Avatar, Ikon, Segment } from './ui/felles';
 import { RevisjonsVelger, VisningsBryter, type Visning } from './ui/deler';
 import { Oversikt } from './sider/Oversikt';
 import { Budsjett } from './sider/Budsjett';
 import { NyPrivatRevisjon, PrivatBudsjett, PrivatOversikt } from './sider/Privat';
-import { Lister } from './sider/Lister';
+import { HuskelappKort, Lister } from './sider/Lister';
+import { Kalender, KommendeKort } from './sider/Kalender';
 import { Varsler } from './sider/Varsler';
 import { DeltSide } from './sider/Delt';
 import { PLAN_IKON, planTittel, tilPlanType } from './logikk/gaveaar';
@@ -115,13 +116,15 @@ function MedInnlogging() {
 // ---------------------------------------------------------------- Skall: meny, topp, innhold
 
 // Sidemeny (PC): alle hovedsider. Bunnmeny (mobil): de fire mest brukte + Mer.
+// «Økonomi» åpner Oppfølging (brukes mest), med Budsjett som fane øverst
 const HOVED: [string, string, string][] = [
   ['oversikt', 'oversikt', 'Oversikt'],
-  ['budsjett', 'budsjett', 'Budsjett'],
-  ['oppfolging', 'oppfolging', 'Oppfølging'],
+  ['kalender', 'kalender', 'Kalender'],
   ['lister', 'liste', 'Lister'],
+  ['oppfolging', 'oppfolging', 'Økonomi'],
   ['sparing', 'sparing', 'Sparing'],
 ];
+const OKONOMI = ['oppfolging', 'budsjett'];
 const BUNN = HOVED.filter(([r]) => r !== 'sparing');
 /** Sider med felles/privat-bryter */
 const MED_VISNING = ['oversikt', 'budsjett', 'oppfolging'];
@@ -136,7 +139,7 @@ const OPPSETT: [string, string, string][] = [
   ['data', 'lastned', 'Import/eksport'],
 ];
 const TITLER: Record<string, string> = {
-  oversikt: 'Oversikt', budsjett: 'Budsjett', oppfolging: 'Oppfølging', lister: 'Lister', sparing: 'Sparemål', mer: 'Mer',
+  oversikt: 'Oversikt', budsjett: 'Budsjett', oppfolging: 'Oppfølging', lister: 'Lister', kalender: 'Kalender', sparing: 'Sparemål', mer: 'Mer',
   revisjoner: 'Revisjoner', kontoer: 'Kontoer og banker', kategorier: 'Kategorier', personer: 'Personer og fordeling', varsler: 'Varsler', data: 'Import og eksport',
 };
 
@@ -169,11 +172,11 @@ function Skall() {
     gaaTil(underside === 'overforinger' ? 'budsjett/overforinger' : 'oversikt');
   }, [side]);
 
-  const erAktiv = (r: string) => side === r || (r === 'mer' && (side === 'sparing' || OPPSETT.some(([o]) => o === side)));
+  const erAktiv = (r: string) => side === r || (r === 'oppfolging' && OKONOMI.includes(side)) || (r === 'mer' && (side === 'sparing' || OPPSETT.some(([o]) => o === side)));
   const medVisning = MED_VISNING.includes(side) && !!meg;
   const erPrivat = medVisning && valgtVisning === 'privat';
   const visFab = MED_FAB.includes(side);
-  const fabPlass = visFab || (side === 'lister' && !underside);
+  const fabPlass = visFab || (side === 'lister' && !underside) || side === 'kalender';
   const visRevVelger = felles && ['oversikt', 'budsjett', 'personer'].includes(side);
   const aapenListe = side === 'lister' && underside ? lister.find((l) => l.id === underside) : undefined;
   const [, , planType, planAar] = rute.split('/');
@@ -189,6 +192,7 @@ function Skall() {
         : <Budsjett fane={(underside as 'poster' | 'overforinger' | 'inntekter') ?? 'poster'} byttFane={(f) => gaaTil(`budsjett/${f}`)} />;
       break;
     case 'oppfolging': innhold = <Oppfolging key={rute} visning={erPrivat ? 'privat' : 'felles'} maaned={rute.split('/').find((d) => /^\d{4}-\d{2}$/.test(d))} />; break;
+    case 'kalender': innhold = <Kalender gaaTil={gaaTil} />; break;
     case 'lister': innhold = <Lister listeId={underside} rest={rute.split('/').slice(2)} gaaTil={gaaTil} />; break;
     case 'privat': innhold = null; break;
     case 'sparing': innhold = <Sparing />; break;
@@ -199,7 +203,20 @@ function Skall() {
     case 'data': innhold = <Data />; break;
     case 'varsler': innhold = <Varsler />; break;
     case 'mer': innhold = <Mer gaaTil={gaaTil} tema={tema} byttTema={byttTema} />; break;
-    default: innhold = erPrivat ? <PrivatOversikt gaaTil={gaaTil} nyRevisjon={() => setNyPrivatRevisjon(true)} /> : <Oversikt gaaTil={gaaTil} />;
+    // Oversikt: kalender og huskelapp først, økonomien under (med felles/privat-bryteren der)
+    default: innhold = (
+      <>
+        <div className="rutenett to">
+          <KommendeKort gaaTil={gaaTil} />
+          <HuskelappKort gaaTil={gaaTil} />
+        </div>
+        <div className="seksjonstittel">
+          <h2>Økonomi</h2>
+          {medVisning && <VisningsBryter verdi={erPrivat ? 'privat' : 'felles'} endre={settVisning} />}
+        </div>
+        {erPrivat ? <PrivatOversikt gaaTil={gaaTil} nyRevisjon={() => setNyPrivatRevisjon(true)} /> : <Oversikt gaaTil={gaaTil} />}
+      </>
+    );
   }
 
   return (
@@ -210,7 +227,7 @@ function Skall() {
           Familie
         </div>
         {HOVED.map(([r, ikon, tekst]) => (
-          <a key={r} href={`#/${r}`} aria-current={side === r ? 'page' : undefined}><Ikon navn={ikon} />{tekst}</a>
+          <a key={r} href={`#/${r}`} aria-current={erAktiv(r) ? 'page' : undefined}><Ikon navn={ikon} />{tekst}</a>
         ))}
         <div className="gruppe">Oppsett</div>
         {OPPSETT.map(([r, ikon, tekst]) => (
@@ -250,7 +267,13 @@ function Skall() {
           {lager.modus === 'lokal' && side === 'oversikt' && (
             <div className="banner info"><Ikon navn="info" /><div><strong>Demomodus</strong> med oppdiktede tall. Du ser som {meg?.navn}. Bytt person under <a href="#/data">Import/eksport</a>.</div></div>
           )}
-          {medVisning && <VisningsBryter verdi={erPrivat ? 'privat' : 'felles'} endre={settVisning} />}
+          {OKONOMI.includes(side) && (
+            <div className="okonomi-topp">
+              <Segment etikett="Økonomi" verdi={side} endre={(s) => gaaTil(s)}
+                valg={[{ verdi: 'oppfolging', tekst: 'Oppfølging', ikon: 'oppfolging' }, { verdi: 'budsjett', tekst: 'Budsjett', ikon: 'budsjett' }]} />
+              {medVisning && <VisningsBryter verdi={erPrivat ? 'privat' : 'felles'} endre={settVisning} />}
+            </div>
+          )}
           {innhold}
         </main>
       </div>

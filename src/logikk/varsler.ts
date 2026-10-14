@@ -1,7 +1,9 @@
 // Varsler: hva som skal varsles i dag, ut fra listene og innstillingene til én bruker.
 // Kjøres av Edge Function «varsler» (supabase/kilde/varsler.ts) hver time, men ligger her så den kan testes.
 // Ren logikk uten React og uten nettleser.
-import type { Liste, Punkt, VarselInnstillinger, VarselType } from '../data/modell';
+import type { Hendelse, Liste, Punkt, VarselInnstillinger, VarselType } from '../data/modell';
+import { STANDARD_VARSLER } from '../data/modell';
+import { kalenderPoster, leggTilDager, minutter, paaDato } from './kalender';
 import { anledningsNavn, ANLEDNING_IKON, forekomster } from './gaveaar';
 import { dagerMellom, erBrukt, erFerdig, hageIMaaned, huskelapp } from './lister';
 
@@ -42,9 +44,27 @@ export function varseltrinn(dager: number, trinn: number[]): { trinn: number; al
   return aktuelle.length ? { trinn: aktuelle[0], alle: aktuelle } : null;
 }
 
+/** Lagrede innstillinger fylt ut med standardverdier (nye varseltyper mangler i eldre innstillinger) */
+export function medStandard(inn: Partial<VarselInnstillinger> | null | undefined): VarselInnstillinger {
+  // Tomme verdier (f.eks. en type som mangler) skal ikke overskrive standarden
+  const typer = Object.fromEntries(Object.entries(inn?.typer ?? {}).filter(([, v]) => v && typeof v === 'object'));
+  return { ...STANDARD_VARSLER, ...(inn ?? {}), typer: { ...STANDARD_VARSLER.typer, ...typer } };
+}
+
+export interface Kalenderdata {
+  hendelser: Hendelse[];
+  /** Navn på person eller familiemedlem */
+  navn: (id: string) => string | undefined;
+}
+
+/** Linje i morgenoversikten: «16:00 Henting barnehagen – Ingrid» */
+const avtaleLinje = (p: { fra?: string; tittel: string; ansvarlig?: string }, navn: Kalenderdata['navn']) =>
+  `${p.fra ?? 'Hele dagen'} ${p.tittel}${p.ansvarlig && navn(p.ansvarlig) ? ` – ${navn(p.ansvarlig)}` : ''}`;
+
 /** Alle varsler som er aktuelle i dag for én bruker. Listene skal være de brukeren kan se. */
-export function beregnVarsler(lister: Liste[], punkter: Punkt[], inn: VarselInnstillinger, iDag: string): Varsel[] {
+export function beregnVarsler(lister: Liste[], punkter: Punkt[], innstillinger: VarselInnstillinger, iDag: string, kal?: Kalenderdata): Varsel[] {
   const ut: Varsel[] = [];
+  const inn = medStandard(innstillinger);
   const t = inn.typer;
   const maksTrinn = Math.max(0, ...Object.values(t).filter((v) => v.pa).flatMap((v) => v.dager));
   const kjoptTekst = (gaver: Punkt[]) => gaver.filter((g) => erBrukt('gaveaar', g.status)).map((g) => g.tekst).join(', ');
@@ -140,6 +160,48 @@ export function beregnVarsler(lister: Liste[], punkter: Punkt[], inn: VarselInns
       });
     }
   }
+  // Morgenoversikt over avtalene i dag (0) og/eller i morgen (1)
+  if (kal && t.avtaler.pa) {
+    for (const d of [...new Set(t.avtaler.dager)].sort()) {
+      const dato = leggTilDager(iDag, d);
+      const poster = kalenderPoster(kal.hendelser, [], [], dato, dato, { anledninger: false, frister: false }).filter((x) => paaDato(x, dato));
+      if (!poster.length) continue;
+      const nokkel = `avtaler:${dato}:${d}`;
+      ut.push({
+        type: 'avtaler', nokkel, nokler: [nokkel],
+        tittel: `📅 ${d === 0 ? 'I dag' : 'I morgen'}: ${poster.length} ${poster.length === 1 ? 'avtale' : 'avtaler'}`,
+        tekst: poster.slice(0, 5).map((x) => avtaleLinje(x, kal.navn)).join('\n') + (poster.length > 5 ? `\n… og ${poster.length - 5} til` : ''),
+        url: '#/kalender',
+      });
+    }
+  }
+  return ut;
+}
+
+/**
+ * Varsel før avtaler som har «varsel før» (f.eks. 30 min). Sjekkes hvert kvarter: varselet sendes når tidspunktet
+ * (start minus varseltid) er innenfor siste kvarter. Gjelder avtalen bestemte voksne (hvem/henter), får bare de varsel.
+ */
+export function forVarsler(hendelser: Hendelse[], naa: { dato: string; minutt: number }, kal: Kalenderdata & { personId?: string; voksne: Set<string> }, vindu = 15): Varsel[] {
+  const ut: Varsel[] = [];
+  const poster = kalenderPoster(hendelser, [], [], naa.dato, leggTilDager(naa.dato, 1), { anledninger: false, frister: false });
+  for (const p of poster) {
+    const varselMin = p.forekomst?.hendelse.varselMin;
+    if (!p.fra || !varselMin) continue;
+    const start = (p.dato === naa.dato ? 0 : 1440) + minutter(p.fra);
+    const varselTid = start - varselMin;
+    if (varselTid > naa.minutt || varselTid <= naa.minutt - vindu) continue;
+    const involverte = [...p.hvem, ...(p.ansvarlig ? [p.ansvarlig] : [])].filter((id) => kal.voksne.has(id));
+    if (involverte.length && kal.personId && !involverte.includes(kal.personId)) continue;
+    const nokkel = `for:${p.nokkel}`;
+    const ansvarlig = p.ansvarlig ? kal.navn(p.ansvarlig) : undefined;
+    ut.push({
+      type: 'avtaleFor', nokkel, nokler: [nokkel],
+      tittel: `⏰ ${p.tittel} ${p.dato === naa.dato ? 'kl.' : 'i morgen kl.'} ${p.fra}`,
+      tekst: [ansvarlig ? (p.ansvarlig === kal.personId ? 'Det er du som henter/leverer' : `${ansvarlig} henter/leverer`) : '', p.sted ?? ''].filter(Boolean).join(' · ') || 'Påminnelse',
+      url: '#/kalender',
+    });
+  }
   return ut;
 }
 
@@ -154,10 +216,11 @@ export function slaaSammen(varsler: Varsel[], maks = 3): { tittel: string; tekst
   }];
 }
 
-/** Dato og time akkurat nå i Norge (serveren går i UTC) */
-export function norskTid(naa = new Date()): { dato: string; time: number } {
+/** Dato, time og minutt fra midnatt akkurat nå i Norge (serveren går i UTC) */
+export function norskTid(naa = new Date()): { dato: string; time: number; minutt: number } {
   const deler = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Oslo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23',
+    timeZone: 'Europe/Oslo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
   }).formatToParts(naa).map((d) => [d.type, d.value]));
-  return { dato: `${deler.year}-${deler.month}-${deler.day}`, time: Number(deler.hour) };
+  const time = Number(deler.hour);
+  return { dato: `${deler.year}-${deler.month}-${deler.day}`, time, minutt: time * 60 + Number(deler.minute) };
 }

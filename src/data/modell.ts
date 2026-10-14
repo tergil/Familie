@@ -104,6 +104,15 @@ export interface FellesDok {
   kontoer: Konto[];
   kategorier: Kategori[];
   revisjoner: Revisjon[];
+  /** Andre i familien uten innlogging (f.eks. barna) – brukes i kalenderen */
+  familie?: Familiemedlem[];
+  /** Hemmelig nøkkel for kalenderabonnementet (#/… → Edge Function «kalender»). Mangler = av. */
+  kalenderNokkel?: string;
+}
+
+export interface Familiemedlem {
+  id: Id;
+  navn: string;
 }
 
 export interface PrivatRevisjon {
@@ -283,7 +292,7 @@ export interface DeltListe {
 // Varsler (push): innstillinger per bruker. Sendes av Edge Function «varsler» (se supabase/varsler.sql).
 // ---------------------------------------------------------------------------
 
-export type VarselType = 'bursdag' | 'jul' | 'andre' | 'frist' | 'kalender' | 'hage';
+export type VarselType = 'bursdag' | 'jul' | 'andre' | 'frist' | 'kalender' | 'hage' | 'avtaler' | 'avtaleFor';
 
 export interface VarselValg {
   pa: boolean;
@@ -309,6 +318,10 @@ export const STANDARD_VARSLER: VarselInnstillinger = {
     frist: { pa: true, dager: [3, 0] },
     kalender: { pa: false, dager: [0] },
     hage: { pa: true, dager: [0] },
+    /** Morgenoversikt: 0 = dagens avtaler, 1 = morgendagens */
+    avtaler: { pa: true, dager: [0] },
+    /** Varsel før en avtale, når avtalen har «varsel før» */
+    avtaleFor: { pa: true, dager: [0] },
   },
 };
 
@@ -317,4 +330,46 @@ export interface VarselEnhet {
   endpoint: string;
   enhet: string;
   opprettet: string;
+}
+
+// ---------------------------------------------------------------------------
+// Kalender: felles avtaler. Egen tabell «hendelse» (supabase/kalender.sql). Gjentakelser utvides i logikk/kalender.ts.
+// ---------------------------------------------------------------------------
+
+export type KalenderKategori = 'barnehage' | 'trening' | 'sosialt' | 'mote' | 'besok' | 'annet';
+
+export interface Gjentak {
+  frekvens: 'dag' | 'uke' | 'maaned' | 'aar';
+  /** Hver 1., 2., … gang */
+  intervall: number;
+  /** Ukentlig: ukedager 1 (mandag) – 7 (søndag). Mangler = samme ukedag som startdatoen. */
+  ukedager?: number[];
+  /** Siste dato (inklusiv). Mangler = for alltid. */
+  til?: string;
+}
+
+export interface Hendelse {
+  id: Id;
+  tittel: string;
+  kategori: KalenderKategori;
+  /** Startdato ÅÅÅÅ-MM-DD (for en serie: første gang) */
+  dato: string;
+  /** Flerdagers: siste dag */
+  sluttDato?: string;
+  /** «HH:MM». Mangler = hele dagen. */
+  fra?: string;
+  til?: string;
+  gjentak?: Gjentak;
+  /** Hvem avtalen gjelder: person-id-er og familiemedlem-id-er */
+  hvem: Id[];
+  /** Hvem som henter/leverer/kjører (person-id) */
+  ansvarlig?: Id;
+  sted?: string;
+  notat?: string;
+  /** Varsel så mange minutter før (krever klokkeslett) */
+  varselMin?: number;
+  /** Unntak i en serie: denne raden erstatter (eller avlyser) forekomsten originalDato i serien serieId */
+  serieId?: Id;
+  originalDato?: string;
+  avlyst?: boolean;
 }

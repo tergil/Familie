@@ -6,7 +6,6 @@ import { fellesFlyt } from '../logikk/flyt';
 import { Endring, Ikon, Kpi, Prikk, Tom, kr, pst } from '../ui/felles';
 import { FlytKort, KategoriFordeling } from '../ui/deler';
 import { DenneMaanedKort } from './Oppfolging';
-import { HuskelappKort } from './Lister';
 
 export function Oversikt({ gaaTil }: { gaaTil: (rute: string) => void }) {
   const { felles, rev } = useTilstand();
@@ -60,7 +59,6 @@ export function Oversikt({ gaaTil }: { gaaTil: (rute: string) => void }) {
       </div>
 
       <DenneMaanedKort gaaTil={gaaTil} />
-      <HuskelappKort gaaTil={gaaTil} />
 
       <div className="rutenett to-en">
         <FlytKort

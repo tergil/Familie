@@ -12,8 +12,8 @@
     "importer": "rolldown scripts/importer-excel.ts --format esm --platform node --external exceljs --file node_modules/.cache/importer.mjs && node node_modules/.cache/importer.mjs",
     "sjekk-data": "node scripts/sjekk-data.mjs",
     "ikoner": "node scripts/lag-ikoner.mjs",
-    "varsel-funksjon": "node scripts/bygg-varsler.mjs",
-    "vapid": "node scripts/lag-vapid.mjs"
+    "vapid": "node scripts/lag-vapid.mjs",
+    "funksjoner": "node scripts/bygg-varsler.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

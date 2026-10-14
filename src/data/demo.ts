@@ -1,5 +1,5 @@
 // OPPDIKTEDE demodata for lokal kjøring. Ingen ekte tall her – repoet kan være offentlig.
-import type { FellesDok, Liste, PrivatDok, Post, Punkt, Revisjon, Saldo, Utgift } from './modell';
+import type { FellesDok, Hendelse, Liste, PrivatDok, Post, Punkt, Revisjon, Saldo, Utgift } from './modell';
 import { foreslaOverforinger, iDag, kopierRevisjon } from '../logikk/beregning';
 import { flyttMaaned, kontoPlan, maanedAv, revisjonForMaaned } from '../logikk/oppfolging';
 import { FORSLAG_DAGER, LISTETYPER, kalenderLuker } from '../logikk/lister';
@@ -72,6 +72,7 @@ export function demoFelles(): FellesDok {
       { id: 'personlig', navn: 'Personlig', farge: 7 },
     ],
     revisjoner: [vaar, host],
+    familie: [{ id: 'emma', navn: 'Emma' }, { id: 'jonas', navn: 'Jonas' }],
   };
   for (const r of dok.revisjoner) r.overforinger = foreslaOverforinger(dok, r);
   return dok;
@@ -245,4 +246,23 @@ export function demoLister(idag = iDag()): { lister: Rad<Liste>[]; punkter: Punk
     punkt(adv, l.tekst, { dato: l.dato, notat: ['Pepperkakebaking', 'Lucia-boller og kakao', 'Kinotur', '', ''][i] ?? '', status: i < 1 ? 'klar' : 'apen' }));
 
   return { lister, punkter };
+}
+
+/** Oppdiktede avtaler, regnet fra i dag: levering og henting hver hverdag (Kari henter på torsdag denne uka), trening, møte og besøk */
+export function demoHendelser(idag = iDag()): Hendelse[] {
+  const om = (dager: number) => { const d = new Date(`${idag}T12:00:00`); d.setDate(d.getDate() + dager); return d.toISOString().slice(0, 10); };
+  const ukedag = new Date(`${idag}T12:00:00`).getDay() || 7;
+  const mandag = om(1 - ukedag);
+  const torsdag = om(4 - ukedag);
+  const hverdager = { frekvens: 'uke' as const, intervall: 1, ukedager: [1, 2, 3, 4, 5] };
+  return [
+    { id: 'demo-h1', tittel: 'Levering barnehagen', kategori: 'barnehage', dato: mandag, fra: '07:45', til: '08:15', gjentak: hverdager, hvem: ['emma', 'jonas'], ansvarlig: 'kari' },
+    { id: 'demo-h2', tittel: 'Henting barnehagen', kategori: 'barnehage', dato: mandag, fra: '16:00', til: '16:30', gjentak: hverdager, hvem: ['emma', 'jonas'], ansvarlig: 'ola', varselMin: 30 },
+    { id: 'demo-h2u', tittel: 'Henting barnehagen', kategori: 'barnehage', dato: torsdag, fra: '15:30', til: '16:00', hvem: ['emma', 'jonas'], ansvarlig: 'kari', serieId: 'demo-h2', originalDato: torsdag, notat: 'Ola på kurs' },
+    { id: 'demo-h3', tittel: 'Fotball Emma', kategori: 'trening', dato: om(1 - ukedag + 1), fra: '17:30', til: '18:30', gjentak: { frekvens: 'uke', intervall: 1 }, hvem: ['emma'], ansvarlig: 'ola', sted: 'Kunstgresset', varselMin: 60 },
+    { id: 'demo-h4', tittel: 'Svømming Jonas', kategori: 'trening', dato: om(1 - ukedag + 5), fra: '10:00', til: '11:00', gjentak: { frekvens: 'uke', intervall: 2 }, hvem: ['jonas'], ansvarlig: 'kari', sted: 'Badeland' },
+    { id: 'demo-h5', tittel: 'Foreldremøte', kategori: 'mote', dato: om(9), fra: '19:00', til: '20:30', hvem: ['kari', 'ola'], sted: 'Barnehagen' },
+    { id: 'demo-h6', tittel: 'Middag hos naboene', kategori: 'sosialt', dato: om(6 - ukedag + 7 > 7 ? 6 - ukedag : 6 - ukedag + 7), fra: '18:00', hvem: ['kari', 'ola', 'emma', 'jonas'] },
+    { id: 'demo-h7', tittel: 'Besteforeldre på besøk', kategori: 'besok', dato: om(13 - ukedag + 6), sluttDato: om(13 - ukedag + 7), hvem: [] },
+  ];
 }

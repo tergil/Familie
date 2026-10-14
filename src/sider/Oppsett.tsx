@@ -208,6 +208,7 @@ export function Kategorier() {
 export function Personer() {
   const { felles, rev, endreFelles, visToast } = useTilstand();
   const [valgt, setValgt] = useState<Person | 'ny' | null>(null);
+  const [nyttBarn, setNyttBarn] = useState('');
   if (!felles) return null;
   const sumAndel = rev ? felles.personer.reduce((s, p) => s + (rev.andeler[p.id] ?? 0), 0) : 0;
 
@@ -238,6 +239,33 @@ export function Personer() {
               <Ikon navn="pilhoyre" storrelse={16} />
             </button>
           ))}
+        </div>
+      </section>
+
+      <section className="kort">
+        <div className="kort-hode">
+          <div className="tittel"><h2>Barn og andre i familien</h2><span className="dempet liten">Uten innlogging – brukes i kalenderen («gjelder»)</span></div>
+        </div>
+        <form className="hurtig" onSubmit={(e) => {
+          e.preventDefault();
+          const navn = nyttBarn.trim();
+          if (!navn) return;
+          endreFelles((d) => { d.familie = [...(d.familie ?? []), { id: nyId(), navn }]; });
+          setNyttBarn('');
+        }}>
+          <input value={nyttBarn} onChange={(e) => setNyttBarn(e.target.value)} placeholder="Navn, f.eks. Emma" aria-label="Nytt familiemedlem" />
+          <button type="submit" className="knapp primar ikon" aria-label="Legg til" disabled={!nyttBarn.trim()}><Ikon navn="pluss" /></button>
+        </form>
+        <div className="liste">
+          {(felles.familie ?? []).map((b) => (
+            <div className="rad" key={b.id}>
+              <Avatar navn={b.navn} />
+              <span className="hoved"><span className="navn">{b.navn}</span></span>
+              <button className="knapp flat ikon liten" aria-label={`Fjern ${b.navn}`}
+                onClick={() => endreFelles((d) => { d.familie = (d.familie ?? []).filter((x) => x.id !== b.id); }, `Fjernet ${b.navn}`)}><Ikon navn="lukk" storrelse={16} /></button>
+            </div>
+          ))}
+          {!(felles.familie ?? []).length && <p className="dempet liten" style={{ padding: '8px 4px' }}>Ingen lagt til ennå.</p>}
         </div>
       </section>
 

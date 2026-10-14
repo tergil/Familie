@@ -10,6 +10,8 @@ import { VAPID_OFFENTLIG } from '../data/varselnokkel';
 import { Felt, Ikon, datoTekst } from '../ui/felles';
 
 const TYPER: { type: VarselType; ikon: string; navn: string; tekst: string; valg: number[] }[] = [
+  { type: 'avtaler', ikon: '📅', navn: 'Avtaler i kalenderen', tekst: 'Oversikt over dagens avtaler på morgenen – eller morgendagens kvelden før.', valg: [0, 1] },
+  { type: 'avtaleFor', ikon: '⏰', navn: 'Før en avtale', tekst: 'Når avtalen har «varsel» (f.eks. 30 min før). Går til den/de avtalen gjelder eller som henter.', valg: [] },
   { type: 'bursdag', ikon: '🎂', navn: 'Bursdager', tekst: 'Fra gaveårene. Tidlig for å rekke å kjøpe gave, samme dag for å huske å gratulere.', valg: [0, 1, 3, 7, 14, 21, 28] },
   { type: 'jul', ikon: '🎄', navn: 'Jul', tekst: 'Ett samlet varsel med hvor mange julegaver som er kjøpt.', valg: [1, 7, 14, 21, 28, 42] },
   { type: 'andre', ikon: '🎉', navn: 'Andre anledninger', tekst: 'Morsdag, farsdag, konfirmasjon, navnefest og lignende.', valg: [0, 1, 3, 7, 14, 21, 28] },
@@ -193,7 +195,7 @@ export function Varsler() {
         </div>
 
         <div className="felt-rad" style={{ marginBottom: 8 }}>
-          <Felt etikett="Klokkeslett" hjelp="Varslene kommer rundt dette tidspunktet.">
+          <Felt etikett="Klokkeslett" hjelp="Daglige varsler kommer rundt dette tidspunktet. «Før en avtale» kommer når det er tid.">
             <select value={inn.time} onChange={(e) => endre({ ...inn, time: Number(e.target.value) })}>
               {Array.from({ length: 17 }, (_, i) => i + 6).map((t) => <option key={t} value={t}>{String(t).padStart(2, '0')}:00</option>)}
             </select>

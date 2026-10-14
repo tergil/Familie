@@ -1,9 +1,9 @@
 // Edge Function «varsler»: sender push-varsler til telefonene.
-// Bygges til supabase/functions/varsler/index.ts med «npm run varsel-funksjon» (tar med logikken fra src/logikk).
+// Bygges til supabase/functions/varsler/index.ts med «npm run funksjoner» (tar med logikken fra src/logikk).
 //
 // Kalles på to måter:
-//  1. Hver time av pg_cron (supabase/varsler.sql) med hodet x-cron-hemmelighet. Sender varsler til brukerne
-//     som har valgt denne timen (norsk tid). Hvert varsel sendes bare én gang (tabellen varsel_sendt).
+//  1. Hvert kvarter av pg_cron (supabase/kalender.sql) med hodet x-cron-hemmelighet. Daglige varsler går til brukerne
+//     som har valgt denne timen (norsk tid), varsel før avtaler sjekkes hver gang. Hvert varsel sendes bare én gang.
 //  2. Fra appen med { handling: 'test' } og innlogget bruker: sender et testvarsel til brukerens enheter.
 //
 // Hemmeligheter (Supabase → Edge Functions → Secrets): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, CRON_HEMMELIGHET og
@@ -11,9 +11,9 @@
 // SUPABASE_URL og SUPABASE_SERVICE_ROLE_KEY finnes automatisk.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
-import type { Liste, Punkt, VarselInnstillinger } from '../../src/data/modell';
-import { STANDARD_VARSLER } from '../../src/data/modell';
-import { beregnVarsler, norskTid, slaaSammen } from '../../src/logikk/varsler';
+import type { VarselInnstillinger } from '../../src/data/modell';
+import { beregnVarsler, forVarsler, medStandard, norskTid, slaaSammen } from '../../src/logikk/varsler';
+import { hentAlt, navnFra } from './felles';
 
 declare const Deno: { env: { get(n: string): string | undefined }; serve(f: (r: Request) => Response | Promise<Response>): void };
 
@@ -84,35 +84,37 @@ async function behandle(req: Request): Promise<Response> {
 
   // 2. Timejobben
   if (!env('CRON_HEMMELIGHET') || req.headers.get('x-cron-hemmelighet') !== env('CRON_HEMMELIGHET')) return svar({ feil: 'Ikke tilgang' }, 401);
-  const { dato, time } = norskTid();
+  // Kjøres hvert kvarter. Daglige varsler sendes i første kvarter av timen brukeren har valgt;
+  // varsel før avtaler sjekkes hver gang.
+  const { dato, time, minutt } = norskTid();
+  const daglig = kropp.tving || minutt % 60 < 15;
   const { data: innstillinger, error } = await db.from('varsel_innstilling').select('bruker, data');
   if (error) return svar({ feil: error.message }, 500);
-  const aktuelle = (innstillinger ?? [])
-    .map((r) => ({ bruker: r.bruker as string, inn: { ...STANDARD_VARSLER, ...(r.data as Partial<VarselInnstillinger>) } as VarselInnstillinger }))
-    .filter((r) => kropp.tving || r.inn.time === time);
+  const brukere = (innstillinger ?? []).map((r) => ({ bruker: r.bruker as string, inn: medStandard(r.data as Partial<VarselInnstillinger>) }));
+  const aktuelle = brukere.filter((r) => (daglig && (kropp.tving || r.inn.time === time)) || r.inn.typer.avtaleFor.pa);
   if (!aktuelle.length) return svar({ dato, time, brukere: 0 });
 
-  // Alle lister og punkter (tjenestenøkkelen ser alt) – filtreres per bruker under
-  const [l, p] = await Promise.all([
-    db.from('liste').select('id, eier, navn, ikon, kategori, type, mal, rekkefolge, ekstra, opprettet').limit(5000),
-    db.from('listepunkt').select('id, liste_id, forelder_id, tekst, notat, status, belop, dato, rekkefolge, ekstra').limit(50000),
-  ]);
-  if (l.error || p.error) return svar({ feil: (l.error ?? p.error)!.message }, 500);
-  const lister = (l.data ?? []).map((r) => ({
-    eier: r.eier as string | null,
-    liste: { ...(r.ekstra ?? {}), id: r.id, navn: r.navn, ikon: r.ikon, kategori: r.kategori, type: r.type, privat: r.eier !== null, mal: r.mal, rekkefolge: Number(r.rekkefolge), opprettet: String(r.opprettet).slice(0, 10) } as Liste,
-  }));
-  const punkter = (p.data ?? []).map((r) => ({
-    ...(r.ekstra ?? {}), id: r.id, listeId: r.liste_id, forelderId: r.forelder_id, tekst: r.tekst, notat: r.notat ?? '', status: r.status,
-    belop: r.belop === null ? null : Number(r.belop), dato: r.dato, rekkefolge: Number(r.rekkefolge),
-  }) as Punkt);
+  // Alt (tjenestenøkkelen ser alt) – filtreres per bruker under
+  const { lister, punkter, hendelser, felles } = await hentAlt(db);
+  const navn = navnFra(felles);
+  const voksne = new Set((felles?.personer ?? []).map((x) => x.id));
 
   const resultat: Record<string, number> = {};
   for (const { bruker, inn } of aktuelle) {
     // Det brukeren ser: felles lister og egne private
     const synlige = lister.filter((x) => x.eier === null || x.eier === bruker).map((x) => x.liste);
     const ider = new Set(synlige.map((x) => x.id));
-    const kandidater = beregnVarsler(synlige, punkter.filter((x) => ider.has(x.listeId)), inn, dato);
+    const kandidater = [];
+    if (daglig && (kropp.tving || inn.time === time)) {
+      kandidater.push(...beregnVarsler(synlige, punkter.filter((x) => ider.has(x.listeId)), inn, dato, { hendelser, navn }));
+    }
+    if (inn.typer.avtaleFor.pa && hendelser.length) {
+      // Hvem brukeren er i appen (via e-posten), så varsel før avtaler går til dem det gjelder
+      const { data: u } = await db.auth.admin.getUserById(bruker);
+      const epost = u?.user?.email?.toLowerCase();
+      const personId = felles?.personer.find((x) => x.epost.toLowerCase() === epost)?.id;
+      kandidater.push(...forVarsler(hendelser, { dato, minutt }, { hendelser, navn, personId, voksne }));
+    }
     if (!kandidater.length) continue;
     const { data: sendtFor } = await db.from('varsel_sendt').select('nokkel').eq('bruker', bruker).in('nokkel', kandidater.map((k) => k.nokkel));
     const sendt = new Set((sendtFor ?? []).map((r) => r.nokkel as string));
@@ -121,7 +123,10 @@ async function behandle(req: Request): Promise<Response> {
     const { data: enheter } = await db.from('varsel_abonnement').select('id, bruker, endpoint, p256dh, auth').eq('bruker', bruker);
     if (!enheter?.length) continue;
     let antall = 0;
-    for (const melding of slaaSammen(nye)) {
+    // Varsel før en avtale kommer alltid alene (tidskritisk); resten slås sammen når det er mange
+    const forAvtale = nye.filter((v) => v.type === 'avtaleFor');
+    const meldinger = [...forAvtale.map((v) => ({ tittel: v.tittel, tekst: v.tekst, url: v.url, nokler: v.nokler })), ...slaaSammen(nye.filter((v) => v.type !== 'avtaleFor'))];
+    for (const melding of meldinger) {
       if (await send(db, enheter as Abonnement[], melding)) {
         antall++;
         await db.from('varsel_sendt').upsert(melding.nokler.map((nokkel) => ({ bruker, nokkel })), { onConflict: 'bruker,nokkel', ignoreDuplicates: true });
@@ -129,5 +134,5 @@ async function behandle(req: Request): Promise<Response> {
     }
     resultat[bruker] = antall;
   }
-  return svar({ dato, time, brukere: aktuelle.length, sendt: resultat, feil: sendefeil.length ? sendefeil : undefined });
+  return svar({ dato, time, minutt, brukere: aktuelle.length, sendt: resultat, feil: sendefeil.length ? sendefeil : undefined });
 }

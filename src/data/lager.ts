@@ -1,8 +1,8 @@
 // Lagring: Supabase når VITE_SUPABASE_URL er satt, ellers lokal demomodus i nettleseren.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { DeltListe, FellesDok, Liste, Punkt, PrivatDok, Saldo, Utgift, VarselEnhet, VarselInnstillinger } from './modell';
+import type { DeltListe, FellesDok, Hendelse, Liste, Punkt, PrivatDok, Saldo, Utgift, VarselEnhet, VarselInnstillinger } from './modell';
 import { tomtPrivatDok } from './modell';
-import { demoFelles, demoLister, demoOppfolging, demoPrivat } from './demo';
+import { demoFelles, demoHendelser, demoLister, demoOppfolging, demoPrivat } from './demo';
 
 export interface Bruker {
   epost: string;
@@ -80,6 +80,19 @@ export interface Lager {
   slettVarselEnhet(endpoint: string): Promise<void>;
   /** Sender et testvarsel til dine enheter. Returnerer antall sendt. */
   sendTestvarsel(): Promise<number>;
+
+  // Kalender – tabellen «hendelse» (supabase/kalender.sql). Alle avtaler er felles.
+  hentHendelser(): Promise<Hendelse[]>;
+  /** Oppretter eller oppdaterer (etter id) */
+  lagreHendelser(h: Hendelse[]): Promise<void>;
+  /** Sletter avtalene (og unntakene i en serie) */
+  slettHendelser(ider: string[]): Promise<void>;
+}
+
+/** Hendelse ↔ databaserad. Felt som bare appen bruker, ligger i «ekstra». */
+function tilRad(h: Hendelse) {
+  const { id, tittel, dato, serieId, originalDato, avlyst, ...ekstra } = h;
+  return { id, tittel, dato, serie_id: serieId ?? null, original_dato: originalDato ?? null, avlyst: !!avlyst, ekstra };
 }
 
 /** Varsler sider som viser utgifter/saldoer om at noe er endret */
@@ -317,6 +330,23 @@ class LokaltLager implements Lager {
     const reg = await navigator.serviceWorker?.ready;
     await reg?.showNotification('🔔 Testvarsel (demo)', { body: 'I demomodus vises varselet bare lokalt.', icon: `${import.meta.env.BASE_URL}ikon-192.png` });
     return reg ? 1 : 0;
+  }
+
+  async hentHendelser() {
+    let alle = les<Hendelse[]>('hendelser');
+    if (!alle) { alle = demoHendelser(); skriv('hendelser', alle); }
+    return alle;
+  }
+
+  async lagreHendelser(nye: Hendelse[]) {
+    const alle = await this.hentHendelser();
+    for (const h of nye) { const i = alle.findIndex((x) => x.id === h.id); if (i >= 0) alle[i] = h; else alle.push(h); }
+    skriv('hendelser', alle);
+  }
+
+  async slettHendelser(ider: string[]) {
+    const borte = new Set(ider);
+    skriv('hendelser', (await this.hentHendelser()).filter((h) => !borte.has(h.id) && !borte.has(h.serieId ?? '')));
   }
 
   async slettVedlegg(stier: string[]) {
@@ -570,6 +600,29 @@ class SupabaseLager implements Lager {
 
   async slettVarselEnhet(endpoint: string) {
     const { error } = await this.db.from('varsel_abonnement').delete().eq('endpoint', endpoint);
+    if (error) throw error;
+  }
+
+  async hentHendelser() {
+    const { data, error } = await this.db.from('hendelse').select('id, serie_id, original_dato, avlyst, tittel, dato, ekstra').limit(20000);
+    if (error) throw error;
+    return (data ?? []).map((r): Hendelse => ({
+      ...(r.ekstra ?? {}), id: r.id, tittel: r.tittel, dato: r.dato,
+      serieId: r.serie_id ?? undefined, originalDato: r.original_dato ?? undefined, avlyst: r.avlyst || undefined,
+    }));
+  }
+
+  async lagreHendelser(h: Hendelse[]) {
+    if (!h.length) return;
+    // Serier før unntak, ellers stopper fremmednøkkelen
+    const sortert = [...h].sort((a, b) => Number(!!a.serieId) - Number(!!b.serieId));
+    const { error } = await this.db.from('hendelse').upsert(sortert.map(tilRad));
+    if (error) throw error;
+  }
+
+  async slettHendelser(ider: string[]) {
+    if (!ider.length) return;
+    const { error } = await this.db.from('hendelse').delete().in('id', ider);
     if (error) throw error;
   }
 

@@ -10,7 +10,6 @@ import { Ikon, Kpi, Segment, Tom, kr, pst, maanedTekst } from '../ui/felles';
 import { FlytKort, KategoriFordeling, PostListe } from '../ui/deler';
 import { PostSkjema, RevisjonSkjema } from '../ui/skjemaer';
 import { DenneMaanedKort } from './Oppfolging';
-import { HuskelappKort } from './Lister';
 
 type Fane = 'poster' | 'overforinger';
 
@@ -68,7 +67,6 @@ export function PrivatOversikt({ gaaTil, nyRevisjon }: { gaaTil: (r: string) => 
       </div>
 
       <DenneMaanedKort gaaTil={gaaTil} visning="privat" />
-      <HuskelappKort gaaTil={gaaTil} />
 
       <div className="rutenett to-en">
         <FlytKort

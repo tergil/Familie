@@ -728,3 +728,70 @@ body.drar-punkt [data-dra-id] { transition: transform .15s ease; }
 .varseltype { border-top: 1px solid var(--linje); padding-bottom: var(--a2); }
 .varsel-valg { padding: 0 var(--a1) var(--a2) 48px; }
 .varsel-valg button { min-height: 36px; font-size: 13px; }
+
+/* ---------------------------------------------------------------- Oversikt og økonomi */
+
+.seksjonstittel { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--a3); margin-top: var(--a3); padding-top: var(--a4); border-top: 1px solid var(--linje-sterk); }
+.seksjonstittel .visningsbryter { min-width: 240px; }
+.okonomi-topp { display: flex; flex-wrap: wrap; gap: var(--a2) var(--a3); align-items: center; }
+.okonomi-topp > .segment { flex: 1 1 260px; max-width: 360px; }
+.okonomi-topp > .visningsbryter { flex: 1 1 240px; }
+@media (max-width: 899px) { .okonomi-topp > .segment { max-width: none; } }
+
+/* ---------------------------------------------------------------- Kalender */
+
+.kal-uke { padding-top: var(--a2); padding-bottom: var(--a2); }
+.kal-dag + .kal-dag { border-top: 1px solid var(--linje-sterk); }
+.kal-dag { padding: var(--a2) 0; }
+.kal-dag.forbi { opacity: .7; }
+.kal-dag-hode { display: flex; align-items: center; gap: var(--a2); padding: 0 var(--a1); }
+.kal-dagnavn { flex: 1; font-weight: 650; font-size: 15px; }
+.kal-dag.i-dag .kal-dagnavn { color: var(--aksent); }
+.kal-tom { padding: 2px var(--a1) var(--a2); }
+
+/* Én avtale: tid, fargestrek for kategorien, tittel */
+.kal-post { align-items: stretch; gap: var(--a3); min-height: 52px; }
+.kal-tid { flex: none; width: 48px; display: flex; flex-direction: column; justify-content: center; font-size: 13px; line-height: 1.25; color: var(--dempet); }
+.kal-tid strong { color: var(--blekk); font-weight: 600; font-size: 14px; }
+.kal-strek { flex: none; width: 4px; border-radius: 4px; background: var(--farge, var(--noytral-flyt)); margin: 6px 0; }
+.kal-post .hoved { justify-content: center; }
+
+/* Måned */
+.kal-maaned { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.kal-ukedag { text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--dempet); padding: var(--a1) 0 var(--a2); }
+.kal-celle {
+  min-height: 92px; padding: 4px; border: 1px solid transparent; border-radius: 8px; background: var(--flate-2);
+  display: flex; flex-direction: column; align-items: stretch; gap: 3px; text-align: left; min-width: 0; overflow: hidden;
+}
+.kal-celle.utenfor { background: transparent; color: var(--dempet); }
+.kal-celle:hover { border-color: var(--linje-sterk); }
+.kal-celle[aria-pressed='true'] { border-color: var(--aksent); background: var(--aksent-myk); }
+.kal-nr { font-size: 13px; font-weight: 600; padding: 0 2px; }
+.kal-celle.i-dag .kal-nr { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--aksent); color: var(--paa-aksent); }
+.kal-biter { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kal-bit {
+  font-size: 11px; line-height: 1.3; padding: 1px 4px; border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  background: color-mix(in srgb, var(--farge) 18%, var(--flate)); border-left: 3px solid var(--farge); color: var(--blekk);
+}
+.kal-flere { font-size: 11px; color: var(--dempet); padding: 0 4px; }
+@media (max-width: 640px) {
+  .kal-celle { min-height: 54px; padding: 3px; }
+  .kal-biter { flex-direction: row; flex-wrap: wrap; gap: 3px; }
+  .kal-bit { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 50%; background: var(--farge); font-size: 0; }
+  .kal-flere { font-size: 10px; padding: 0; }
+}
+
+/* Oversikt: neste 7 dager */
+.kal-mini + .kal-mini { margin-top: var(--a2); }
+.kal-mini-dag { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--dempet); padding: var(--a2) var(--a1) 0; }
+.kal-mini-dag.i-dag { color: var(--aksent); }
+
+/* Avtaleskjema */
+.ukedag-valg button { min-width: 48px; justify-content: center; }
+.modus-valg { display: flex; flex-direction: column; gap: var(--a2); padding: var(--a3); border-radius: var(--radius); background: var(--flate-2); }
+.veiledning { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+
+.kal-senere { display: flex; align-items: center; gap: var(--a2); border-bottom: 1px solid var(--linje); }
+.kal-senere:last-child { border-bottom: 0; }
+.kal-senere .rad { border-bottom: 0; flex: 1; min-width: 0; }
+.kal-senere-dag { flex: none; width: 44px; font-size: 12px; font-weight: 700; color: var(--dempet); padding-left: var(--a1); }

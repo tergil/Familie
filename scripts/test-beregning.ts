@@ -8,9 +8,11 @@ import {
   MALER, adventssondager, delingsTekst, erFerdig, erGjort, flyttEtSteg, fremdrift, gavehistorikk, nyRekkefolge, punkterForDeling, hageIMaaned, huskelapp, kalenderAar, kalenderLuker, kopierPunkter, lagTre, listeSum,
   medStatus, nesteStatus, nullstill, punkterFraMal, tidligereGaver, tolkHurtig,
 } from '../src/logikk/lister';
-import type { Post, Punkt, Saldo, Utgift } from '../src/data/modell';
+import type { Hendelse, Post, Punkt, Saldo, Utgift, VarselInnstillinger } from '../src/data/modell';
+import { brett, icsTekst, lagIcs } from '../src/logikk/ics';
+import { angreEndring, endreForekomst, forekomster as kalForekomster, gjentakTekst, kalenderPoster, sammeMonster, slettForekomst } from '../src/logikk/kalender';
 import { STANDARD_VARSLER } from '../src/data/modell';
-import { beregnVarsler, norskTid, slaaSammen, varseltrinn } from '../src/logikk/varsler';
+import { beregnVarsler, forVarsler, medStandard, norskTid, slaaSammen, varseltrinn } from '../src/logikk/varsler';
 
 let feil = 0;
 let ok = 0;
@@ -312,8 +314,71 @@ const avslaatt = structuredClone(vInn); for (const k of Object.keys(avslaatt.typ
 sjekk('alt avslått gir ingen varsler', beregnVarsler(ga.lister, ga.punkter, avslaatt, '2026-10-11').length, 0);
 sjekk('mange varsler slås sammen', slaaSammen(Array.from({ length: 5 }, (_, i) => ({ type: 'frist' as const, nokkel: `k${i}`, nokler: [`k${i}`], tittel: `T${i}`, tekst: '', url: '' })))
   .map((x) => [x.tittel, x.nokler.length]), [['5 påminnelser i dag', 5]]);
-sjekk('norsk tid om sommeren (UTC+2)', norskTid(new Date('2026-10-11T22:30:00Z')), { dato: '2026-10-12', time: 0 });
-sjekk('norsk tid om vinteren (UTC+1)', norskTid(new Date('2026-12-01T07:00:00Z')), { dato: '2026-12-01', time: 8 });
+sjekk('norsk tid om sommeren (UTC+2)', norskTid(new Date('2026-10-11T22:30:00Z')), { dato: '2026-10-12', time: 0, minutt: 30 });
+sjekk('norsk tid om vinteren (UTC+1)', norskTid(new Date('2026-12-01T07:00:00Z')), { dato: '2026-12-01', time: 8, minutt: 480 });
+
+// --- Kalender: gjentakelser og unntak (eksempel: henting i barnehagen hver hverdag)
+const henting: Hendelse = { id: 'h1', tittel: 'Henting barnehagen', kategori: 'barnehage', dato: '2026-10-12', fra: '16:00', til: '16:30',
+  gjentak: { frekvens: 'uke', intervall: 1, ukedager: [1, 2, 3, 4, 5] }, hvem: ['barn'], ansvarlig: 'terje' };
+const brukEndring = (alle: Hendelse[], e: { lagre: Hendelse[]; slett: string[] }) =>
+  [...alle.filter((h) => !e.slett.includes(h.id) && !e.lagre.some((l) => l.id === h.id)), ...e.lagre];
+const uke = (alle: Hendelse[]) => kalForekomster(alle, '2026-10-12', '2026-10-18').map((f) => `${f.dato.slice(8)} ${f.hendelse.fra} ${f.hendelse.ansvarlig}`);
+sjekk('hverdager: 5 ganger i uka', uke([henting]), ['12 16:00 terje', '13 16:00 terje', '14 16:00 terje', '15 16:00 terje', '16 16:00 terje']);
+sjekk('gjentakstekst: hverdager', gjentakTekst(henting.gjentak, henting.dato), 'Hverdager');
+const torsdag = () => kalForekomster(medIngrid, '2026-10-15', '2026-10-15')[0];
+const forTorsdag = kalForekomster([henting], '2026-10-15', '2026-10-15')[0];
+const medIngrid = brukEndring([henting], endreForekomst([henting], forTorsdag, { ...henting, dato: '2026-10-15', ansvarlig: 'ingrid' }, 'denne'));
+sjekk('bare torsdag: Ingrid henter', uke(medIngrid).map((x) => x.split(' ')[2]), ['terje', 'terje', 'terje', 'ingrid', 'terje']);
+sjekk('unntaket er knyttet til serien', [torsdag().unntak?.serieId, torsdag().originalDato], ['h1', '2026-10-15']);
+const onsdag = kalForekomster(medIngrid, '2026-10-14', '2026-10-14')[0];
+const fraOnsdag = brukEndring(medIngrid, endreForekomst(medIngrid, onsdag, { ...henting, dato: '2026-10-14', fra: '15:00' }, 'fremover'));
+sjekk('fremover fra onsdag: ny tid, Ingrid beholder torsdag', uke(fraOnsdag), ['12 16:00 terje', '13 16:00 terje', '14 15:00 terje', '15 16:00 ingrid', '16 15:00 terje']);
+const fredag = kalForekomster(medIngrid, '2026-10-16', '2026-10-16')[0];
+sjekk('avlys bare fredag', uke(brukEndring(medIngrid, slettForekomst(medIngrid, fredag, 'denne'))).length, 4);
+sjekk('slett fra onsdag og fremover', uke(brukEndring(medIngrid, slettForekomst(medIngrid, onsdag, 'fremover'))).map((x) => x.slice(0, 2)), ['12', '13']);
+sjekk('slett hele serien fjerner også unntak', brukEndring(medIngrid, slettForekomst(medIngrid, onsdag, 'alle')).length, 0);
+const alleKl15 = brukEndring(medIngrid, endreForekomst(medIngrid, onsdag, { ...henting, dato: '2026-10-14', fra: '15:00' }, 'alle'));
+sjekk('hele serien ny tid, samme mønster beholder unntak', [uke(alleKl15)[0], uke(alleKl15)[3]], ['12 15:00 terje', '15 16:00 ingrid']);
+const trening: Hendelse = { id: 't', tittel: 'Fotball', kategori: 'trening', dato: '2026-10-15', fra: '18:00', gjentak: { frekvens: 'uke', intervall: 2 }, hvem: [] };
+sjekk('annenhver torsdag', kalForekomster([trening], '2026-10-01', '2026-11-30').map((f) => f.dato), ['2026-10-15', '2026-10-29', '2026-11-12', '2026-11-26']);
+sjekk('gjentakstekst: annenhver uke', gjentakTekst(trening.gjentak, trening.dato), 'Hver 2. uke: tor');
+const maaned31: Hendelse = { id: 'm', tittel: 'Regning', kategori: 'annet', dato: '2026-01-31', gjentak: { frekvens: 'maaned', intervall: 1 }, hvem: [] };
+sjekk('månedlig den 31. hopper over korte måneder', kalForekomster([maaned31], '2026-01-01', '2026-05-31').map((f) => f.dato), ['2026-01-31', '2026-03-31', '2026-05-31']);
+const flyttet = brukEndring([henting], endreForekomst([henting], forTorsdag, { ...henting, dato: '2026-10-17', fra: '10:00' }, 'denne'));
+sjekk('flyttet forekomst vises på ny dato', kalForekomster(flyttet, '2026-10-12', '2026-10-18').map((f) => f.dato.slice(8)), ['12', '13', '14', '16', '17']);
+sjekk('sammenligning av mønster uavhengig av rekkefølge', sammeMonster({ ukedager: [5, 1], intervall: 1, frekvens: 'uke' }, { frekvens: 'uke', intervall: 1, ukedager: [1, 5] }, '2026-10-12'), true);
+const poster = kalenderPoster([henting], ga.lister, ga.punkter, '2026-10-26', '2026-11-01');
+sjekk('kalender viser bursdag fra gaveåret med alder', poster.filter((p) => p.kilde === 'anledning').map((p) => `${p.dato} ${p.tittel}`), ['2026-10-29 Mamma har bursdag (70 år)']);
+
+const endringOnsdag = endreForekomst(medIngrid, onsdag, { ...henting, dato: '2026-10-14', fra: '15:00' }, 'fremover');
+sjekk('angre «denne og fremover» gir samme uke som før', uke(brukEndring(brukEndring(medIngrid, endringOnsdag), angreEndring(medIngrid, endringOnsdag))), uke(medIngrid));
+const slettAlle = slettForekomst(medIngrid, onsdag, 'alle');
+sjekk('angre sletting av hele serien', uke(brukEndring(brukEndring(medIngrid, slettAlle), angreEndring(medIngrid, slettAlle))), uke(medIngrid));
+
+// --- Kalenderabonnement (ICS)
+const ics = lagIcs(kalenderPoster(medIngrid, ga.lister, ga.punkter, '2026-10-15', '2026-10-15', { anledninger: false, frister: false }),
+  (id) => ({ terje: 'Terje', ingrid: 'Ingrid', barn: 'Emma' } as Record<string, string>)[id], new Date('2026-10-14T10:00:00Z'));
+sjekk('ics: torsdag med Ingrid som henter', ['SUMMARY:Henting barnehagen (Ingrid)', 'DTSTART;TZID=Europe/Oslo:20261015T160000', 'DTEND;TZID=Europe/Oslo:20261015T163000', 'DESCRIPTION:Gjelder: Emma\\nHenter/leverer: Ingrid'].every((l) => ics.includes(l)), true);
+sjekk('ics: CRLF og tidssone', [ics.includes('\r\nBEGIN:VTIMEZONE\r\n'), ics.endsWith('END:VCALENDAR\r\n')], [true, true]);
+sjekk('ics: tekst beskyttes', icsTekst('Middag; vin, ost\nkl. 19'), 'Middag\\; vin\\, ost\\nkl. 19');
+sjekk('ics: lange linjer brettes på 75 byte', brett('SUMMARY:' + 'æ'.repeat(60)).split('\r\n').map((l) => new TextEncoder().encode(l).length <= 75), [true, true]);
+const heldag = lagIcs([{ nokkel: 'a|1', dato: '2026-10-29', tittel: 'Mamma har bursdag', ikon: '', farge: 0, hvem: [], kilde: 'anledning' }], () => undefined);
+sjekk('ics: hele dagen', ['DTSTART;VALUE=DATE:20261029', 'DTEND;VALUE=DATE:20261030'].every((l) => heldag.includes(l)), true);
+
+// --- Varsler for avtaler
+const navnKal = (id: string) => ({ terje: 'Terje', ingrid: 'Ingrid', barn: 'Emma' } as Record<string, string>)[id];
+const medVarsel = medIngrid.map((h) => (h.id === 'h1' || h.serieId === 'h1' ? { ...h, varselMin: 30 } : h));
+const morgen = beregnVarsler([], [], vInn, '2026-10-15', { hendelser: medIngrid, navn: navnKal });
+sjekk('morgenoversikt i dag', morgen.filter((v) => v.type === 'avtaler').map((v) => [v.tittel, v.tekst]), [['📅 I dag: 1 avtale', '16:00 Henting barnehagen – Ingrid']]);
+const gamle = { time: 7, bareUtenGave: true, typer: { ...vInn.typer } } as VarselInnstillinger;
+delete (gamle.typer as Partial<VarselInnstillinger['typer']>).avtaler;
+sjekk('gamle innstillinger uten avtaler fylles ut', medStandard(gamle).typer.avtaler, STANDARD_VARSLER.typer.avtaler);
+const voksne = new Set(['terje', 'ingrid']);
+const kl = (t: string) => ({ dato: '2026-10-15', minutt: Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) });
+sjekk('varsel 30 min før til den som henter', forVarsler(medVarsel, kl('15:30'), { hendelser: medVarsel, navn: navnKal, personId: 'ingrid', voksne }).map((v) => [v.tittel, v.tekst]),
+  [['⏰ Henting barnehagen kl. 16:00', 'Det er du som henter/leverer']]);
+sjekk('ikke til den som ikke henter', forVarsler(medVarsel, kl('15:30'), { hendelser: medVarsel, navn: navnKal, personId: 'terje', voksne }).length, 0);
+sjekk('bare innenfor kvarteret', [kl('15:14'), kl('15:44')].map((k) => forVarsler(medVarsel, k, { hendelser: medVarsel, navn: navnKal, personId: 'ingrid', voksne }).length), [0, 1]);
 
 // --- Flytte gamle gavelister inn i gaveåret
 const mittGa = ga.lister.find((l) => l.navn === 'Mitt gaveår')!;
