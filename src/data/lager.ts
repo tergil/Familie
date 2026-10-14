@@ -575,7 +575,12 @@ class SupabaseLager implements Lager {
 
   async sendTestvarsel() {
     const { data, error } = await this.db.functions.invoke('varsler', { body: { handling: 'test' } });
-    if (error) throw error;
+    if (error) {
+      // Funksjonen svarer med { feil } – vis den i stedet for «non-2xx status code»
+      const svar = (error as { context?: Response }).context;
+      const feil = await svar?.json?.().then((j: { feil?: string }) => j.feil).catch(() => undefined);
+      throw new Error(feil ?? error.message);
+    }
     return (data as { sendt?: number })?.sendt ?? 0;
   }
 

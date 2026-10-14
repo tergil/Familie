@@ -30,11 +30,14 @@ mkdirSync('Data', { recursive: true });
 writeFileSync(OPPSETT, `OPPSETT AV VARSLER – PRIVAT, IKKE DEL OG IKKE LEGG I GIT
 Laget ${new Date().toISOString().slice(0, 10)} av npm run vapid.
 
-1) Supabase → Edge Functions → Secrets (Add new secret), legg inn disse tre:
+1) Supabase → Edge Functions → Secrets (Add new secret), legg inn disse fire:
 
 VAPID_PUBLIC_KEY=${offentlig}
 VAPID_PRIVATE_KEY=${privatB64}
 CRON_HEMMELIGHET=${cron}
+VAPID_SUBJECT=mailto:<din e-post>   (eller https://tergil.github.io/sulamitten/ – Apple krever ekte adresse)
+
+NB: I Supabase skal Name og Value i hvert sitt felt – Value er bare det som står etter =.
 
 2) Kjør supabase/varsler.sql i SQL Editor (tabellene).
 

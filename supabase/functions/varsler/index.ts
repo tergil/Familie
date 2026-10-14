@@ -513,6 +513,8 @@ const svar = (data, status = 200) => new Response(JSON.stringify(data), {
 		"Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
 	}
 });
+/** Feil fra siste sending, så de kan vises i svaret (ikke bare i loggen) */
+let sendefeil = [];
 /** Sender til alle enhetene. Enheter som ikke finnes lenger (404/410), slettes. */
 async function send(db, enheter, melding) {
 	let sendt = 0;
@@ -526,16 +528,40 @@ async function send(db, enheter, melding) {
 		}, JSON.stringify(melding), { TTL: 72e3 });
 		sendt++;
 	} catch (feil) {
-		const kode = feil.statusCode;
-		if (kode === 404 || kode === 410) await db.from("varsel_abonnement").delete().eq("id", e.id);
-		else console.error("Kunne ikke sende", kode, feil);
+		const f = feil;
+		if (f.statusCode === 404 || f.statusCode === 410) {
+			await db.from("varsel_abonnement").delete().eq("id", e.id);
+			sendefeil.push(`${new URL(e.endpoint).host}: enheten finnes ikke lenger (${f.statusCode}) – slettet`);
+		} else {
+			console.error("Kunne ikke sende", f.statusCode, feil);
+			sendefeil.push(`${new URL(e.endpoint).host}: ${f.statusCode ?? ""} ${(f.body || f.message || String(feil)).slice(0, 300)}`.trim());
+		}
 	}
 	return sendt;
 }
 Deno.serve(async (req) => {
 	if (req.method === "OPTIONS") return svar("ok");
+	try {
+		return await behandle(req);
+	} catch (e) {
+		console.error(e);
+		return svar({ feil: e instanceof Error ? e.message : String(e) }, 500);
+	}
+});
+async function behandle(req) {
+	sendefeil = [];
+	const mangler = [
+		"VAPID_PUBLIC_KEY",
+		"VAPID_PRIVATE_KEY",
+		"CRON_HEMMELIGHET"
+	].filter((n) => !env(n));
+	if (mangler.length) return svar({ feil: `Mangler hemmelighet i Supabase (Edge Functions → Secrets): ${mangler.join(", ")}` }, 500);
 	const db = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"));
-	webpush.setVapidDetails(env("VAPID_SUBJECT") || "mailto:varsler@familie.invalid", env("VAPID_PUBLIC_KEY"), env("VAPID_PRIVATE_KEY"));
+	try {
+		webpush.setVapidDetails(env("VAPID_SUBJECT") || "https://tergil.github.io/sulamitten/", env("VAPID_PUBLIC_KEY"), env("VAPID_PRIVATE_KEY"));
+	} catch (e) {
+		return svar({ feil: `VAPID-nøklene er ugyldige – sjekk at de er limt inn helt, uten mellomrom: ${e instanceof Error ? e.message : e}` }, 500);
+	}
 	const kropp = await req.json().catch(() => ({}));
 	if (kropp.handling === "test") {
 		const jwt = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
@@ -547,9 +573,15 @@ Deno.serve(async (req) => {
 			tekst: "Varslene virker på denne enheten.",
 			url: "#/varsler"
 		});
+		if (!n && sendefeil.length) return svar({
+			feil: `Push-tjenesten sa nei: ${sendefeil.join(" | ")}`,
+			sendt: 0,
+			enheter: enheter?.length ?? 0
+		}, 502);
 		return svar({
 			sendt: n,
-			enheter: enheter?.length ?? 0
+			enheter: enheter?.length ?? 0,
+			feil: sendefeil.length ? sendefeil : void 0
 		});
 	}
 	if (!env("CRON_HEMMELIGHET") || req.headers.get("x-cron-hemmelighet") !== env("CRON_HEMMELIGHET")) return svar({ feil: "Ikke tilgang" }, 401);
@@ -626,7 +658,8 @@ Deno.serve(async (req) => {
 		dato,
 		time,
 		brukere: aktuelle.length,
-		sendt: resultat
+		sendt: resultat,
+		feil: sendefeil.length ? sendefeil : void 0
 	});
-});
+}
 //#endregion

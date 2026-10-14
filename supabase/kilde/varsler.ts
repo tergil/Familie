@@ -6,7 +6,8 @@
 //     som har valgt denne timen (norsk tid). Hvert varsel sendes bare én gang (tabellen varsel_sendt).
 //  2. Fra appen med { handling: 'test' } og innlogget bruker: sender et testvarsel til brukerens enheter.
 //
-// Hemmeligheter (Supabase → Edge Functions → Secrets): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, CRON_HEMMELIGHET.
+// Hemmeligheter (Supabase → Edge Functions → Secrets): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, CRON_HEMMELIGHET og
+// VAPID_SUBJECT (mailto:… eller https://… – Apple avviser ugyldige adresser med «BadJwtToken»).
 // SUPABASE_URL og SUPABASE_SERVICE_ROLE_KEY finnes automatisk.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
@@ -23,6 +24,9 @@ const svar = (data: unknown, status = 200) => new Response(JSON.stringify(data),
 
 type Abonnement = { id: string; bruker: string; endpoint: string; p256dh: string; auth: string };
 
+/** Feil fra siste sending, så de kan vises i svaret (ikke bare i loggen) */
+let sendefeil: string[] = [];
+
 /** Sender til alle enhetene. Enheter som ikke finnes lenger (404/410), slettes. */
 async function send(db: ReturnType<typeof createClient>, enheter: Abonnement[], melding: { tittel: string; tekst: string; url: string }): Promise<number> {
   let sendt = 0;
@@ -31,9 +35,14 @@ async function send(db: ReturnType<typeof createClient>, enheter: Abonnement[], 
       await webpush.sendNotification({ endpoint: e.endpoint, keys: { p256dh: e.p256dh, auth: e.auth } }, JSON.stringify(melding), { TTL: 60 * 60 * 20 });
       sendt++;
     } catch (feil) {
-      const kode = (feil as { statusCode?: number }).statusCode;
-      if (kode === 404 || kode === 410) await db.from('varsel_abonnement').delete().eq('id', e.id);
-      else console.error('Kunne ikke sende', kode, feil);
+      const f = feil as { statusCode?: number; body?: string; message?: string };
+      if (f.statusCode === 404 || f.statusCode === 410) {
+        await db.from('varsel_abonnement').delete().eq('id', e.id);
+        sendefeil.push(`${new URL(e.endpoint).host}: enheten finnes ikke lenger (${f.statusCode}) – slettet`);
+      } else {
+        console.error('Kunne ikke sende', f.statusCode, feil);
+        sendefeil.push(`${new URL(e.endpoint).host}: ${f.statusCode ?? ''} ${(f.body || f.message || String(feil)).slice(0, 300)}`.trim());
+      }
     }
   }
   return sendt;
@@ -41,8 +50,25 @@ async function send(db: ReturnType<typeof createClient>, enheter: Abonnement[], 
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return svar('ok');
+  // Feil skal komme tilbake som lesbar tekst (vises i appen), ikke som «Internal Server Error»
+  try {
+    return await behandle(req);
+  } catch (e) {
+    console.error(e);
+    return svar({ feil: e instanceof Error ? e.message : String(e) }, 500);
+  }
+});
+
+async function behandle(req: Request): Promise<Response> {
+  sendefeil = [];
+  const mangler = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'CRON_HEMMELIGHET'].filter((n) => !env(n));
+  if (mangler.length) return svar({ feil: `Mangler hemmelighet i Supabase (Edge Functions → Secrets): ${mangler.join(', ')}` }, 500);
   const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
-  webpush.setVapidDetails(env('VAPID_SUBJECT') || 'mailto:varsler@familie.invalid', env('VAPID_PUBLIC_KEY'), env('VAPID_PRIVATE_KEY'));
+  try {
+    webpush.setVapidDetails(env('VAPID_SUBJECT') || 'https://tergil.github.io/sulamitten/', env('VAPID_PUBLIC_KEY'), env('VAPID_PRIVATE_KEY'));
+  } catch (e) {
+    return svar({ feil: `VAPID-nøklene er ugyldige – sjekk at de er limt inn helt, uten mellomrom: ${e instanceof Error ? e.message : e}` }, 500);
+  }
   const kropp = (await req.json().catch(() => ({}))) as { handling?: string; tving?: boolean };
 
   // 1. Testvarsel fra appen
@@ -52,7 +78,8 @@ Deno.serve(async (req) => {
     if (!data.user) return svar({ feil: 'Ikke innlogget' }, 401);
     const { data: enheter } = await db.from('varsel_abonnement').select('id, bruker, endpoint, p256dh, auth').eq('bruker', data.user.id);
     const n = await send(db, (enheter ?? []) as Abonnement[], { tittel: '🔔 Testvarsel', tekst: 'Varslene virker på denne enheten.', url: '#/varsler' });
-    return svar({ sendt: n, enheter: enheter?.length ?? 0 });
+    if (!n && sendefeil.length) return svar({ feil: `Push-tjenesten sa nei: ${sendefeil.join(' | ')}`, sendt: 0, enheter: enheter?.length ?? 0 }, 502);
+    return svar({ sendt: n, enheter: enheter?.length ?? 0, feil: sendefeil.length ? sendefeil : undefined });
   }
 
   // 2. Timejobben
@@ -102,5 +129,5 @@ Deno.serve(async (req) => {
     }
     resultat[bruker] = antall;
   }
-  return svar({ dato, time, brukere: aktuelle.length, sendt: resultat });
-});
+  return svar({ dato, time, brukere: aktuelle.length, sendt: resultat, feil: sendefeil.length ? sendefeil : undefined });
+}
