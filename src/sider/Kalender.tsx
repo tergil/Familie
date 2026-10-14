@@ -93,6 +93,7 @@ function DagListe({ dato, poster, navn, aapne, nyAvtale }: {
       <div className="kal-dag-hode">
         <span className="kal-dagnavn">{dagTittel(dato)}</span>
         {dato === idag && <span className="merkelapp aksent">I dag</span>}
+        {dato < idag && <span className="merkelapp">Har vært</span>}
         <button className="knapp flat ikon liten" onClick={nyAvtale} aria-label={`Ny avtale ${dagTittel(dato)}`}><Ikon navn="pluss" storrelse={16} /></button>
       </div>
       {poster.length
@@ -263,7 +264,6 @@ export function AvtaleArk({ post, startDato, lukk }: { post?: KalenderPost; star
   const [notat, setNotat] = useState(h?.notat ?? '');
   const [varsel, setVarsel] = useState(h?.varselMin ? String(h.varselMin) : '');
   const [modus, setModus] = useState<'lagre' | 'slett' | null>(null);
-  const [bekreftDialog, spor] = useBekreft();
   const erSerie = !!f?.serie.gjentak;
 
   const avtale = (): Avtale => ({
@@ -406,18 +406,12 @@ export function AvtaleArk({ post, startDato, lukk }: { post?: KalenderPost; star
           <div className="knapperad slutt">
             {f && (erSerie
               ? <button type="button" className="knapp flat fare dytt" onClick={() => setModus('slett')}><Ikon navn="slett" storrelse={18} />Slett</button>
-              : <button type="button" className="knapp flat fare dytt" onClick={() => spor({
-                  tittel: `Slette «${tittel || 'avtalen'}»?`,
-                  tekst: 'Avtalen forsvinner fra kalenderen for dere begge. Du kan angre rett etterpå.',
-                  knapp: 'Slett avtalen',
-                  ja: () => void utfor('slett', 'alle'),
-                })}><Ikon navn="slett" storrelse={18} />Slett</button>)}
+              : <button type="button" className="knapp flat fare dytt" onClick={() => void utfor('slett', 'alle')}><Ikon navn="slett" storrelse={18} />Slett</button>)}
             <button type="button" className="knapp" onClick={lukk}>Avbryt</button>
             <button type="submit" className="knapp primar" disabled={!tittel.trim()}>Lagre</button>
           </div>
         )}
       </form>
-      {bekreftDialog}
     </Ark>
     )
   );
@@ -555,12 +549,12 @@ function KategoriArk({ lukk }: { lukk: () => void }) {
               <Felt etikett="Navn"><input value={k.navn} autoFocus onChange={(e) => lagre(kategorier.map((x) => (x.id === k.id ? { ...x, navn: e.target.value } : x)))} /></Felt>
               <div className="felt"><span>Farge</span><Fargevalg verdi={k.farge} endre={(farge) => lagre(kategorier.map((x) => (x.id === k.id ? { ...x, farge } : x)))} /></div>
               <div className="knapperad slutt">
-                <button className="knapp flat fare dytt" onClick={() => spor({
+                <button className="knapp flat fare dytt" onClick={() => (!antall(k.id) ? (lagre(kategorier.filter((x) => x.id !== k.id), `Slettet «${k.navn}»`), setAapen(null)) : spor({
                   tittel: `Slette kategorien «${k.navn}»?`,
                   tekst: `${antall(k.id) ? `${antall(k.id)} ${antall(k.id) === 1 ? 'avtale blir' : 'avtaler blir'} uten kategori og får nøytral farge. ` : ''}Du kan angre rett etterpå.`,
                   knapp: 'Slett kategorien',
                   ja: () => { lagre(kategorier.filter((x) => x.id !== k.id), `Slettet «${k.navn}»`); setAapen(null); },
-                })}>
+                }))}>
                   <Ikon navn="slett" storrelse={18} />Slett
                 </button>
                 <button className="knapp primar" onClick={() => setAapen(null)} disabled={!k.navn.trim()}>Ferdig</button>

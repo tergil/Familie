@@ -90,7 +90,7 @@ export function Varsler() {
       if (!lagretFor && inn) { await lager.lagreVarselInnstillinger(inn); setLagretFor(true); }
       setMitt(sub.endpoint);
       setEnheter(await lager.hentVarselEnheter());
-      visToast({ tekst: 'Varsler er på. Nå husker vi for deg.' });
+      visToast({ tekst: 'Varsler er på. Nå husker Sulamitten for deg.' });
     } catch (e) {
       setFeil(feiltekst(e));
     } finally {
@@ -166,7 +166,7 @@ export function Varsler() {
       {lager.modus === 'lokal' && (
         <div className="banner info"><Ikon navn="info" /><div><strong>Demomodus:</strong> ingen server sender varsler. Innstillingene lagres i nettleseren, og testvarselet vises bare her.</div></div>
       )}
-      {feil && <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Varslene ville ikke helt som vi ville.</strong><p className="liten">{feil}</p></div></div>}
+      {feil && <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Varslene ville ikke helt som du ville.</strong><p className="liten">{feil}</p></div></div>}
 
       <section className="kort">
         <div className="kort-hode">

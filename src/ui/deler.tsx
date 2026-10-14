@@ -175,11 +175,12 @@ export function SeksjonHode({ tittel, children }: { tittel: string; children?: R
 export type Visning = 'felles' | 'privat';
 
 /** Bytter mellom fellesbudsjettet og ditt eget. Vises øverst på Oversikt, Budsjett og Oppfølging. */
-export function VisningsBryter({ verdi, endre }: { verdi: Visning; endre: (v: Visning) => void }) {
+/** Felles | Privat. kompakt = smal, uten ikoner (deler linje med f.eks. månedsvelgeren) */
+export function VisningsBryter({ verdi, endre, kompakt }: { verdi: Visning; endre: (v: Visning) => void; kompakt?: boolean }) {
   return (
-    <div className="visningsbryter">
-      <Segment etikett="Vis budsjett" full verdi={verdi} endre={endre}
-        valg={[{ verdi: 'felles', tekst: 'Felles', ikon: 'person' }, { verdi: 'privat', tekst: 'Privat', ikon: 'privat' }]} />
+    <div className={`visningsbryter${kompakt ? ' kompakt' : ''}`}>
+      <Segment etikett="Vis budsjett" full={!kompakt} verdi={verdi} endre={endre}
+        valg={[{ verdi: 'felles', tekst: 'Felles', ikon: kompakt ? undefined : 'person' }, { verdi: 'privat', tekst: 'Privat', ikon: kompakt ? undefined : 'privat' }]} />
     </div>
   );
 }

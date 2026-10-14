@@ -7,7 +7,7 @@ import { lager, varsleOppfolgingEndret } from '../data/lager';
 import { useTilstand } from '../data/tilstand';
 import { iDag } from '../logikk/beregning';
 import { kontoerFor, muligeDubletter, revisjonForMaaned, maanedAv } from '../logikk/oppfolging';
-import { Ark, Felt, Ikon, Segment, datoTekst, kr, tolkTall, useBekreft } from './felles';
+import { Ark, Felt, Ikon, Segment, datoTekst, kr, tolkTall } from './felles';
 
 const SIST = 'familie.sist';
 
@@ -66,7 +66,6 @@ export function UtgiftSkjema({ utgift, forslag, privatStart, lukk }: { utgift?: 
   const [dubletter, setDubletter] = useState<Utgift[] | null>(null);
   const [lagrer, setLagrer] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
-  const [bekreftDialog, spor] = useBekreft();
 
   const belop = tolkTall(belopTekst);
   const kanLagre = belop !== 0 && !!kategoriId && !!kontoId && !!dato && !lagrer;
@@ -191,19 +190,13 @@ export function UtgiftSkjema({ utgift, forslag, privatStart, lukk }: { utgift?: 
         {!dubletter && (
           <div className="knapperad slutt">
             {utgift && (
-              <button type="button" className="knapp flat fare dytt" onClick={() => spor({
-                tittel: `Slette utgiften på ${kr(utgift.belop)}?`,
-                tekst: 'Den forsvinner fra oppfølgingen. Du kan angre rett etterpå.',
-                knapp: 'Slett utgiften',
-                ja: () => void slett(),
-              })}><Ikon navn="slett" storrelse={18} />Slett</button>
+              <button type="button" className="knapp flat fare dytt" onClick={() => void slett()}><Ikon navn="slett" storrelse={18} />Slett</button>
             )}
             {!utgift && <button type="button" className="knapp" disabled={!kanLagre} onClick={() => void lagre(false, true)}>Lagre + ny</button>}
             <button type="submit" className="knapp primar" disabled={!kanLagre}>{lagrer ? 'Lagrer …' : 'Lagre'}</button>
           </div>
         )}
       </form>
-      {bekreftDialog}
     </Ark>
   );
 }

@@ -46,7 +46,7 @@ export function KategoriStolpe({ s, navn, farge, andel }: { s: KategoriStatus; n
   );
 }
 
-export function Oppfolging({ visning, maaned: startMaaned }: { visning: Visning; maaned?: string }) {
+export function Oppfolging({ visning, maaned: startMaaned, bryter }: { visning: Visning; maaned?: string; bryter?: ReactNode }) {
   const { felles, privat, meg } = useTilstand();
   const [maaned, setMaaned] = useState(startMaaned && /^\d{4}-\d{2}$/.test(startMaaned) ? startMaaned : maanedAv(iDag()));
   const data = useOppfolging(maaned);
@@ -98,6 +98,7 @@ export function Oppfolging({ visning, maaned: startMaaned }: { visning: Visning;
           <span className="tall">{maanedTekst(maaned)}</span>
           <button className="knapp ikon flat liten" onClick={() => setMaaned(flyttMaaned(maaned, 1))} aria-label="Neste måned" disabled={erInnevaerende}><Ikon navn="pilhoyre" storrelse={18} /></button>
         </div>
+        {bryter}
       </div>
 
       {erPrivat && <div className="banner info"><Ikon navn="privat" /><div>Private utgifter og saldoer ser bare du.</div></div>}
@@ -202,7 +203,7 @@ function AvstemmingRad({ a }: { a: Avstemming }) {
       <Ikon navn="konto" storrelse={18} />
       <span className="hoved" style={{ gap: 4 }}>
         <span className="navn">{a.konto.navn}</span>
-        <span style={{ fontSize: 12 }}>{tekst}</span>
+        <span style={{ fontSize: '0.75rem' }}>{tekst}</span>
         {a.ikkeFort !== undefined && Math.abs(a.ikkeFort) >= 1 && (
           <span className="info" style={{ whiteSpace: 'normal' }}>{a.ikkeFort > 0 ? `${kr(a.ikkeFort)} brukt som ikke er ført` : `${kr(-a.ikkeFort)} mer ført enn saldoen viser`}</span>
         )}

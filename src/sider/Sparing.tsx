@@ -63,7 +63,7 @@ export function Sparing() {
         </div>
         <div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 6 }}>
-            <span className="tall" style={{ fontSize: 22, fontWeight: 600 }}>{kr(m.saldo)}</span>
+            <span className="tall" style={{ fontSize: '1.375rem', fontWeight: 600 }}>{kr(m.saldo)}</span>
             <span className="dempet liten">av {kr(m.maal)}</span>
           </div>
           <div className="stolpe" role="progressbar" aria-valuenow={Math.round(andel * 100)} aria-valuemin={0} aria-valuemax={100}>
@@ -74,7 +74,7 @@ export function Sparing() {
           <span>{mnd > 0 ? `+${kr(mnd)} per måned` : 'Ingen fast sparing'}</span>
           <span>{rest <= 0 ? `${kr(-rest)} over målet` : naas ? `Nås ca. ${naas}` : `${kr(rest)} igjen`}</span>
         </div>
-        <div className="dempet" style={{ fontSize: 11 }}>Saldo per {datoTekst(m.saldoDato)} · trykk for å oppdatere</div>
+        <div className="dempet" style={{ fontSize: '0.75rem' }}>Saldo per {datoTekst(m.saldoDato)} · trykk for å oppdatere</div>
       </button>
     );
   };

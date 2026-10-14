@@ -189,14 +189,25 @@ export function Ikon({ navn, storrelse = 20 }: { navn: keyof typeof STIER | stri
   );
 }
 
-/** Ikon i en farget rute (lister, anledninger). Fargen følger ikonet, så samme liste alltid ser lik ut. */
-export function IkonBoble({ ikon, storrelse = 'normal' }: { ikon?: string; storrelse?: 'liten' | 'normal' | 'stor' }) {
+/**
+ * Ikon i en farget rute. Fargen betyr kategori: lister i samme kategori har samme farge
+ * (Gaver rosa, Jul terrakotta, Hage grønn, Hus havblå, Reise og Fritid gul). Uten kategori: nøytral.
+ */
+export function IkonBoble({ ikon, kategori, storrelse = 'normal' }: { ikon?: string; kategori?: string; storrelse?: 'liten' | 'normal' | 'stor' }) {
   const navn = listeIkon(ikon);
-  const tone = TONER[[...navn].reduce((s, t) => s + t.charCodeAt(0), 0) % TONER.length];
   const px = storrelse === 'liten' ? 16 : storrelse === 'stor' ? 28 : 20;
-  return <span className={`liste-ikon ${tone}${storrelse === 'normal' ? '' : ` ${storrelse}`}`} aria-hidden="true"><Ikon navn={navn} storrelse={px} /></span>;
+  return <span className={`liste-ikon ${kategoriTone(kategori)}${storrelse === 'normal' ? '' : ` ${storrelse}`}`} aria-hidden="true"><Ikon navn={navn} storrelse={px} /></span>;
 }
+const KATEGORI_TONE: Record<string, string> = {
+  gaver: 'tone-rosa', jul: 'tone-terrakotta', hage: 'tone-gronn', hus: 'tone-havbla', reise: 'tone-gul', fritid: 'tone-gul',
+};
 const TONER = ['tone-gul', 'tone-terrakotta', 'tone-havbla', 'tone-rosa', 'tone-gronn'];
+/** Egne kategorier får en fast farge ut fra navnet; Annet og ingen kategori er nøytrale */
+function kategoriTone(kategori?: string): string {
+  const k = (kategori ?? '').trim().toLowerCase();
+  if (!k || k === 'annet') return 'tone-noytral';
+  return KATEGORI_TONE[k] ?? TONER[[...k].reduce((sum, t) => sum + t.charCodeAt(0), 0) % TONER.length];
+}
 
 // ---------------------------------------------------------------- Logo
 

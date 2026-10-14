@@ -8,20 +8,21 @@ import { Ark, BelopFelt, Fargevalg, Felt, Ikon, Segment, kr, useBekreft } from '
 /**
  * Avbryt / Lagre, og Slett med bekreftelse i en dialog.
  * hva: det som slettes, f.eks. «posten «Strøm»». konsekvens: hva som skjer i tillegg.
+ * bekreft = false: slettes direkte (én enkelt ting som kan angres fra meldingen nederst).
  */
-function Knapper({ slett, slettTekst = 'Slett', hva = 'dette', konsekvens, kanLagre = true, lukk }: {
-  slett?: () => void; slettTekst?: string; hva?: string; konsekvens?: string; kanLagre?: boolean; lukk: () => void;
+function Knapper({ slett, slettTekst = 'Slett', hva = 'dette', konsekvens, bekreft = true, kanLagre = true, lukk }: {
+  slett?: () => void; slettTekst?: string; hva?: string; konsekvens?: string; bekreft?: boolean; kanLagre?: boolean; lukk: () => void;
 }) {
   const [bekreftDialog, spor] = useBekreft();
   return (
     <div className="knapperad slutt" style={{ marginTop: 8 }}>
       {slett && (
-        <button type="button" className="knapp flat fare dytt" onClick={() => spor({
+        <button type="button" className="knapp flat fare dytt" onClick={() => (!bekreft ? slett() : spor({
           tittel: `Slette ${hva}?`,
           tekst: [konsekvens, 'Du kan angre rett etterpå.'].filter(Boolean).join(' '),
           knapp: slettTekst,
           ja: slett,
-        })}><Ikon navn="slett" storrelse={18} />{slettTekst}</button>
+        }))}><Ikon navn="slett" storrelse={18} />{slettTekst}</button>
       )}
       <button type="button" className="knapp" onClick={lukk}>Avbryt</button>
       <button type="submit" className="knapp primar" disabled={!kanLagre}>Lagre</button>
@@ -105,7 +106,7 @@ export function PostSkjema({ post, kategorier, kontoer, banker, lagre, slett, lu
           <input type="checkbox" className="bryter" checked={!!p.folgOpp} onChange={(e) => sett({ folgOpp: e.target.checked })} />
         </label>
       )}
-      <Knapper slett={slett} hva={`posten «${p.navn || 'uten navn'}»`} slettTekst="Slett posten" lukk={lukk} kanLagre={!!p.navn && !!p.kategoriId && !!p.kontoId} />
+      <Knapper slett={slett} bekreft={false} hva={`posten «${p.navn || 'uten navn'}»`} slettTekst="Slett posten" lukk={lukk} kanLagre={!!p.navn && !!p.kategoriId && !!p.kontoId} />
     </Skjema>
   );
 }
@@ -143,7 +144,7 @@ export function InntektSkjema({ inntekt, personer, kontoer, banker, lagre, slett
         </Felt>
       </div>
       <Felt etikett="Går inn på konto"><KontoValg kontoer={kontoer} banker={banker} verdi={i.tilKontoId} endre={(tilKontoId) => sett({ tilKontoId })} /></Felt>
-      <Knapper slett={slett} hva={`inntekten «${i.navn || 'uten navn'}»`} slettTekst="Slett inntekten" lukk={lukk} kanLagre={!!i.navn && !!i.tilKontoId} />
+      <Knapper slett={slett} bekreft={false} hva={`inntekten «${i.navn || 'uten navn'}»`} slettTekst="Slett inntekten" lukk={lukk} kanLagre={!!i.navn && !!i.tilKontoId} />
     </Skjema>
   );
 }
@@ -163,7 +164,7 @@ export function OverforingSkjema({ overforing, kontoer, banker, lagre, slett, lu
       <Felt etikett="Fra (lønnskonto)"><KontoValg kontoer={fra} banker={banker} verdi={o.fraKontoId} endre={(fraKontoId) => sett({ fraKontoId })} /></Felt>
       <Felt etikett="Til"><KontoValg kontoer={til} banker={banker} verdi={o.tilKontoId} endre={(tilKontoId) => sett({ tilKontoId })} /></Felt>
       <Felt etikett="Beløp per måned"><BelopFelt verdi={o.belop} endre={(belop) => sett({ belop })} /></Felt>
-      <Knapper slett={slett} hva="overføringen" slettTekst="Slett overføringen" lukk={lukk} kanLagre={!!o.fraKontoId && !!o.tilKontoId && o.belop > 0} />
+      <Knapper slett={slett} bekreft={false} hva="overføringen" slettTekst="Slett overføringen" lukk={lukk} kanLagre={!!o.fraKontoId && !!o.tilKontoId && o.belop > 0} />
     </Skjema>
   );
 }
@@ -300,7 +301,7 @@ export function KategoriSkjema({ kategori, alle, antallPoster, lagre, slett, luk
           </select>
         </Felt>
       )}
-      <Knapper slett={kanSlette ? () => slett!(antallPoster ? flyttTil : null) : undefined} hva={`kategorien «${k.navn || 'uten navn'}»`} slettTekst="Slett kategorien"
+      <Knapper slett={kanSlette ? () => slett!(antallPoster ? flyttTil : null) : undefined} bekreft={!!antallPoster} hva={`kategorien «${k.navn || 'uten navn'}»`} slettTekst="Slett kategorien"
         konsekvens={antallPoster ? `${antallPoster} ${antallPoster === 1 ? 'post flyttes' : 'poster flyttes'} til kategorien du har valgt.` : undefined} lukk={lukk} kanLagre={!!k.navn} />
     </Skjema>
   );
@@ -313,7 +314,7 @@ export function BankSkjema({ bank, lagre, slett, lukk }: { bank?: Bank; lagre: (
   return (
     <Skjema tittel={bank ? 'Endre bank' : 'Ny bank'} lukk={lukk} lagre={() => lagre(b)}>
       <Felt etikett="Navn"><input value={b.navn} onChange={(e) => setB({ ...b, navn: e.target.value })} required autoFocus /></Felt>
-      <Knapper slett={slett} hva={`banken «${b.navn || 'uten navn'}»`} slettTekst="Slett banken" lukk={lukk} kanLagre={!!b.navn} />
+      <Knapper slett={slett} bekreft={false} hva={`banken «${b.navn || 'uten navn'}»`} slettTekst="Slett banken" lukk={lukk} kanLagre={!!b.navn} />
     </Skjema>
   );
 }

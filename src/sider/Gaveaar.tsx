@@ -417,7 +417,7 @@ function AnledningRad({ a, fodt, endre, fjern }: { a: Anledning; fodt?: string; 
   const visAar = a.aar ?? Number((neste ?? idag).slice(0, 4));
   return (
     <div className="anledning-rad">
-      <IkonBoble ikon={ANLEDNING_IKON[a.type]} storrelse="liten" />
+      <IkonBoble ikon={ANLEDNING_IKON[a.type]} kategori="Gaver" storrelse="liten" />
       <div className="anledning-felt">
         {a.type === 'egen'
           ? <input className="anledning-navn" value={a.navn ?? ''} onChange={(e) => endre({ ...a, navn: e.target.value })} aria-label="Navn på anledningen" placeholder="Navn" />

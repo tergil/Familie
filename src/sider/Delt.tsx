@@ -25,7 +25,7 @@ export function DeltSide({ nokkel }: { nokkel: string }) {
       <div className="delt-innhold">
         {!liste ? (
           <section className="kort">
-            <Tom ikon="lenke" tittel="Lenken virker ikke" tekst={feil ? 'Vi fikk ikke hentet lista. Prøv igjen om litt.' : 'Den kan være slått av, eller så har lenken mistet en bokstav på veien. Spør den som delte den om en ny.'} />
+            <Tom ikon="lenke" tittel="Lenken virker ikke" tekst={feil ? 'Lista ville ikke komme fram. Prøv igjen om litt.' : 'Den kan være slått av, eller så har lenken mistet en bokstav på veien. Spør den som delte den om en ny.'} />
           </section>
         ) : (
           <>

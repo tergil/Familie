@@ -30,7 +30,7 @@ Personlige arbeidsinstrukser ligger i `~/.claude/CLAUDE.md`. Denne fila handler 
   Viser også bursdager fra gaveårene og frister fra listene. `hvem` = personer + `FellesDok.familie` (barna),
   `ansvarlig` = den som henter/leverer. Abonnement for telefonens kalender: Edge Function «kalender»
   (`?n=<FellesDok.kalenderNokkel>`, utvidede forekomster som ICS, `logikk/ics.ts`).
-- **Navigasjon:** Oversikt · Kalender · Lister · Økonomi (Oppfølging, med Budsjett som fane) · Mer. Oversikt viser de neste 5 avtalene
+- **Navigasjon:** Oversikt · Kalender · Lister · Økonomi (fanene Oppfølging · Budsjett · Sparemål, på alle skjermstørrelser) · Mer. Oversikt viser de neste 5 avtalene
   (det som er over forsvinner, `kommende()`/`erForbi()`), huskelappen og økonomien. Snarveien nede til høyre på Oversikt følger
   seksjonen man ser på (`data-fab`: Ny avtale → Ny liste → Før utgift). Felles/privat-bryteren står over økonomien.
 - **Varsler** (Oppsett → Varsler, `sider/Varsler.tsx`): push til iPhone (hjemskjerm, iOS 16.4+) og Android.
@@ -90,7 +90,13 @@ npm run vapid        # nøkler for push-varsler: offentlig → src/data/varselno
 - Skrift: Nunito ExtraBold (800) for overskrifter/tall i fokus, Inter for resten. Maks to familier.
 - Logo: `<Logo>` / `<Merke>` (krusedull → sirkel). `mikro` under ~24 px. `animer` bare ved utvalgte øyeblikk
   (innlogging, lasting, liste ferdig) – aldri ved feil. Redusert bevegelse viser logoen ferdig tegnet.
-- **Sletting: alltid `useBekreft()`** (dialog med konsekvens, Avbryt er valgt) – ikke dobbelttrykk og ikke `confirm()`.
+- **Sletting:** ett enkelt punkt/post/avtale/utgift slettes direkte med «Angre» i meldingen nederst. `useBekreft()` (dialog med
+  konsekvens, Avbryt er valgt) når noe ikke kan angres (vedlegg, import) eller mye forsvinner (liste, mottaker, punkt med underpunkter,
+  konto, person, revisjon, kategori i bruk). Aldri dobbelttrykk eller `confirm()`.
+- **Tekststørrelse:** skriftstørrelser i `rem` (følger iPhones tekststørrelse via `-apple-system-body`). Unntak i px: bunnmenyens
+  etiketter og bitene i månedsruta. Bredder som holder tekst (klokkeslett, datoblokker) også i rem. Test med `html { font-size: 32px }`.
+- **Sveip** på listerader (`ui/Sveip.tsx`, bare berøring): høyre = gjort/neste status, venstre = slett. Alltid også en knapp for det samme.
+- Ikonrutenes farge følger listekategorien (`IkonBoble kategori=…`), ikke ikonet.
 - Tone: kort, folkelig, et lite skråsmil – også i tomme sider, feil og økonomi (Terjes valg). Men alltid tydelig om hva som skjedde
   og hva man kan gjøre; aldri si at noe er lagret før det er bekreftet.
 

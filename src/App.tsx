@@ -84,12 +84,15 @@ function useFabSeksjon(aktiv: boolean): FabValg {
       setValgt(treff.dataset.fab as FabValg);
     };
     finn();
+    // Bytt først når man har sluttet å bla, så knappen ikke endrer seg i det man trykker
+    let tidtaker: ReturnType<typeof setTimeout> | undefined;
+    const etterBla = () => { clearTimeout(tidtaker); tidtaker = setTimeout(finn, 250); };
     // Innholdet lastes litt etter hvert (kalender, lister), så sjekk igjen når siden endrer seg
-    const obs = new ResizeObserver(finn);
+    const obs = new ResizeObserver(etterBla);
     obs.observe(document.body);
-    window.addEventListener('scroll', finn, { passive: true });
-    window.addEventListener('resize', finn);
-    return () => { obs.disconnect(); window.removeEventListener('scroll', finn); window.removeEventListener('resize', finn); };
+    window.addEventListener('scroll', etterBla, { passive: true });
+    window.addEventListener('resize', etterBla);
+    return () => { clearTimeout(tidtaker); obs.disconnect(); window.removeEventListener('scroll', etterBla); window.removeEventListener('resize', etterBla); };
   }, [aktiv]);
   return valgt;
 }
@@ -155,10 +158,9 @@ const HOVED: [string, string, string][] = [
   ['kalender', 'kalender', 'Kalender'],
   ['lister', 'liste', 'Lister'],
   ['oppfolging', 'oppfolging', 'Økonomi'],
-  ['sparing', 'sparing', 'Sparing'],
 ];
-const OKONOMI = ['oppfolging', 'budsjett'];
-const BUNN = HOVED.filter(([r]) => r !== 'sparing');
+const OKONOMI = ['oppfolging', 'budsjett', 'sparing'];
+const BUNN = HOVED;
 /** Sider med felles/privat-bryter */
 const MED_VISNING = ['oversikt', 'budsjett', 'oppfolging'];
 /** Sider med «Før utgift»-knapp */
@@ -208,7 +210,7 @@ function Skall() {
     gaaTil(underside === 'overforinger' ? 'budsjett/overforinger' : 'oversikt');
   }, [side]);
 
-  const erAktiv = (r: string) => side === r || (r === 'oppfolging' && OKONOMI.includes(side)) || (r === 'mer' && (side === 'sparing' || OPPSETT.some(([o]) => o === side)));
+  const erAktiv = (r: string) => side === r || (r === 'oppfolging' && OKONOMI.includes(side)) || (r === 'mer' && OPPSETT.some(([o]) => o === side));
   const medVisning = MED_VISNING.includes(side) && !!meg;
   const erPrivat = medVisning && valgtVisning === 'privat';
   const visFab = MED_FAB.includes(side);
@@ -216,7 +218,11 @@ function Skall() {
   const fab: FabValg = side === 'oversikt' ? fabSeksjon : 'utgift';
   const fabKlikk = () => (fab === 'avtale' ? setNyAvtale(true) : fab === 'liste' ? setNyListe(true) : setForerUtgift(true));
   const fabPlass = visFab || (side === 'lister' && !underside) || side === 'kalender';
-  const visRevVelger = felles && ['oversikt', 'budsjett', 'personer'].includes(side);
+  const visRevVelger = felles && ['budsjett', 'personer'].includes(side);
+  const revVelger = felles && (erPrivat
+    ? privat && <RevisjonsVelger revisjoner={privat.revisjoner} valgt={prev} velg={velgPrev} nyRevisjon={() => setNyPrivatRevisjon(true)} />
+    : <RevisjonsVelger revisjoner={felles.revisjoner} valgt={rev} velg={velgRev} nyRevisjon={() => gaaTil('revisjoner')} />);
+  const bryter = medVisning && <VisningsBryter verdi={erPrivat ? 'privat' : 'felles'} endre={settVisning} />;
   const aapenListe = side === 'lister' && underside ? lister.find((l) => l.id === underside) : undefined;
   const [, , planType, planAar] = rute.split('/');
   const tittel = side === 'lister' && underside === 'plan'
@@ -230,7 +236,8 @@ function Skall() {
         ? <PrivatBudsjett gaaTil={gaaTil} fane={underside === 'overforinger' ? 'overforinger' : 'poster'} byttFane={(f) => gaaTil(`budsjett/${f}`)} nyRevisjon={() => setNyPrivatRevisjon(true)} />
         : <Budsjett fane={(underside as 'poster' | 'overforinger' | 'inntekter') ?? 'poster'} byttFane={(f) => gaaTil(`budsjett/${f}`)} />;
       break;
-    case 'oppfolging': innhold = <Oppfolging key={rute} visning={erPrivat ? 'privat' : 'felles'} maaned={rute.split('/').find((d) => /^\d{4}-\d{2}$/.test(d))} />; break;
+    case 'oppfolging': innhold = <Oppfolging key={rute} visning={erPrivat ? 'privat' : 'felles'} maaned={rute.split('/').find((d) => /^\d{4}-\d{2}$/.test(d))}
+      bryter={medVisning && <VisningsBryter kompakt verdi={erPrivat ? 'privat' : 'felles'} endre={settVisning} />} />; break;
     case 'kalender': innhold = <Kalender gaaTil={gaaTil} />; break;
     case 'lister': innhold = <Lister listeId={underside} rest={rute.split('/').slice(2)} gaaTil={gaaTil} />; break;
     case 'privat': innhold = null; break;
@@ -252,7 +259,7 @@ function Skall() {
         <div className="seksjon-gruppe" data-fab="utgift">
           <div className="seksjonstittel">
             <h2>Økonomi</h2>
-            {medVisning && <VisningsBryter verdi={erPrivat ? 'privat' : 'felles'} endre={settVisning} />}
+            <div className="seksjon-valg">{revVelger}{bryter}</div>
           </div>
           {erPrivat ? <PrivatOversikt gaaTil={gaaTil} nyRevisjon={() => setNyPrivatRevisjon(true)} /> : <Oversikt gaaTil={gaaTil} />}
         </div>
@@ -285,9 +292,7 @@ function Skall() {
       <div>
         <header className={`topp${rullet ? ' rullet' : ''}`}>
           <h1>{tittel}</h1>
-          {visRevVelger && (erPrivat
-            ? privat && <RevisjonsVelger revisjoner={privat.revisjoner} valgt={prev} velg={velgPrev} nyRevisjon={() => setNyPrivatRevisjon(true)} />
-            : <RevisjonsVelger revisjoner={felles!.revisjoner} valgt={rev} velg={velgRev} nyRevisjon={() => gaaTil('revisjoner')} />)}
+          {visRevVelger && revVelger}
           <Lagring status={status} />
         </header>
 
@@ -307,9 +312,10 @@ function Skall() {
           )}
           {OKONOMI.includes(side) && (
             <div className="okonomi-topp">
-              <Segment etikett="Økonomi" verdi={side} endre={(s) => gaaTil(s)}
-                valg={[{ verdi: 'oppfolging', tekst: 'Oppfølging', ikon: 'oppfolging' }, { verdi: 'budsjett', tekst: 'Budsjett', ikon: 'budsjett' }]} />
-              {medVisning && <VisningsBryter verdi={erPrivat ? 'privat' : 'felles'} endre={settVisning} />}
+              <Segment etikett="Økonomi" full verdi={side} endre={(s) => gaaTil(s)}
+                valg={[{ verdi: 'oppfolging', tekst: 'Oppfølging', ikon: 'oppfolging' }, { verdi: 'budsjett', tekst: 'Budsjett', ikon: 'budsjett' }, { verdi: 'sparing', tekst: 'Sparemål', ikon: 'sparing' }]} />
+              {/* Oppfølging har bryteren på samme linje som måneden */}
+              {side === 'budsjett' && bryter}
             </div>
           )}
           {innhold}
