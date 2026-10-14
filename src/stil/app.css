@@ -942,3 +942,12 @@ body:has(.fab) .toast { bottom: calc(var(--nav-hoyde) + env(safe-area-inset-bott
 .maanedsvelger { max-width: 100%; }
 .maanedsvelger > span { flex: 0 1 auto; white-space: normal; min-width: min(140px, 40vw); }
 .verktoylinje .maanedsvelger > span { min-width: min(112px, 30vw); }
+
+/* Oversikt på mobil: logo og «Sulamitten» som overskrift. PC: «Oversikt» (logoen står i sidemenyen) */
+.topp-oversikt .topp-merke { display: inline-flex; }
+.topp-oversikt .topp-merke .ordmerke { font-size: 1.5rem; }
+.topp-oversikt .topp-tittel { display: none; }
+@media (min-width: 900px) {
+  .topp-oversikt .topp-merke { display: none; }
+  .topp-oversikt .topp-tittel { display: inline; }
+}

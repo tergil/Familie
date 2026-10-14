@@ -291,7 +291,10 @@ function Skall() {
 
       <div>
         <header className={`topp${rullet ? ' rullet' : ''}`}>
-          <h1>{tittel}</h1>
+          {side === 'oversikt'
+            // Mobil: logoen og navnet i stedet for «Oversikt» (PC har logoen i sidemenyen)
+            ? <h1 className="topp-oversikt"><span className="topp-merke"><Merke hoyde={30} /></span><span className="topp-tittel">{tittel}</span></h1>
+            : <h1>{tittel}</h1>}
           {visRevVelger && revVelger}
           <Lagring status={status} />
         </header>
