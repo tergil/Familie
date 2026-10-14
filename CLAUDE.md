@@ -102,8 +102,10 @@ npm run vapid        # nøkler for push-varsler: offentlig → src/data/varselno
   `git config core.hooksPath .githooks`) stopper regneark, importfiler og fulle kontonumre.
 - `demo.ts` skal bare ha **oppdiktede** tall – repoet kan være offentlig.
 - Kontonumre lagres maskert (`1234 xx xx567`) – `maskerKontonr` i `skjemaer.tsx`.
-- GitHub Pages krever offentlig repo på gratis GitHub-konto. `vite.config.ts` har `base: '/Familie/'` –
-  må endres hvis repoet får nytt navn.
+- GitHub Pages krever offentlig repo på gratis GitHub-konto. Repoet heter `Sulamitten`, appen ligger på
+  https://tergil.github.io/Sulamitten/. `base` i `vite.config.ts` hentes fra repo-navnet i GitHub Actions. Får repoet nytt
+  navn, endres adressen: Supabase Auth → URL Configuration må få den nye adressen, hjemskjerm-appen må legges til på
+  nytt, varsler slås på igjen og delingslenker deles på nytt.
 - **Delingslenker** går forbi innloggingen via `hent_delt_liste` (security definer). Funksjonen skal bare returnere
   felt som er ment for deling – legg aldri til vedlegg, mottaker eller budsjettkobling der.
 - **Vedlegg** ligger i Storage-bøtta `vedlegg` under `<liste-id>/<punkt-id>/`. Tilgangen følger listen. Sletter man et
