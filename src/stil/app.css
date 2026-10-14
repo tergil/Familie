@@ -43,7 +43,8 @@ html, body { overflow-x: clip; }
 .topp {
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: var(--a3);
-  padding: calc(env(safe-area-inset-top) + var(--a3)) var(--a4) var(--a3);
+  /* Mobil: god luft over overskriften (PC har egne mål lenger ned) */
+  padding: calc(env(safe-area-inset-top) + var(--a5)) var(--a4) var(--a4);
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
