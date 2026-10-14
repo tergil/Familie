@@ -30,8 +30,9 @@ Personlige arbeidsinstrukser ligger i `~/.claude/CLAUDE.md`. Denne fila handler 
   Viser også bursdager fra gaveårene og frister fra listene. `hvem` = personer + `FellesDok.familie` (barna),
   `ansvarlig` = den som henter/leverer. Abonnement for telefonens kalender: Edge Function «kalender»
   (`?n=<FellesDok.kalenderNokkel>`, utvidede forekomster som ICS, `logikk/ics.ts`).
-- **Navigasjon:** Oversikt · Kalender · Lister · Økonomi (Oppfølging, med Budsjett som fane) · Mer. Oversikt viser kalender og
-  huskelapp først, økonomien (med felles/privat-bryteren) under.
+- **Navigasjon:** Oversikt · Kalender · Lister · Økonomi (Oppfølging, med Budsjett som fane) · Mer. Oversikt viser de neste 5 avtalene
+  (det som er over forsvinner, `kommende()`/`erForbi()`), huskelappen og økonomien. Snarveien nede til høyre på Oversikt følger
+  seksjonen man ser på (`data-fab`: Ny avtale → Ny liste → Før utgift). Felles/privat-bryteren står over økonomien.
 - **Varsler** (Oppsett → Varsler, `sider/Varsler.tsx`): push til iPhone (hjemskjerm, iOS 16.4+) og Android.
   Edge Function «varsler» kjøres hvert kvarter av pg_cron (daglige varsler i første kvarter av valgt time, «før avtale» hver gang), regner ut med `logikk/varsler.ts` og sender til brukerne som
   har valgt den timen. `public/sw.js` viser varselet (ingen mellomlagring). «Skjul detaljer» (`skjulDetaljer`, `utenDetaljer()`)

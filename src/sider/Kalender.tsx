@@ -1,7 +1,7 @@
 // Felles kalender: uke- og månedsvisning, avtaler med gjentakelser og unntak («bare denne dagen»),
 // bursdager fra gaveårene og frister fra listene. Abonnement for telefonens kalender (Edge Function «kalender»).
 // Logikk: logikk/kalender.ts. Data: data/kalender.ts (tabellen «hendelse»).
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { Gjentak, KalenderKategoriDef } from '../data/modell';
 import { nyId } from '../data/modell';
 import { endreKalender, lukkKalenderFeil, useKalender } from '../data/kalender';
@@ -10,7 +10,7 @@ import { useTilstand } from '../data/tilstand';
 import { lager } from '../data/lager';
 import { iDag } from '../logikk/beregning';
 import {
-  UKEDAGER_KORT, angreEndring, kalenderKategorier, endreForekomst, gjentakTekst, kalenderPoster, leggTilDager, mandagI, paaDato,
+  UKEDAGER_KORT, angreEndring, kalenderKategorier, endreForekomst, kommende, gjentakTekst, kalenderPoster, leggTilDager, mandagI, paaDato,
   slettForekomst, ukedag, type Avtale, type KalenderPost, type Modus,
 } from '../logikk/kalender';
 import { Ark, Fargevalg, Felt, Ikon, Prikk, Segment, useBekreft } from '../ui/felles';
@@ -239,7 +239,7 @@ function tilGjentak(v: GjentakValg, dato: string, ukedager: number[], til?: stri
 
 const VARSEL_VALG: [string, string][] = [['', 'Ingen'], ['15', '15 min før'], ['30', '30 min før'], ['60', '1 time før'], ['120', '2 timer før'], ['1440', 'Dagen før']];
 
-function AvtaleArk({ post, startDato, lukk }: { post?: KalenderPost; startDato: string; lukk: () => void }) {
+export function AvtaleArk({ post, startDato, lukk }: { post?: KalenderPost; startDato: string; lukk: () => void }) {
   const { hendelser } = useKalender();
   const { visToast } = useTilstand();
   const { voksne, barn } = useFolk();
@@ -473,56 +473,54 @@ function AbonnerArk({ lukk }: { lukk: () => void }) {
  * I dag og i morgen vises fullt. Resten av uka bare det som skiller seg ut: enkeltavtaler, bursdager og
  * endrede dager – ikke faste rutiner som henting hver dag (de står i kalenderen).
  */
+/** Dato og minutt nå – oppdateres hvert minutt, så avtaler som er over forsvinner av seg selv */
+function useNaa() {
+  const les = () => { const d = new Date(); return { dato: iDag(), minutt: d.getHours() * 60 + d.getMinutes() }; };
+  const [naa, setNaa] = useState(les);
+  useEffect(() => {
+    const t = setInterval(() => setNaa(les()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  return naa;
+}
+
+/** Oversikten: de neste fem avtalene (det som er over, er borte – også i dag) */
 export function KommendeKort({ gaaTil }: { gaaTil: (r: string) => void }) {
   const { hendelser, lastet } = useKalender();
   const { lister, punkter } = useLister();
   const { navn } = useFolk();
-  const idag = iDag();
+  const naa = useNaa();
+  const idag = naa.dato;
   const imorgen = leggTilDager(idag, 1);
-  const til = leggTilDager(idag, 6);
   const kategorier = useKategorier();
-  const poster = useMemo(() => kalenderPoster(hendelser, lister, punkter, idag, til, { anledninger: true, frister: false }, kategorier), [hendelser, lister, punkter, idag, til, kategorier]);
+  // Leter 60 dager fram for å finne fem
+  const neste = useMemo(() => kommende(
+    kalenderPoster(hendelser, lister, punkter, idag, leggTilDager(idag, 60), { anledninger: true, frister: false }, kategorier), naa, 5,
+  ), [hendelser, lister, punkter, kategorier, naa, idag]);
   if (!lastet) return null;
 
-  const senere: { d: string; p: KalenderPost }[] = [];
-  for (let d = leggTilDager(idag, 2); d <= til; d = leggTilDager(d, 1)) {
-    for (const p of poster) if (paaDato(p, d) && (!p.gjentar || p.endret)) senere.push({ d, p });
-  }
   const aapne = (p: KalenderPost) => gaaTil(p.url ? p.url.replace(/^#\//, '') : 'kalender');
-  const dag = (d: string, tittel: string) => {
-    const her = poster.filter((p) => paaDato(p, d));
-    return (
-      <div className="kal-mini">
-        <div className={`kal-mini-dag${d === idag ? ' i-dag' : ''}`}>{tittel}</div>
-        {her.length
-          ? <div className="liste">{her.map((p) => <PostRad key={p.nokkel} post={p} navn={navn} aapne={() => aapne(p)} />)}</div>
-          : <p className="dempet liten kal-tom">Ingen avtaler</p>}
-      </div>
-    );
-  };
+  const dagTekst = (d: string) => (d === idag ? `I dag · ${kortDag(d)}` : d === imorgen ? `I morgen · ${kortDag(d)}`
+    : stor(somDato(d).toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'short' })));
+  const dager = [...new Set(neste.map((x) => x.dag))];
 
   return (
-    <section className="kort">
+    <section className="kort" data-fab="avtale">
       <div className="kort-hode">
-        <div className="tittel"><h2>Kalender</h2><span className="dempet liten">I dag, i morgen og det som skjer senere i uka</span></div>
-        <button className="knapp liten flat" onClick={() => gaaTil('kalender')}>Hele kalenderen<Ikon navn="pilhoyre" storrelse={16} /></button>
-      </div>
-      {dag(idag, `I dag · ${kortDag(idag)}`)}
-      {dag(imorgen, `I morgen · ${kortDag(imorgen)}`)}
-      {senere.length > 0 && (
-        <div className="kal-mini">
-          <div className="kal-mini-dag">Senere denne uka</div>
-          <div className="liste">
-            {senere.slice(0, 6).map(({ d, p }) => (
-              <div key={p.nokkel + d} className="kal-senere">
-                <span className="kal-senere-dag">{stor(somDato(d).toLocaleDateString('nb-NO', { weekday: 'short' }))} {Number(d.slice(8))}.</span>
-                <PostRad post={p} navn={navn} aapne={() => aapne(p)} />
-              </div>
-            ))}
-          </div>
-          {senere.length > 6 && <p className="dempet liten" style={{ padding: '8px 4px 0' }}>+ {senere.length - 6} til i kalenderen</p>}
+        <div className="tittel">
+          <h2><button className="tittel-lenke" onClick={() => gaaTil('kalender')}>Kalender<Ikon navn="pilhoyre" storrelse={18} /></button></h2>
+          <span className="dempet liten">Det neste som skjer</span>
         </div>
-      )}
+      </div>
+      {dager.length === 0 && <p className="dempet liten kal-tom">Kalenderen er tom akkurat nå. Det betyr ikke nødvendigvis at dere har fri.</p>}
+      {dager.map((d) => (
+        <div className="kal-mini" key={d}>
+          <div className={`kal-mini-dag${d === idag ? ' i-dag' : ''}`}>{dagTekst(d)}</div>
+          <div className="liste">
+            {neste.filter((x) => x.dag === d).map(({ post }) => <PostRad key={post.nokkel} post={post} navn={navn} aapne={() => aapne(post)} />)}
+          </div>
+        </div>
+      ))}
     </section>
   );
 }

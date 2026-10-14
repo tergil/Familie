@@ -233,10 +233,13 @@ export function HuskelappKort({ gaaTil, paaListesiden }: { gaaTil: (r: string) =
   if (!huske.length && !hage.length && !gaver.length) return null;
 
   return (
-    <section className="kort">
+    <section className="kort" data-fab="liste">
       <div className="kort-hode">
-        <div className="tittel"><h2>Huskelapp</h2><span className="dempet liten">Frister de neste 14 dagene{gaver.length ? ', gaver 3 uker før' : ''}</span></div>
-        {!paaListesiden && <button className="knapp liten flat" onClick={() => gaaTil('lister')}>Lister<Ikon navn="pilhoyre" storrelse={16} /></button>}
+        <div className="tittel">
+          {paaListesiden ? <h2>Huskelapp</h2>
+            : <h2><button className="tittel-lenke" onClick={() => gaaTil('lister')}>Huskelapp<Ikon navn="pilhoyre" storrelse={18} /></button></h2>}
+          <span className="dempet liten">Frister de neste 14 dagene{gaver.length ? ', gaver 3 uker før' : ''}</span>
+        </div>
       </div>
       <div className="liste">
         {huske.slice(0, 6).map(({ punkt, liste, dager }) => (
@@ -501,7 +504,7 @@ export function ListeSkjema({ liste, lukk }: { liste: Liste; lukk: () => void })
 
 // ---------------------------------------------------------------- Ny liste (tom, innebygd mal eller egen mal)
 
-function NyListeArk({ lukk, opprettet }: { lukk: () => void; opprettet: (id: string) => void }) {
+export function NyListeArk({ lukk, opprettet }: { lukk: () => void; opprettet: (id: string) => void }) {
   const { lister, punkter } = useLister();
   const egneMaler = lister.filter((l) => l.mal);
   const idag = iDag();

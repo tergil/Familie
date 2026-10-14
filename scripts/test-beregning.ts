@@ -9,8 +9,9 @@ import {
   LISTETYPER, listeIkon, medStatus, nesteStatus, nullstill, punkterFraMal, tidligereGaver, tolkHurtig,
 } from '../src/logikk/lister';
 import type { Hendelse, Post, Punkt, Saldo, Utgift, VarselInnstillinger } from '../src/data/modell';
+import type { KalenderPost } from '../src/logikk/kalender';
 import { brett, icsTekst, lagIcs } from '../src/logikk/ics';
-import { angreEndring, endreForekomst, forekomster as kalForekomster, gjentakTekst, kalenderPoster, sammeMonster, slettForekomst } from '../src/logikk/kalender';
+import { angreEndring, endreForekomst, erForbi, kommende, forekomster as kalForekomster, gjentakTekst, kalenderPoster, sammeMonster, slettForekomst } from '../src/logikk/kalender';
 import { STANDARD_VARSLER } from '../src/data/modell';
 import { beregnVarsler, forVarsler, medStandard, norskTid, slaaSammen, utenDetaljer, varseltrinn } from '../src/logikk/varsler';
 
@@ -367,6 +368,19 @@ const slettAlle = slettForekomst(medIngrid, onsdag, 'alle');
 sjekk('angre sletting av hele serien', uke(brukEndring(brukEndring(medIngrid, slettAlle), angreEndring(medIngrid, slettAlle))), uke(medIngrid));
 
 // --- Kalenderabonnement (ICS)
+// Oversikten: de neste avtalene, uten dem som er over
+const kp = (dato: string, fra?: string, til?: string, sluttDato?: string): KalenderPost => ({ nokkel: `${dato}${fra}${til}${sluttDato}`, dato, fra, til, sluttDato, tittel: `${dato} ${fra ?? 'heldag'}`, farge: 0, hvem: [], kilde: 'avtale' });
+const kl13 = { dato: '2026-10-14', minutt: 13 * 60 };
+sjekk('over: 08–09 når klokka er 13', erForbi(kp('2026-10-14', '08:00', '09:00'), kl13), true);
+sjekk('ikke over: 12–14 når klokka er 13', erForbi(kp('2026-10-14', '12:00', '14:00'), kl13), false);
+sjekk('bare starttid regnes som én time', [erForbi(kp('2026-10-14', '12:30'), kl13), erForbi(kp('2026-10-14', '11:30'), kl13)], [false, true]);
+sjekk('hele dagen er ikke over før dagen er omme', erForbi(kp('2026-10-14'), { dato: '2026-10-14', minutt: 1439 }), false);
+sjekk('flerdagers som slutter i dag er ikke over', erForbi(kp('2026-10-12', undefined, undefined, '2026-10-14'), kl13), false);
+sjekk('i går er over', erForbi(kp('2026-10-13', '20:00', '21:00'), kl13), true);
+sjekk('de neste fem, flerdagers vises i dag', kommende([kp('2026-10-14', '08:00', '09:00'), kp('2026-10-16', '10:00'), kp('2026-10-14', '15:00'), kp('2026-10-12', undefined, undefined, '2026-10-15'),
+  kp('2026-10-15', '09:00'), kp('2026-10-17'), kp('2026-10-20', '18:00')], kl13).map((x) => `${x.dag} ${x.post.tittel}`),
+  ['2026-10-14 2026-10-12 heldag', '2026-10-14 2026-10-14 15:00', '2026-10-15 2026-10-15 09:00', '2026-10-16 2026-10-16 10:00', '2026-10-17 2026-10-17 heldag']);
+
 const ics = lagIcs(kalenderPoster(medIngrid, ga.lister, ga.punkter, '2026-10-15', '2026-10-15', { anledninger: false, frister: false }),
   (id) => ({ terje: 'Terje', ingrid: 'Ingrid', barn: 'Emma' } as Record<string, string>)[id], new Date('2026-10-14T10:00:00Z'));
 sjekk('ics: torsdag med Ingrid som henter', ['SUMMARY:Henting barnehagen (Ingrid)', 'DTSTART;TZID=Europe/Oslo:20261015T160000', 'DTEND;TZID=Europe/Oslo:20261015T163000', 'DESCRIPTION:Gjelder: Emma\\nHenter/leverer: Ingrid'].every((l) => ics.includes(l)), true);

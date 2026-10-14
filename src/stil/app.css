@@ -301,7 +301,7 @@ button.rad { border-radius: 0; }
   padding: var(--a2) var(--a2) var(--a2) var(--a4); min-height: 48px;
   border-radius: 999px; background: var(--blekk); color: var(--bg);
   box-shadow: var(--skygge-hoy); font-size: 14px; font-weight: 500;
-  animation: inn-ark .25s ease; max-width: calc(100vw - 32px);
+  animation: inn-ark .25s ease; width: max-content; max-width: calc(100vw - 32px);
 }
 .toast .knapp { background: transparent; border-color: transparent; color: var(--bg); min-height: 36px; }
 .toast .knapp:hover { background: color-mix(in srgb, var(--bg) 15%, transparent); }
@@ -866,3 +866,21 @@ body.drar-punkt [data-dra-id] { transition: transform .15s ease; }
 
 .mer-fot { display: flex; justify-content: center; padding: var(--a4) 0 var(--a2); opacity: .9; }
 .banner a { color: inherit; font-weight: 600; text-underline-offset: 2px; }
+
+/* Snarveien på Oversikt bytter tekst etter innholdet */
+.fab-tekst { display: inline-block; animation: fab-bytt .25s ease-out; }
+@keyframes fab-bytt { from { opacity: 0; transform: translateY(6px); } }
+
+/* Bekreftelser (toast) legger seg over den flytende knappen, ikke oppå den */
+body:has(.fab) .toast { bottom: calc(var(--nav-hoyde) + env(safe-area-inset-bottom) + var(--a4) + 56px + var(--a3)); }
+@media (min-width: 900px) { body:has(.fab) .toast { bottom: calc(var(--a6) + 56px + var(--a3)); } }
+
+/* Overskrift som lenke (Oversikt: Kalender, Huskelapp) */
+.tittel-lenke {
+  display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none;
+  font: inherit; color: inherit; text-align: left; min-height: 32px;
+}
+.tittel-lenke svg { color: var(--dempet); transition: transform .15s; }
+.tittel-lenke:hover svg { transform: translateX(2px); color: var(--blekk); }
+
+.seksjon-gruppe { display: flex; flex-direction: column; gap: var(--a5); }

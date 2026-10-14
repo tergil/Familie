@@ -285,6 +285,27 @@ export function kalenderPoster(hendelser: Hendelse[], lister: Liste[], punkter: 
 /** Er posten på datoen (også flerdagers som startet før)? */
 export const paaDato = (p: KalenderPost, dato: string) => p.dato === dato || (!!p.sluttDato && p.dato < dato && p.sluttDato >= dato);
 
+/**
+ * Er posten over? Med sluttid: når sluttiden er passert. Bare starttid: regnes som én time.
+ * Hele dagen (og flerdagers): over først når dagen (siste dag) er omme.
+ */
+export function erForbi(p: KalenderPost, naa: { dato: string; minutt: number }): boolean {
+  const sisteDag = p.sluttDato ?? p.dato;
+  if (sisteDag !== naa.dato) return sisteDag < naa.dato;
+  if (!p.fra || (p.sluttDato && p.sluttDato !== p.dato)) return false;
+  const slutt = p.til && p.til > p.fra ? minutter(p.til) : minutter(p.fra) + 60;
+  return slutt <= naa.minutt;
+}
+
+/** De neste postene som ikke er over, med dagen de vises under (flerdagers som startet før i dag vises i dag) */
+export function kommende(poster: KalenderPost[], naa: { dato: string; minutt: number }, antall = 5): { dag: string; post: KalenderPost }[] {
+  return poster
+    .filter((p) => !erForbi(p, naa))
+    .map((post) => ({ dag: post.dato < naa.dato ? naa.dato : post.dato, post }))
+    .sort((a, b) => a.dag.localeCompare(b.dag) || (a.dag === a.post.dato ? a.post.fra ?? '' : '').localeCompare(b.dag === b.post.dato ? b.post.fra ?? '' : '') || a.post.tittel.localeCompare(b.post.tittel, 'nb'))
+    .slice(0, antall);
+}
+
 /** Endringen som angrer en annen: legger tilbake det som ble endret/slettet, og sletter det som ble laget */
 export function angreEndring(foer: Hendelse[], e: Endring): Endring {
   const slettet = new Set(e.slett);

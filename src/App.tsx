@@ -6,8 +6,9 @@ import { RevisjonsVelger, VisningsBryter, type Visning } from './ui/deler';
 import { Oversikt } from './sider/Oversikt';
 import { Budsjett } from './sider/Budsjett';
 import { NyPrivatRevisjon, PrivatBudsjett, PrivatOversikt } from './sider/Privat';
-import { HuskelappKort, Lister } from './sider/Lister';
-import { Kalender, KommendeKort } from './sider/Kalender';
+import { HuskelappKort, Lister, NyListeArk } from './sider/Lister';
+import { AvtaleArk, Kalender, KommendeKort } from './sider/Kalender';
+import { iDag } from './logikk/beregning';
 import { Varsler } from './sider/Varsler';
 import { DeltSide } from './sider/Delt';
 import { planTittel, tilPlanType } from './logikk/gaveaar';
@@ -57,6 +58,40 @@ function useVisning(): [Visning, (v: Visning) => void] {
     setVisning(v);
     try { localStorage.setItem('familie.visning', v); } catch { /* ignorer */ }
   }];
+}
+
+// ---------------------------------------------------------------- Snarveien på Oversikt følger innholdet
+
+type FabValg = 'avtale' | 'liste' | 'utgift';
+const FAB_TEKST: Record<FabValg, string> = { avtale: 'Ny avtale', liste: 'Ny liste', utgift: 'Før utgift' };
+
+/**
+ * Hvilken del av Oversikt man ser på: seksjonen (data-fab) som krysser en linje litt over midten av skjermen.
+ * Står kortene side om side (PC), vinner det første. Helt nederst gjelder den siste.
+ */
+function useFabSeksjon(aktiv: boolean): FabValg {
+  const [valgt, setValgt] = useState<FabValg>('avtale');
+  useEffect(() => {
+    if (!aktiv) return;
+    const finn = () => {
+      const deler = [...document.querySelectorAll<HTMLElement>('[data-fab]')];
+      if (!deler.length) return;
+      const linje = window.innerHeight * 0.45;
+      const nederst = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4;
+      const treff = nederst ? deler[deler.length - 1]
+        : deler.find((e) => { const r = e.getBoundingClientRect(); return r.top <= linje && r.bottom >= linje; })
+          ?? deler.filter((e) => e.getBoundingClientRect().top <= linje).pop() ?? deler[0];
+      setValgt(treff.dataset.fab as FabValg);
+    };
+    finn();
+    // Innholdet lastes litt etter hvert (kalender, lister), så sjekk igjen når siden endrer seg
+    const obs = new ResizeObserver(finn);
+    obs.observe(document.body);
+    window.addEventListener('scroll', finn, { passive: true });
+    window.addEventListener('resize', finn);
+    return () => { obs.disconnect(); window.removeEventListener('scroll', finn); window.removeEventListener('resize', finn); };
+  }, [aktiv]);
+  return valgt;
 }
 
 // ---------------------------------------------------------------- Innlogging
@@ -155,7 +190,10 @@ function Skall() {
   const [nyPrivatRevisjon, setNyPrivatRevisjon] = useState(false);
   const [rullet, setRullet] = useState(false);
   const [forerUtgift, setForerUtgift] = useState(() => location.hash.replace(/^#\/?/, '') === 'ny');
+  const [nyAvtale, setNyAvtale] = useState(false);
+  const [nyListe, setNyListe] = useState(false);
   const [side, underside] = rute.split('/');
+  const fabSeksjon = useFabSeksjon(side === 'oversikt');
 
   useEffect(() => {
     const f = () => setRullet(window.scrollY > 4);
@@ -174,6 +212,9 @@ function Skall() {
   const medVisning = MED_VISNING.includes(side) && !!meg;
   const erPrivat = medVisning && valgtVisning === 'privat';
   const visFab = MED_FAB.includes(side);
+  // Oversikt: snarveien følger det man ser på (kalender → ny avtale, huskelapp → ny liste, økonomi → før utgift)
+  const fab: FabValg = side === 'oversikt' ? fabSeksjon : 'utgift';
+  const fabKlikk = () => (fab === 'avtale' ? setNyAvtale(true) : fab === 'liste' ? setNyListe(true) : setForerUtgift(true));
   const fabPlass = visFab || (side === 'lister' && !underside) || side === 'kalender';
   const visRevVelger = felles && ['oversikt', 'budsjett', 'personer'].includes(side);
   const aapenListe = side === 'lister' && underside ? lister.find((l) => l.id === underside) : undefined;
@@ -208,11 +249,13 @@ function Skall() {
           <KommendeKort gaaTil={gaaTil} />
           <HuskelappKort gaaTil={gaaTil} />
         </div>
-        <div className="seksjonstittel">
-          <h2>Økonomi</h2>
-          {medVisning && <VisningsBryter verdi={erPrivat ? 'privat' : 'felles'} endre={settVisning} />}
+        <div className="seksjon-gruppe" data-fab="utgift">
+          <div className="seksjonstittel">
+            <h2>Økonomi</h2>
+            {medVisning && <VisningsBryter verdi={erPrivat ? 'privat' : 'felles'} endre={settVisning} />}
+          </div>
+          {erPrivat ? <PrivatOversikt gaaTil={gaaTil} nyRevisjon={() => setNyPrivatRevisjon(true)} /> : <Oversikt gaaTil={gaaTil} />}
         </div>
-        {erPrivat ? <PrivatOversikt gaaTil={gaaTil} nyRevisjon={() => setNyPrivatRevisjon(true)} /> : <Oversikt gaaTil={gaaTil} />}
       </>
     );
   }
@@ -282,10 +325,12 @@ function Skall() {
       </nav>
 
       {visFab && (
-        <button className="fab" onClick={() => setForerUtgift(true)}><Ikon navn="pluss" storrelse={22} />Før utgift</button>
+        <button className="fab" onClick={fabKlikk}><Ikon navn="pluss" storrelse={22} /><span key={fab} className="fab-tekst">{FAB_TEKST[fab]}</span></button>
       )}
       {forerUtgift && <UtgiftSkjema privatStart={erPrivat} lukk={() => { setForerUtgift(false); if (side === 'ny') gaaTil('oversikt'); }} />}
       {nyPrivatRevisjon && <NyPrivatRevisjon lukk={() => setNyPrivatRevisjon(false)} />}
+      {nyAvtale && <AvtaleArk startDato={iDag()} lukk={() => setNyAvtale(false)} />}
+      {nyListe && <NyListeArk lukk={() => setNyListe(false)} opprettet={(id) => { setNyListe(false); gaaTil(`lister/${id}`); }} />}
 
       {toast && (
         <div className="toast" role="status">
