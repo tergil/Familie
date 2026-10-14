@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react';
 // så et nytt navn på repoet ikke gjør appen blank. Lokalt bygg bruker dagens navn.
 // Fast port 5180 så appen ikke kolliderer med andre prosjekter (GK bruker 5173).
 export default defineConfig(({ command }) => ({
-  base: command === 'build' ? `/${process.env.GITHUB_REPOSITORY?.split('/')[1] ?? 'Sulamitten'}/` : '/',
+  base: command === 'build' ? `/${process.env.GITHUB_REPOSITORY?.split('/')[1] ?? 'sulamitten'}/` : '/',
   plugins: [react()],
   server: { port: 5180, strictPort: true, open: true },
 }));
