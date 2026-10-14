@@ -7,7 +7,7 @@ const LISTETYPER = {
 	sjekk: {
 		navn: "Huskeliste",
 		beskrivelse: "Vanlig liste med avkrysning",
-		ikon: "📝",
+		ikon: "liste",
 		statuser: [{
 			id: "apen",
 			tekst: "Ikke gjort"
@@ -25,7 +25,7 @@ const LISTETYPER = {
 	gave: {
 		navn: "Gaveliste",
 		beskrivelse: "Idé → kjøpt → gitt, med mottaker og historikk",
-		ikon: "🎁",
+		ikon: "gave",
 		statuser: [
 			{
 				id: "ide",
@@ -51,7 +51,7 @@ const LISTETYPER = {
 	onske: {
 		navn: "Ønskeliste",
 		beskrivelse: "Ting dere ønsker eller trenger, med pris",
-		ikon: "✨",
+		ikon: "stjerne",
 		statuser: [{
 			id: "onske",
 			tekst: "Ønsker"
@@ -69,7 +69,7 @@ const LISTETYPER = {
 	oppgave: {
 		navn: "Oppgaver",
 		beskrivelse: "Ting som skal fikses, f.eks. av elektrikeren",
-		ikon: "🔧",
+		ikon: "verktoy",
 		statuser: [
 			{
 				id: "apen",
@@ -94,7 +94,7 @@ const LISTETYPER = {
 	opplevelse: {
 		navn: "Steder å besøke",
 		beskrivelse: "Restauranter og opplevelser, med vurdering",
-		ikon: "🍽️",
+		ikon: "bestikk",
 		statuser: [{
 			id: "vil",
 			tekst: "Vil prøve"
@@ -112,7 +112,7 @@ const LISTETYPER = {
 	serie: {
 		navn: "Serier og filmer",
 		beskrivelse: "Vil se → ser nå → sett, med vurdering",
-		ikon: "📺",
+		ikon: "tv",
 		statuser: [
 			{
 				id: "vil",
@@ -133,7 +133,7 @@ const LISTETYPER = {
 	hage: {
 		navn: "Hage",
 		beskrivelse: "Planter og ting, med stell per måned",
-		ikon: "🌱",
+		ikon: "spire",
 		statuser: [{
 			id: "apen",
 			tekst: "Aktiv"
@@ -144,7 +144,7 @@ const LISTETYPER = {
 	kalender: {
 		navn: "Kalender",
 		beskrivelse: "Luker med dato og idé, f.eks. adventskalender",
-		ikon: "🕯️",
+		ikon: "lys",
 		statuser: [{
 			id: "apen",
 			tekst: "Ikke klar"
@@ -158,7 +158,7 @@ const LISTETYPER = {
 	gaveaar: {
 		navn: "Gaveår",
 		beskrivelse: "Faste mottakere med bursdag, jul og andre anledninger, idébank og budsjett per person",
-		ikon: "🎂",
+		ikon: "kake",
 		statuser: [
 			{
 				id: "ide",
@@ -475,12 +475,12 @@ function brett(linje) {
 const dato8 = (d) => d.replace(/-/g, "");
 const tid6 = (t) => `${t.slice(0, 2)}${t.slice(3, 5)}00`;
 const tilTid = (min) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
-function lagIcs(poster, navn, naa = /* @__PURE__ */ new Date(), kalendernavn = "Familie") {
+function lagIcs(poster, navn, naa = /* @__PURE__ */ new Date(), kalendernavn = "Sulamitten") {
 	const stempel = naa.toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
 	const linjer = [
 		"BEGIN:VCALENDAR",
 		"VERSION:2.0",
-		"PRODID:-//Familie//Kalender//NO",
+		"PRODID:-//Sulamitten//Kalender//NO",
 		"CALSCALE:GREGORIAN",
 		"METHOD:PUBLISH",
 		`X-WR-CALNAME:${icsTekst(kalendernavn)}`,

@@ -4,9 +4,8 @@ import { useEffect, useState } from 'react';
 import type { DeltListe } from '../data/modell';
 import { lager } from '../data/lager';
 import { LISTETYPER, lagTre, punkterForDeling } from '../logikk/lister';
-import { Ikon, Tom, kr } from '../ui/felles';
+import { IkonBoble, Ikon, Laster, Logo, Tom, kr } from '../ui/felles';
 
-const LOGO = `${import.meta.env.BASE_URL}favicon.svg`;
 
 export function DeltSide({ nokkel }: { nokkel: string }) {
   const [liste, setListe] = useState<DeltListe | null | undefined>(undefined);
@@ -18,7 +17,7 @@ export function DeltSide({ nokkel }: { nokkel: string }) {
       .catch((e) => { console.error(e); setFeil(String((e as { message?: unknown })?.message ?? e)); setListe(null); });
   }, [nokkel]);
 
-  if (liste === undefined) return <div className="laster"><div className="spinner" aria-label="Laster" /></div>;
+  if (liste === undefined) return <Laster />;
 
   const tre = liste ? lagTre(punkterForDeling(liste.type, liste.punkter), liste.type) : [];
   return (
@@ -26,19 +25,19 @@ export function DeltSide({ nokkel }: { nokkel: string }) {
       <div className="delt-innhold">
         {!liste ? (
           <section className="kort">
-            <Tom ikon="lenke" tittel="Lenken virker ikke" tekst={feil ? 'Kunne ikke hente listen. Prøv igjen senere.' : 'Den kan være slått av, eller lenken er skrevet feil. Spør den som delte den om en ny.'} />
+            <Tom ikon="lenke" tittel="Lenken virker ikke" tekst={feil ? 'Vi fikk ikke hentet lista. Prøv igjen om litt.' : 'Den kan være slått av, eller så har lenken mistet en bokstav på veien. Spør den som delte den om en ny.'} />
           </section>
         ) : (
           <>
             <header className="delt-hode">
-              <span className="liste-ikon stor">{liste.ikon || LISTETYPER[liste.type].ikon}</span>
+              <IkonBoble ikon={liste.ikon || LISTETYPER[liste.type].ikon} storrelse="stor" />
               <div>
                 <h1>{liste.navn}</h1>
                 <p className="dempet liten">{LISTETYPER[liste.type].navn} · oppdateres automatisk</p>
               </div>
             </header>
             <section className="kort">
-              {tre.length === 0 && <Tom ikon="liste" tittel="Ingenting på listen akkurat nå" />}
+              {tre.length === 0 && <Tom ikon="liste" tittel="Lista er tom akkurat nå" tekst="Alt er visst ordnet. Nyt følelsen mens den varer." />}
               <div className="liste">
                 {tre.map(({ punkt, barn }) => (
                   <div key={punkt.id} className={barn.length ? 'gruppe-punkt' : 'punkt'}>
@@ -54,7 +53,7 @@ export function DeltSide({ nokkel }: { nokkel: string }) {
             </section>
           </>
         )}
-        <p className="delt-fot dempet liten"><img src={LOGO} width={16} height={16} alt="" /> Delt fra Familie-appen</p>
+        <p className="delt-fot dempet liten"><Logo hoyde={14} mikro /> Delt fra Sulamitten</p>
       </div>
     </main>
   );

@@ -11,7 +11,7 @@ export function Oversikt({ gaaTil }: { gaaTil: (rute: string) => void }) {
   const { felles, rev } = useTilstand();
   if (!felles || !rev) {
     return (
-      <Tom ikon="budsjett" tittel="Ingen budsjett ennå" tekst="Importer fra Excel-filen eller start med et tomt budsjett.">
+      <Tom ikon="budsjett" tittel="Her begynner oversikten" tekst="Importer fra Excel-fila eller start med et tomt budsjett. Tallene blir nyttige etter hvert.">
         <button className="knapp primar" onClick={() => gaaTil('data')}>Kom i gang</button>
       </Tom>
     );

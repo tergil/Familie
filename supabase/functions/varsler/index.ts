@@ -50,7 +50,7 @@ const LISTETYPER = {
 	sjekk: {
 		navn: "Huskeliste",
 		beskrivelse: "Vanlig liste med avkrysning",
-		ikon: "📝",
+		ikon: "liste",
 		statuser: [{
 			id: "apen",
 			tekst: "Ikke gjort"
@@ -68,7 +68,7 @@ const LISTETYPER = {
 	gave: {
 		navn: "Gaveliste",
 		beskrivelse: "Idé → kjøpt → gitt, med mottaker og historikk",
-		ikon: "🎁",
+		ikon: "gave",
 		statuser: [
 			{
 				id: "ide",
@@ -94,7 +94,7 @@ const LISTETYPER = {
 	onske: {
 		navn: "Ønskeliste",
 		beskrivelse: "Ting dere ønsker eller trenger, med pris",
-		ikon: "✨",
+		ikon: "stjerne",
 		statuser: [{
 			id: "onske",
 			tekst: "Ønsker"
@@ -112,7 +112,7 @@ const LISTETYPER = {
 	oppgave: {
 		navn: "Oppgaver",
 		beskrivelse: "Ting som skal fikses, f.eks. av elektrikeren",
-		ikon: "🔧",
+		ikon: "verktoy",
 		statuser: [
 			{
 				id: "apen",
@@ -137,7 +137,7 @@ const LISTETYPER = {
 	opplevelse: {
 		navn: "Steder å besøke",
 		beskrivelse: "Restauranter og opplevelser, med vurdering",
-		ikon: "🍽️",
+		ikon: "bestikk",
 		statuser: [{
 			id: "vil",
 			tekst: "Vil prøve"
@@ -155,7 +155,7 @@ const LISTETYPER = {
 	serie: {
 		navn: "Serier og filmer",
 		beskrivelse: "Vil se → ser nå → sett, med vurdering",
-		ikon: "📺",
+		ikon: "tv",
 		statuser: [
 			{
 				id: "vil",
@@ -176,7 +176,7 @@ const LISTETYPER = {
 	hage: {
 		navn: "Hage",
 		beskrivelse: "Planter og ting, med stell per måned",
-		ikon: "🌱",
+		ikon: "spire",
 		statuser: [{
 			id: "apen",
 			tekst: "Aktiv"
@@ -187,7 +187,7 @@ const LISTETYPER = {
 	kalender: {
 		navn: "Kalender",
 		beskrivelse: "Luker med dato og idé, f.eks. adventskalender",
-		ikon: "🕯️",
+		ikon: "lys",
 		statuser: [{
 			id: "apen",
 			tekst: "Ikke klar"
@@ -201,7 +201,7 @@ const LISTETYPER = {
 	gaveaar: {
 		navn: "Gaveår",
 		beskrivelse: "Faste mottakere med bursdag, jul og andre anledninger, idébank og budsjett per person",
-		ikon: "🎂",
+		ikon: "kake",
 		statuser: [
 			{
 				id: "ide",
@@ -276,13 +276,6 @@ const ANLEDNING_NAVN = {
 	morsdag: "Morsdag",
 	farsdag: "Farsdag",
 	egen: "Annen anledning"
-};
-const ANLEDNING_IKON = {
-	bursdag: "🎂",
-	jul: "🎄",
-	morsdag: "💐",
-	farsdag: "👔",
-	egen: "🎉"
 };
 /** Alderen personen fyller på datoen (fødselsdato ÅÅÅÅ-MM-DD) */
 function alder(fodt, dato) {
@@ -615,13 +608,12 @@ function beregnVarsler(lister, punkter, innstillinger, iDag, kal) {
 		if (valg.trinn > 0 && inn.bareUtenGave && kjopt) continue;
 		const base = `${type}:${f.mottaker.id}:${f.anledning.id}:${f.dato}`;
 		const navn = f.mottaker.tekst;
-		const ikon = ANLEDNING_IKON[f.anledning.type];
 		const hva = type === "bursdag" ? `${navn} har bursdag${f.alder !== void 0 ? ` (fyller ${f.alder})` : ""}` : `${anledningsNavn(f.anledning)} – ${navn}`;
 		ut.push({
 			type,
 			nokkel: `${base}:${valg.trinn}`,
 			nokler: valg.alle.map((x) => `${base}:${x}`),
-			tittel: `${ikon} ${hva} ${naarTekst(f.dager)}`,
+			tittel: `${hva} ${naarTekst(f.dager)}`,
 			tekst: kjopt ? `Gave: ${kjopt}` : f.dager === 0 ? "Ingen gave er registrert." : `${datoKort(f.dato)}: ingen gave kjøpt ennå${f.ideer ? ` – ${f.ideer} ${f.ideer === 1 ? "idé" : "ideer"} i idébanken` : ""}.`,
 			url: `#/lister/${f.liste.id}`
 		});
@@ -640,7 +632,7 @@ function beregnVarsler(lister, punkter, innstillinger, iDag, kal) {
 					type: "jul",
 					nokkel: `${base}:${valg.trinn}`,
 					nokler: valg.alle.map((x) => `${base}:${x}`),
-					tittel: dager === 0 ? "🎄 God jul!" : `🎄 Jul ${naarTekst(dager)}`,
+					tittel: dager === 0 ? "God jul!" : `Jul ${naarTekst(dager)}`,
 					tekst: `Gave kjøpt til ${medGave.size} av ${personer.length}.`,
 					url: `#/lister/plan/jul/${aar}`
 				});
@@ -655,7 +647,7 @@ function beregnVarsler(lister, punkter, innstillinger, iDag, kal) {
 			type: "frist",
 			nokkel: `${base}:${valg.trinn}`,
 			nokler: valg.alle.map((x) => `${base}:${x}`),
-			tittel: `${h.liste.ikon} ${h.dager === 0 ? "I dag" : h.dager === 1 ? "I morgen" : `Om ${h.dager} dager`}: ${h.punkt.tekst}`,
+			tittel: `${h.dager === 0 ? "I dag" : h.dager === 1 ? "I morgen" : `Om ${h.dager} dager`}: ${h.punkt.tekst}`,
 			tekst: `${h.liste.navn} · frist ${datoKort(h.punkt.dato)}`,
 			url: `#/lister/${h.liste.id}`
 		});
@@ -673,7 +665,7 @@ function beregnVarsler(lister, punkter, innstillinger, iDag, kal) {
 				type: "kalender",
 				nokkel: `${base}:${valg.trinn}`,
 				nokler: valg.alle.map((x) => `${base}:${x}`),
-				tittel: `${liste.ikon} ${dager === 0 ? "Luke i dag" : `Luke ${naarTekst(dager)}`}: ${p.tekst}`,
+				tittel: `${dager === 0 ? "Luke i dag" : `Luke ${naarTekst(dager)}`}: ${p.tekst}`,
 				tekst: p.notat || (erFerdig("kalender", p.status) ? "Klar." : "Ingen idé lagt inn ennå."),
 				url: `#/lister/${liste.id}`
 			});
@@ -685,7 +677,7 @@ function beregnVarsler(lister, punkter, innstillinger, iDag, kal) {
 			type: "hage",
 			nokkel: `hage:${iDag.slice(0, 7)}`,
 			nokler: [`hage:${iDag.slice(0, 7)}`],
-			tittel: `🌱 I hagen i ${MAANEDER[Number(iDag.slice(5, 7)) - 1]}`,
+			tittel: `I hagen i ${MAANEDER[Number(iDag.slice(5, 7)) - 1]}`,
 			tekst: oppgaver.map((o) => o.forelder ? `${o.forelder.tekst}: ${o.punkt.tekst.toLowerCase()}` : o.punkt.tekst).join(", "),
 			url: `#/lister/${oppgaver[0].liste.id}`
 		});
@@ -753,6 +745,20 @@ function slaaSammen(varsler, maks = 3) {
 		url: "#/oversikt",
 		nokler: varsler.flatMap((v) => v.nokler)
 	}];
+}
+/**
+* «Skjul detaljer»: det som vises på låseskjermen sier ikke hva det gjelder (navn, gaver, avtaler).
+* Lenken i varselet er den samme, så appen åpnes på riktig sted.
+*/
+function utenDetaljer(meldinger, typer = []) {
+	return meldinger.map((m, i) => {
+		const forAvtale = typer[i] === "avtaleFor";
+		return {
+			...m,
+			tittel: "Sulamitten",
+			tekst: forAvtale ? "En avtale nærmer seg. Åpne appen for å se hvilken." : "Det er noe å huske på i dag. Åpne appen for å se hva."
+		};
+	});
 }
 /** Dato, time og minutt fra midnatt akkurat nå i Norge (serveren går i UTC) */
 function norskTid(naa = /* @__PURE__ */ new Date()) {
@@ -899,8 +905,8 @@ async function behandle(req) {
 		if (!data.user) return svar({ feil: "Ikke innlogget" }, 401);
 		const { data: enheter } = await db.from("varsel_abonnement").select("id, bruker, endpoint, p256dh, auth").eq("bruker", data.user.id);
 		const n = await send(db, enheter ?? [], {
-			tittel: "🔔 Testvarsel",
-			tekst: "Varslene virker på denne enheten.",
+			tittel: "Testvarsel fra Sulamitten",
+			tekst: "Det virker! Nå får du beskjed når noe er verdt å huske.",
 			url: "#/varsler"
 		});
 		if (!n && sendefeil.length) return svar({
@@ -962,12 +968,14 @@ async function behandle(req) {
 		const { data: enheter } = await db.from("varsel_abonnement").select("id, bruker, endpoint, p256dh, auth").eq("bruker", bruker);
 		if (!enheter?.length) continue;
 		let antall = 0;
-		const meldinger = [...nye.filter((v) => v.type === "avtaleFor").map((v) => ({
+		const forAvtale = nye.filter((v) => v.type === "avtaleFor");
+		const alleMeldinger = [...forAvtale.map((v) => ({
 			tittel: v.tittel,
 			tekst: v.tekst,
 			url: v.url,
 			nokler: v.nokler
 		})), ...slaaSammen(nye.filter((v) => v.type !== "avtaleFor"))];
+		const meldinger = inn.skjulDetaljer ? utenDetaljer(alleMeldinger, forAvtale.map((v) => v.type)) : alleMeldinger;
 		for (const melding of meldinger) if (await send(db, enheter, melding)) {
 			antall++;
 			await db.from("varsel_sendt").upsert(melding.nokler.map((nokkel) => ({

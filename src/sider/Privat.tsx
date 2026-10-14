@@ -29,7 +29,7 @@ function IkkeKoblet({ gaaTil }: { gaaTil: (r: string) => void }) {
 
 function IngenPrivat({ nyRevisjon }: { nyRevisjon: () => void }) {
   return (
-    <Tom ikon="privat" tittel="Ingen privatbudsjett ennå" tekst="Lag ditt eget budsjett for det som er igjen etter fellesoverføringene.">
+    <Tom ikon="privat" tittel="Ingen privatbudsjett ennå" tekst="Lag ditt eget budsjett for det som er igjen etter fellesoverføringene. Bare du ser det.">
       <button className="knapp primar" onClick={nyRevisjon}><Ikon navn="pluss" storrelse={18} />Opprett privatbudsjett</button>
     </Tom>
   );
@@ -114,7 +114,7 @@ export function PrivatBudsjett({ gaaTil, fane, byttFane, nyRevisjon }: {
           </div>
           <PostListe poster={prev.poster} kategorier={felles.kategorier} kontoer={kontoer} banker={felles.banker}
             grupper={grupper} velg={setRedigerer}
-            tomTekst={<Tom ikon="budsjett" tittel="Ingen poster ennå" tekst="F.eks. bil, abonnementer, klær og egen sparing." />} />
+            tomTekst={<Tom ikon="budsjett" tittel="Ingen poster ennå" tekst="F.eks. bil, abonnementer, klær og egen sparing. Og den ene strømmetjenesten ingen husker å si opp." />} />
         </section>
       )}
 

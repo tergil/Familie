@@ -1,31 +1,33 @@
-// Lager app-ikonene i public/ fra én SVG. Kjør på nytt etter endring: npm run ikoner
-// Logoen er et hus med et hjerte: familien og hjemmet – budsjett, lister og gaver.
+// Lager app-ikonene i public/ fra Sulamitten-symbolet (src/ui/logo.json, tegnet av lag-logo.mjs).
+// Kjør på nytt etter endring: npm run ikoner
+// Appikonet: krem bakgrunn, skoggrønt symbol og små stråler (merkevaredokumentet 3.4). Ingen ordmerke.
 import sharp from 'sharp';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 
-const TERRAKOTTA = '#A84F2B';
-const KREM = '#FAF6F0';
+const logo = JSON.parse(readFileSync('src/ui/logo.json', 'utf8'));
+const SKOGGRONN = '#0E3D32';
+const KREM = '#F4E9D7';
 
-// Motivet holdes innenfor midtre ~62 % så det tåler avrunding (iOS) og «maskable»-beskjæring (Android).
-// Huset er fylt krem med avrundede hjørner (strek i samme farge), hjertet er skåret ut i terrakotta.
-const motiv = `
-  <path d="M256 142 L384 254 L346 254 L346 372 L166 372 L166 254 L128 254 Z"
-    fill="${KREM}" stroke="${KREM}" stroke-width="30" stroke-linejoin="round"/>
-  <path d="M256 344 C214 318 194 296 194 272 C194 252 209 238 227 238 C240 238 250 245 256 256 C262 245 272 238 285 238 C303 238 318 252 318 272 C318 296 298 318 256 344 Z"
-    fill="${TERRAKOTTA}"/>`;
+const strek = (d, bredde) => `<path d="${d}" fill="none" stroke="${SKOGGRONN}" stroke-width="${bredde}" stroke-linecap="round" stroke-linejoin="round"/>`;
+const straler = logo.straler.map((d, i) => `<path d="${d}" stroke="${logo.stralefarger[i]}" stroke-width="7" stroke-linecap="round"/>`).join('');
+
+// Symbolet (200 × 100) plasseres midt i 512 × 512
+const motiv = (skala, innhold) => `<g transform="translate(256 256) scale(${skala}) translate(-100 -48)">${innhold}</g>`;
 
 /** Fullflate-ikon (hjemskjerm). Plattformen runder hjørnene selv. */
-const fullflate = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="${TERRAKOTTA}"/>${motiv}</svg>`;
+const fullflate = (skala) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="${KREM}"/>${motiv(skala, strek(logo.sti, 6.5) + straler)}</svg>`;
 
-/** Favicon med egne avrundede hjørner (nettleserfanen runder ikke). */
-const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="${TERRAKOTTA}"/><g transform="translate(256 256) scale(1.25) translate(-256 -256)">${motiv}</g></svg>`;
+/** Favicon: mikrovarianten (færre løkker, ingen stråler), egne avrundede hjørner */
+const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="${KREM}"/>${motiv(2.3, strek(logo.mikro, 13))}</svg>`;
 
 writeFileSync('public/favicon.svg', favicon);
 const lag = (svg, str, fil) => sharp(Buffer.from(svg)).resize(str, str).png().toFile(`public/${fil}`);
 await Promise.all([
-  lag(fullflate, 180, 'apple-touch-icon.png'),
-  lag(fullflate, 192, 'ikon-192.png'),
-  lag(fullflate, 512, 'ikon-512.png'),
+  lag(fullflate(2), 180, 'apple-touch-icon.png'),
+  lag(fullflate(2), 192, 'ikon-192.png'),
+  lag(fullflate(2), 512, 'ikon-512.png'),
+  // Android beskjærer «maskable» til en sirkel: mindre motiv
+  lag(fullflate(1.55), 512, 'ikon-maskable-512.png'),
   lag(favicon, 32, 'favicon-32.png'),
 ]);
 console.log('Ikoner skrevet til public/');

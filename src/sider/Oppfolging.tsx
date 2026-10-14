@@ -86,9 +86,9 @@ export function Oppfolging({ visning, maaned: startMaaned }: { visning: Visning;
   for (const u of [...denne].sort((a, b) => b.dato.localeCompare(a.dato))) perDato.set(u.dato, [...(perDato.get(u.dato) ?? []), u]);
 
   const tempoTekst = budsjett <= 0 ? 'Ingen poster følges opp'
-    : brukt > budsjett ? `${kr(brukt - budsjett)} over budsjett`
+    : brukt > budsjett ? `${kr(brukt - budsjett)} over budsjett. Se gjennom tallene før dere bestemmer noe.`
     : erInnevaerende ? `Forventet så langt: ${kr(budsjett * andel)}`
-    : `${kr(budsjett - brukt)} under budsjett`;
+    : `${kr(budsjett - brukt)} under budsjett. Godt jobba!`;
 
   return (
     <>
@@ -101,12 +101,12 @@ export function Oppfolging({ visning, maaned: startMaaned }: { visning: Visning;
       </div>
 
       {erPrivat && <div className="banner info"><Ikon navn="privat" /><div>Private utgifter og saldoer ser bare du.</div></div>}
-      {data.feil && <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Kunne ikke hente oppfølgingen.</strong><p className="liten">{data.feil}</p></div></div>}
+      {data.feil && <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Oppfølgingen ville ikke komme fram.</strong> Sjekk nettet og prøv igjen.<p className="liten">{data.feil}</p></div></div>}
 
       {!harFulgte && (
         <div className="banner varsel">
           <Ikon navn="info" />
-          <div><strong>Ingen poster følges opp ennå.</strong><p>Velg hvilke poster som varierer fra måned til måned, f.eks. mat. Faste trekk kontrolleres via saldo.</p></div>
+          <div><strong>Her begynner oversikten.</strong><p>Velg hvilke poster som varierer fra måned til måned, f.eks. mat. Faste trekk kontrolleres via saldo.</p></div>
           <button className="knapp liten" onClick={() => setVelgPoster(true)}>Velg poster</button>
         </div>
       )}
@@ -129,7 +129,7 @@ export function Oppfolging({ visning, maaned: startMaaned }: { visning: Visning;
             <button className="knapp liten flat" onClick={() => setVelgPoster(true)}>Velg poster</button>
           </div>
           {status.length === 0
-            ? <Tom ikon="budsjett" tittel="Ingenting å vise" tekst="Før en utgift med +-knappen." />
+            ? <Tom ikon="budsjett" tittel="Ingenting å vise ennå" tekst="Før den første utgiften med «Før utgift»-knappen. Kvitteringen i lomma teller ikke før den er ført." />
             : <div className="liste" style={{ gap: 16 }}>{status.map((s) => <KategoriStolpe key={s.kategoriId} s={s} navn={kategori(s.kategoriId)?.navn ?? 'Uten kategori'} farge={kategori(s.kategoriId)?.farge} andel={andel} />)}</div>}
         </section>
 
@@ -157,7 +157,7 @@ export function Oppfolging({ visning, maaned: startMaaned }: { visning: Visning;
           <div className="tittel"><h2>Utgifter</h2><span className="dempet liten">{denne.length} ført · {kr(sum(denne, (u) => u.belop))}</span></div>
           <button className="knapp primar liten" onClick={() => setRedigerer('ny')}><Ikon navn="pluss" storrelse={18} />Før utgift</button>
         </div>
-        {denne.length === 0 && <Tom ikon="budsjett" tittel="Ingen utgifter ført denne måneden" />}
+        {denne.length === 0 && <Tom ikon="budsjett" tittel="Ingen utgifter ført denne måneden" tekst="Enten er dere veldig sparsommelige, eller så ligger kvitteringene fortsatt i lomma." />}
         {[...perDato].map(([dato, liste]) => (
           <div key={dato}>
             <div className="gruppe-hode"><span className="navn dempet liten">{datoTekst(dato)}</span>{liste.length > 1 && <span className="sum dempet liten">{kr(sum(liste, (u) => u.belop))}</span>}</div>
@@ -267,7 +267,7 @@ function SaldoSkjema({ maaned, kontoer, saldoer, privat, lukk }: { maaned: strin
             </div>
           );
         })}
-        {feil && <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Kunne ikke lagre.</strong><p className="liten">{feil}</p></div></div>}
+        {feil && <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Det ble ikke lagret.</strong><p className="liten">{feil}</p></div></div>}
         <div className="knapperad slutt">
           <button type="button" className="knapp" onClick={lukk}>Avbryt</button>
           <button type="submit" className="knapp primar" disabled={lagrer}>{lagrer ? 'Lagrer …' : 'Lagre'}</button>

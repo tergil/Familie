@@ -4,7 +4,7 @@ import type { Bank, FellesDok, Kategori, Konto, KontoRolle, Person, PrivatDok } 
 import { ROLLE_NAVN, nyId } from '../data/modell';
 import { useTilstand } from '../data/tilstand';
 import { lager } from '../data/lager';
-import { Avatar, Ikon, Prikk, kr, pst } from '../ui/felles';
+import { Avatar, Ikon, Merke, Prikk, kr, pst, useBekreft } from '../ui/felles';
 import { BankSkjema, KategoriSkjema, KontoSkjema, PersonSkjema } from '../ui/skjemaer';
 
 // ---------------------------------------------------------------- Kontoer og banker
@@ -265,7 +265,7 @@ export function Personer() {
                 onClick={() => endreFelles((d) => { d.familie = (d.familie ?? []).filter((x) => x.id !== b.id); }, `Fjernet ${b.navn}`)}><Ikon navn="lukk" storrelse={16} /></button>
             </div>
           ))}
-          {!(felles.familie ?? []).length && <p className="dempet liten" style={{ padding: '8px 4px' }}>Ingen lagt til ennå.</p>}
+          {!(felles.familie ?? []).length && <p className="dempet liten" style={{ padding: '8px 4px' }}>Ingen lagt til ennå. Sulamitten blir bedre når dere er flere.</p>}
         </div>
       </section>
 
@@ -321,12 +321,29 @@ export function Data() {
   const { felles, privat, meg, bruker, erstattFelles, erstattPrivat, visToast } = useTilstand();
   const fil = useRef<HTMLInputElement>(null);
   const [melding, setMelding] = useState<string | null>(null);
+  const [bekreftDialog, spor] = useBekreft();
 
   async function importer(f: File) {
     try {
       const innhold = JSON.parse(await f.text()) as { felles?: FellesDok; privat?: PrivatDok };
-      if (!innhold.felles && !innhold.privat) throw new Error('Fila inneholder verken «felles» eller «privat».');
-      if (innhold.felles && felles?.revisjoner.length && !confirm('Dette erstatter hele fellesbudsjettet for dere begge. Fortsette?')) return;
+      if (!innhold.felles && !innhold.privat) throw new Error('Fila inneholder verken «felles» eller «privat». Er det riktig fil?');
+      if (innhold.felles && felles?.revisjoner.length) {
+        spor({
+          tittel: 'Erstatte fellesbudsjettet?',
+          tekst: 'Hele fellesbudsjettet byttes ut med innholdet i fila, for dere begge. Forrige versjon ligger i historikken i Supabase.',
+          knapp: 'Erstatt', ikon: 'lastopp',
+          ja: () => gjennomfor(innhold),
+        });
+        return;
+      }
+      gjennomfor(innhold);
+    } catch (e) {
+      setMelding(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  function gjennomfor(innhold: { felles?: FellesDok; privat?: PrivatDok }) {
+    try {
       const ut: string[] = [];
       if (innhold.felles) { erstattFelles(innhold.felles); ut.push('fellesbudsjettet'); }
       if (innhold.privat) {
@@ -345,11 +362,12 @@ export function Data() {
 
   return (
     <>
+      {bekreftDialog}
       <section className="kort">
         <div className="kort-hode"><div className="tittel"><h2>Eksport</h2><span className="dempet liten">Sikkerhetskopi som JSON-fil</span></div></div>
         <div className="knapperad">
-          <button className="knapp" onClick={() => lastNed(`familie-felles-${new Date().toISOString().slice(0, 10)}.json`, { felles })}><Ikon navn="lastned" storrelse={18} />Fellesbudsjett</button>
-          {privat && meg && <button className="knapp" onClick={() => lastNed(`familie-privat-${meg.navn.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`, { privat })}><Ikon navn="lastned" storrelse={18} />Mitt privatbudsjett</button>}
+          <button className="knapp" onClick={() => lastNed(`sulamitten-felles-${new Date().toISOString().slice(0, 10)}.json`, { felles })}><Ikon navn="lastned" storrelse={18} />Fellesbudsjett</button>
+          {privat && meg && <button className="knapp" onClick={() => lastNed(`sulamitten-privat-${meg.navn.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`, { privat })}><Ikon navn="lastned" storrelse={18} />Mitt privatbudsjett</button>}
         </div>
       </section>
 
@@ -369,11 +387,15 @@ export function Data() {
                 <Avatar navn={p.navn} />Se som {p.navn}
               </button>
             ))}
-            <button className="knapp fare" onClick={() => {
-              if (!confirm('Slette alle lokale data og starte på nytt med demodata?')) return;
-              try { Object.keys(localStorage).filter((k) => k.startsWith('familie.')).forEach((k) => localStorage.removeItem(k)); } catch { /* ignorer */ }
-              location.reload();
-            }}><Ikon navn="slett" storrelse={18} />Tilbakestill</button>
+            <button className="knapp fare" onClick={() => spor({
+              tittel: 'Starte demoen på nytt?',
+              tekst: 'Alt du har lagt inn i demoen i denne nettleseren slettes, og du får de oppdiktede tallene tilbake.',
+              knapp: 'Tilbakestill',
+              ja: () => {
+                try { Object.keys(localStorage).filter((k) => k.startsWith('familie.')).forEach((k) => localStorage.removeItem(k)); } catch { /* ignorer */ }
+                location.reload();
+              },
+            })}><Ikon navn="slett" storrelse={18} />Tilbakestill</button>
           </div>
         </section>
       )}
@@ -388,7 +410,7 @@ export function Data() {
               kategorier: ['Bolig', 'Forsikring', 'Mat og husholdning', 'Barn', 'Abonnementer', 'Sparing', 'Transport', 'Personlig'].map((navn, i) => ({ id: nyId(), navn, farge: i })),
               revisjoner: [{ id: nyId(), navn: 'Første budsjett', gjelderFra: new Date().toISOString().slice(0, 10), notat: '', andeler: { [id]: 100 }, avrundingSteg: 500, inntekter: [], poster: [], overforinger: [] }],
             });
-            visToast({ tekst: 'Budsjett opprettet' });
+            visToast({ tekst: 'Budsjettet er laget. Der ja!' });
           }}>Opprett</button>
         </section>
       )}
@@ -432,6 +454,7 @@ export function Mer({ gaaTil, tema, byttTema }: { gaaTil: (r: string) => void; t
           </button>
         </div>
       </section>
+      <footer className="mer-fot"><Merke hoyde={22} slagord /></footer>
     </>
   );
 }

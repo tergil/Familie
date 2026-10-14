@@ -4,7 +4,7 @@
 import type { Hendelse, Liste, Punkt, VarselInnstillinger, VarselType } from '../data/modell';
 import { STANDARD_VARSLER } from '../data/modell';
 import { kalenderPoster, leggTilDager, minutter, paaDato } from './kalender';
-import { anledningsNavn, ANLEDNING_IKON, forekomster } from './gaveaar';
+import { anledningsNavn, forekomster } from './gaveaar';
 import { dagerMellom, erBrukt, erFerdig, hageIMaaned, huskelapp } from './lister';
 
 export interface Varsel {
@@ -80,13 +80,12 @@ export function beregnVarsler(lister: Liste[], punkter: Punkt[], innstillinger: 
     if (valg.trinn > 0 && inn.bareUtenGave && kjopt) continue;
     const base = `${type}:${f.mottaker.id}:${f.anledning.id}:${f.dato}`;
     const navn = f.mottaker.tekst;
-    const ikon = ANLEDNING_IKON[f.anledning.type];
     const hva = type === 'bursdag'
       ? `${navn} har bursdag${f.alder !== undefined ? ` (fyller ${f.alder})` : ''}`
       : `${anledningsNavn(f.anledning)} – ${navn}`;
     ut.push({
       type, nokkel: `${base}:${valg.trinn}`, nokler: valg.alle.map((x) => `${base}:${x}`),
-      tittel: `${ikon} ${hva} ${naarTekst(f.dager)}`,
+      tittel: `${hva} ${naarTekst(f.dager)}`,
       tekst: kjopt ? `Gave: ${kjopt}` : f.dager === 0 ? 'Ingen gave er registrert.'
         : `${datoKort(f.dato)}: ingen gave kjøpt ennå${f.ideer ? ` – ${f.ideer} ${f.ideer === 1 ? 'idé' : 'ideer'} i idébanken` : ''}.`,
       url: `#/lister/${f.liste.id}`,
@@ -106,7 +105,7 @@ export function beregnVarsler(lister: Liste[], punkter: Punkt[], innstillinger: 
         const base = `jul:${dato}`;
         ut.push({
           type: 'jul', nokkel: `${base}:${valg.trinn}`, nokler: valg.alle.map((x) => `${base}:${x}`),
-          tittel: dager === 0 ? '🎄 God jul!' : `🎄 Jul ${naarTekst(dager)}`,
+          tittel: dager === 0 ? 'God jul!' : `Jul ${naarTekst(dager)}`,
           tekst: `Gave kjøpt til ${medGave.size} av ${personer.length}.`,
           url: `#/lister/plan/jul/${aar}`,
         });
@@ -122,7 +121,7 @@ export function beregnVarsler(lister: Liste[], punkter: Punkt[], innstillinger: 
       const base = `frist:${h.punkt.id}:${h.punkt.dato}`;
       ut.push({
         type: 'frist', nokkel: `${base}:${valg.trinn}`, nokler: valg.alle.map((x) => `${base}:${x}`),
-        tittel: `${h.liste.ikon} ${h.dager === 0 ? 'I dag' : h.dager === 1 ? 'I morgen' : `Om ${h.dager} dager`}: ${h.punkt.tekst}`,
+        tittel: `${h.dager === 0 ? 'I dag' : h.dager === 1 ? 'I morgen' : `Om ${h.dager} dager`}: ${h.punkt.tekst}`,
         tekst: `${h.liste.navn} · frist ${datoKort(h.punkt.dato!)}`,
         url: `#/lister/${h.liste.id}`,
       });
@@ -141,7 +140,7 @@ export function beregnVarsler(lister: Liste[], punkter: Punkt[], innstillinger: 
       const base = `kalender:${p.id}:${p.dato}`;
       ut.push({
         type: 'kalender', nokkel: `${base}:${valg.trinn}`, nokler: valg.alle.map((x) => `${base}:${x}`),
-        tittel: `${liste.ikon} ${dager === 0 ? 'Luke i dag' : `Luke ${naarTekst(dager)}`}: ${p.tekst}`,
+        tittel: `${dager === 0 ? 'Luke i dag' : `Luke ${naarTekst(dager)}`}: ${p.tekst}`,
         tekst: p.notat || (erFerdig('kalender', p.status) ? 'Klar.' : 'Ingen idé lagt inn ennå.'),
         url: `#/lister/${liste.id}`,
       });
@@ -154,7 +153,7 @@ export function beregnVarsler(lister: Liste[], punkter: Punkt[], innstillinger: 
     if (oppgaver.length) {
       ut.push({
         type: 'hage', nokkel: `hage:${iDag.slice(0, 7)}`, nokler: [`hage:${iDag.slice(0, 7)}`],
-        tittel: `🌱 I hagen i ${MAANEDER[Number(iDag.slice(5, 7)) - 1]}`,
+        tittel: `I hagen i ${MAANEDER[Number(iDag.slice(5, 7)) - 1]}`,
         tekst: oppgaver.map((o) => (o.forelder ? `${o.forelder.tekst}: ${o.punkt.tekst.toLowerCase()}` : o.punkt.tekst)).join(', '),
         url: `#/lister/${oppgaver[0].liste.id}`,
       });
@@ -214,6 +213,23 @@ export function slaaSammen(varsler: Varsel[], maks = 3): { tittel: string; tekst
     url: '#/oversikt',
     nokler: varsler.flatMap((v) => v.nokler),
   }];
+}
+
+export interface Melding { tittel: string; tekst: string; url: string; nokler: string[] }
+
+/**
+ * «Skjul detaljer»: det som vises på låseskjermen sier ikke hva det gjelder (navn, gaver, avtaler).
+ * Lenken i varselet er den samme, så appen åpnes på riktig sted.
+ */
+export function utenDetaljer(meldinger: Melding[], typer: VarselType[] = []): Melding[] {
+  return meldinger.map((m, i) => {
+    const forAvtale = typer[i] === 'avtaleFor';
+    return {
+      ...m,
+      tittel: 'Sulamitten',
+      tekst: forAvtale ? 'En avtale nærmer seg. Åpne appen for å se hvilken.' : 'Det er noe å huske på i dag. Åpne appen for å se hva.',
+    };
+  });
 }
 
 /** Dato, time og minutt fra midnatt akkurat nå i Norge (serveren går i UTC) */

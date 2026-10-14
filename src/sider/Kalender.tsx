@@ -13,7 +13,7 @@ import {
   UKEDAGER_KORT, angreEndring, kalenderKategorier, endreForekomst, gjentakTekst, kalenderPoster, leggTilDager, mandagI, paaDato,
   slettForekomst, ukedag, type Avtale, type KalenderPost, type Modus,
 } from '../logikk/kalender';
-import { Ark, Fargevalg, Felt, Ikon, Prikk, Segment } from '../ui/felles';
+import { Ark, Fargevalg, Felt, Ikon, Prikk, Segment, useBekreft } from '../ui/felles';
 
 // ---------------------------------------------------------------- Hjelpere
 
@@ -263,7 +263,7 @@ function AvtaleArk({ post, startDato, lukk }: { post?: KalenderPost; startDato: 
   const [notat, setNotat] = useState(h?.notat ?? '');
   const [varsel, setVarsel] = useState(h?.varselMin ? String(h.varselMin) : '');
   const [modus, setModus] = useState<'lagre' | 'slett' | null>(null);
-  const [bekreft, setBekreft] = useState(false);
+  const [bekreftDialog, spor] = useBekreft();
   const erSerie = !!f?.serie.gjentak;
 
   const avtale = (): Avtale => ({
@@ -286,6 +286,8 @@ function AvtaleArk({ post, startDato, lukk }: { post?: KalenderPost; startDato: 
     if (ok && handling === 'slett') {
       visToast({ tekst: m === 'denne' && erSerie ? `«${tittel}» avlyst denne dagen` : `Slettet «${tittel}»`, angre: () => { void endreKalender(angreEndring(foer, endring)); visToast(null); } });
     }
+    // Bekreftelse bare for nye avtaler (bekreft ikke noe før det faktisk er lagret)
+    if (ok && handling === 'lagre' && !f) visToast({ tekst: 'Der ja. Nå er det med i sulamitten.' });
   }
 
   function send(e: FormEvent) {
@@ -404,14 +406,18 @@ function AvtaleArk({ post, startDato, lukk }: { post?: KalenderPost; startDato: 
           <div className="knapperad slutt">
             {f && (erSerie
               ? <button type="button" className="knapp flat fare dytt" onClick={() => setModus('slett')}><Ikon navn="slett" storrelse={18} />Slett</button>
-              : bekreft
-                ? <button type="button" className="knapp fare dytt" onClick={() => void utfor('slett', 'alle')}><Ikon navn="slett" storrelse={18} />Bekreft sletting</button>
-                : <button type="button" className="knapp flat fare dytt" onClick={() => setBekreft(true)}><Ikon navn="slett" storrelse={18} />Slett</button>)}
+              : <button type="button" className="knapp flat fare dytt" onClick={() => spor({
+                  tittel: `Slette «${tittel || 'avtalen'}»?`,
+                  tekst: 'Avtalen forsvinner fra kalenderen for dere begge. Du kan angre rett etterpå.',
+                  knapp: 'Slett avtalen',
+                  ja: () => void utfor('slett', 'alle'),
+                })}><Ikon navn="slett" storrelse={18} />Slett</button>)}
             <button type="button" className="knapp" onClick={lukk}>Avbryt</button>
             <button type="submit" className="knapp primar" disabled={!tittel.trim()}>Lagre</button>
           </div>
         )}
       </form>
+      {bekreftDialog}
     </Ark>
     )
   );
@@ -428,7 +434,7 @@ function AbonnerArk({ lukk }: { lukk: () => void }) {
 
   async function kopier() {
     if (!https) return;
-    try { await navigator.clipboard.writeText(https); visToast({ tekst: 'Lenken er kopiert' }); } catch { visToast({ tekst: 'Kunne ikke kopiere' }); }
+    try { await navigator.clipboard.writeText(https); visToast({ tekst: 'Lenken er kopiert' }); } catch { visToast({ tekst: 'Lenken ble ikke kopiert. Prøv igjen.' }); }
   }
 
   return (
@@ -528,6 +534,7 @@ function KategoriArk({ lukk }: { lukk: () => void }) {
   const { hendelser } = useKalender();
   const kategorier = kalenderKategorier(felles);
   const [aapen, setAapen] = useState<string | null>(null);
+  const [bekreftDialog, spor] = useBekreft();
   const lagre = (ny: KalenderKategoriDef[], angre?: string) => endreFelles((d) => { d.kalenderKategorier = ny; }, angre);
   const antall = (id: string) => hendelser.filter((h) => h.kategori === id && !h.serieId).length;
 
@@ -550,8 +557,13 @@ function KategoriArk({ lukk }: { lukk: () => void }) {
               <Felt etikett="Navn"><input value={k.navn} autoFocus onChange={(e) => lagre(kategorier.map((x) => (x.id === k.id ? { ...x, navn: e.target.value } : x)))} /></Felt>
               <div className="felt"><span>Farge</span><Fargevalg verdi={k.farge} endre={(farge) => lagre(kategorier.map((x) => (x.id === k.id ? { ...x, farge } : x)))} /></div>
               <div className="knapperad slutt">
-                <button className="knapp flat fare dytt" onClick={() => { lagre(kategorier.filter((x) => x.id !== k.id), `Slettet «${k.navn}»`); setAapen(null); }}>
-                  <Ikon navn="slett" storrelse={18} />Slett{antall(k.id) ? ` (${antall(k.id)} ${antall(k.id) === 1 ? 'avtale blir' : 'avtaler blir'} uten kategori)` : ''}
+                <button className="knapp flat fare dytt" onClick={() => spor({
+                  tittel: `Slette kategorien «${k.navn}»?`,
+                  tekst: `${antall(k.id) ? `${antall(k.id)} ${antall(k.id) === 1 ? 'avtale blir' : 'avtaler blir'} uten kategori og får nøytral farge. ` : ''}Du kan angre rett etterpå.`,
+                  knapp: 'Slett kategorien',
+                  ja: () => { lagre(kategorier.filter((x) => x.id !== k.id), `Slettet «${k.navn}»`); setAapen(null); },
+                })}>
+                  <Ikon navn="slett" storrelse={18} />Slett
                 </button>
                 <button className="knapp primar" onClick={() => setAapen(null)} disabled={!k.navn.trim()}>Ferdig</button>
               </div>
@@ -571,6 +583,7 @@ function KategoriArk({ lukk }: { lukk: () => void }) {
         {kategorier.length > 8 && <div className="banner varsel"><Ikon navn="info" /><div>Mer enn 8 kategorier gjør at farger går igjen.</div></div>}
         <div className="knapperad slutt"><button className="knapp primar" onClick={lukk}>Ferdig</button></div>
       </div>
+      {bekreftDialog}
     </Ark>
   );
 }

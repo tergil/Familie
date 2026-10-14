@@ -35,10 +35,10 @@ const dato8 = (d: string) => d.replace(/-/g, '');
 const tid6 = (t: string) => `${t.slice(0, 2)}${t.slice(3, 5)}00`;
 const tilTid = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
-export function lagIcs(poster: KalenderPost[], navn: (id: string) => string | undefined, naa = new Date(), kalendernavn = 'Familie'): string {
+export function lagIcs(poster: KalenderPost[], navn: (id: string) => string | undefined, naa = new Date(), kalendernavn = 'Sulamitten'): string {
   const stempel = naa.toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
   const linjer = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Familie//Kalender//NO', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Sulamitten//Kalender//NO', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     `X-WR-CALNAME:${icsTekst(kalendernavn)}`, 'X-WR-TIMEZONE:Europe/Oslo', 'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H',
     ...TIDSSONE,
   ];

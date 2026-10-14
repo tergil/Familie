@@ -12,15 +12,14 @@ import {
   FORSLAG_DAGER, LISTETYPER, MALER, STANDARD_KATEGORIER, adventssondager, erBrukt, erFerdig, erGjort, fremdrift, gavehistorikk,
   hageIMaaned, huskelapp, kalenderAar, kalenderLuker, kopierPunkter, lagTre, listeSum, medStatus, nesteRekkefolge,
   nesteStatus, nullstill, nyttPunkt, punkterFraMal, statusTekst, tidligereGaver, tolkHurtig, dagerMellom,
-  delingsTekst, flyttEtSteg, nyRekkefolge, punkterForDeling,
+  delingsTekst, flyttEtSteg, listeIkon, nyRekkefolge, punkterForDeling,
   type EgenDag, type HageOppgave, type KalenderModus, type Mal,
 } from '../logikk/lister';
-import { Ark, BelopFelt, Felt, Ikon, MAANEDER_KORT, Segment, Tom, dagerTekst, kortDato, kr, ukedagDato } from '../ui/felles';
+import { Ark, BelopFelt, Felt, IKON_ETIKETT, Ikon, IkonBoble, LISTEIKONER, Logo, MAANEDER_KORT, Segment, Tom, dagerTekst, kortDato, kr, ukedagDato, useBekreft } from '../ui/felles';
 import { UtgiftSkjema, type UtgiftForslag } from '../ui/UtgiftSkjema';
 import { ANLEDNING_IKON, anledningsNavn, anledningsValg, gaveVarsler, mottakere as mottakereI, forekomster, nokkelTekst } from '../logikk/gaveaar';
 import { AnledningsPlan, GaveaarSide } from './Gaveaar';
 
-const EMOJI = ['📝', '🎁', '🎄', '🕯️', '🧳', '🏔️', '☀️', '🍽️', '📺', '🎬', '📚', '🌱', '🌷', '🔧', '⚡', '🏠', '🛋️', '🎉', '❤️', '⭐', '🚗', '👶', '🐶', '💡'];
 
 /** «5. des.» slutter allerede på punktum */
 const punktum = (t: string) => (t.endsWith('.') ? t : `${t}.`);
@@ -39,7 +38,7 @@ export function FeilBanner({ feil }: { feil: string | null }) {
   return (
     <div className="banner feil" role="alert">
       <Ikon navn="advarsel" />
-      <div><strong>Noe gikk galt med lagringen av listene.</strong><p className="liten">{feil}</p></div>
+      <div><strong>Listene ble ikke lagret.</strong> Sjekk nettet og prøv igjen.<p className="liten">{feil}</p></div>
       <button className="knapp liten flat ikon" onClick={listeLager.lukkFeil} aria-label="Lukk"><Ikon navn="lukk" storrelse={16} /></button>
     </div>
   );
@@ -108,7 +107,7 @@ export function SeksjonHode({ tittel, antall, sum: total, under, person, merke, 
   );
 }
 
-const stjerneTekst = (v?: number) => (v ? '★'.repeat(v) + '☆'.repeat(5 - v) : '');
+const stjerneTekst = (v?: number) => (v ? `terningkast ${v}` : '');
 const maanederTekst = (m?: number[]) => (m?.length ? [...m].sort((a, b) => a - b).map((x) => MAANEDER_KORT[x - 1]).join(', ') : '');
 
 /** Merkelapp for en frist: rød når den er passert, gul når den er nær */
@@ -245,11 +244,11 @@ export function HuskelappKort({ gaaTil, paaListesiden }: { gaaTil: (r: string) =
             {medAvkryss(liste.type)
               ? <Avkryss pa={false} etikett={`Merk «${punkt.tekst}» som gjort`}
                   endre={() => void listeLager.lagrePunkter([medStatus(punkt, liste.type, nesteStatus(liste.type, punkt.status), idag)])} />
-              : <span className="liste-ikon liten">{liste.ikon}</span>}
+              : <IkonBoble ikon={liste.ikon} storrelse="liten" />}
             <button className="rad-knapp" onClick={() => gaaTil(`lister/${liste.id}`)}>
               <span className="hoved">
                 <span className="navn">{punkt.tekst}</span>
-                <span className="info">{liste.ikon} {liste.navn} · {ukedagDato(punkt.dato!)}{!medAvkryss(liste.type) && ` · ${statusTekst(liste.type, punkt.status)}`}</span>
+                <span className="info">{liste.navn} · {ukedagDato(punkt.dato!)}{!medAvkryss(liste.type) && ` · ${statusTekst(liste.type, punkt.status)}`}</span>
               </span>
               <FristMerke dager={dager} />
             </button>
@@ -257,7 +256,7 @@ export function HuskelappKort({ gaaTil, paaListesiden }: { gaaTil: (r: string) =
         ))}
         {gaver.map((f) => (
           <button className="rad" key={f.nokkel + f.liste.id} onClick={() => gaaTil(`lister/${f.liste.id}`)}>
-            <span className="liste-ikon liten">{ANLEDNING_IKON[f.anledning.type]}</span>
+            <IkonBoble ikon={ANLEDNING_IKON[f.anledning.type]} storrelse="liten" />
             <span className="hoved">
               <span className="navn">{anledningsNavn(f.anledning)} – {f.mottaker.tekst}{f.alder !== undefined ? ` (fyller ${f.alder})` : ''}</span>
               <span className="info">{ukedagDato(f.dato)} · {f.ideer ? `${f.ideer} ${f.ideer === 1 ? 'idé' : 'ideer'}` : 'ingen ideer'} · ingenting kjøpt{f.liste.privat ? ' · privat' : ''}</span>
@@ -267,7 +266,7 @@ export function HuskelappKort({ gaaTil, paaListesiden }: { gaaTil: (r: string) =
         ))}
         {hage.length > 0 && (
           <button className="rad" onClick={() => gaaTil(`lister/${hage[0].liste.id}`)}>
-            <span className="liste-ikon liten">{hage[0].liste.ikon || '🌱'}</span>
+            <IkonBoble ikon={hage[0].liste.ikon || 'spire'} storrelse="liten" />
             <span className="hoved">
               <span className="navn">I hagen i {MAANED_NAVN[Number(idag.slice(5, 7)) - 1]}</span>
               <span className="info">{hage.map((h) => (h.forelder ? `${h.forelder.tekst}: ${h.punkt.tekst.toLowerCase()}` : h.punkt.tekst)).join(' · ')}</span>
@@ -324,7 +323,7 @@ function ListeRad({ liste, punkter, aapne }: { liste: Liste; punkter: Punkt[]; a
   ].filter(Boolean).join(' · ');
   return (
     <button className="rad" onClick={aapne}>
-      <span className="liste-ikon">{liste.ikon || LISTETYPER[liste.type].ikon}</span>
+      <IkonBoble ikon={liste.ikon || LISTETYPER[liste.type].ikon} />
       <span className="hoved">
         <span className="navn">{liste.navn}</span>
         <span className="info">{info}</span>
@@ -372,7 +371,7 @@ function ListeOversikt({ gaaTil }: { gaaTil: (r: string) => void }) {
 
       {vanlige.length === 0 ? (
         <section className="kort">
-          <Tom ikon="liste" tittel="Ingen lister ennå" tekst="Lag en huskeliste, gaveliste, pakkeliste eller adventskalender – fra bunnen eller fra en mal.">
+          <Tom ikon="liste" tittel="Her var det ryddig!" tekst="Lag den første lista, så har dere noe å fylle på. Huskeliste, pakkeliste, gaver – fra bunnen eller fra en mal.">
             <button className="knapp primar" onClick={() => setNy(true)}><Ikon navn="pluss" storrelse={18} />Lag første liste</button>
           </Tom>
         </section>
@@ -436,16 +435,16 @@ function ListeFelt({ u, sett, visType }: { u: Utkast; sett: (e: Partial<Utkast>)
       <Felt etikett="Navn"><input value={u.navn} onChange={(e) => sett({ navn: e.target.value })} required placeholder="F.eks. Pakkeliste hytta" /></Felt>
       <div className="felt">
         <span>Ikon</span>
-        <div className="emoji-valg" role="group" aria-label="Ikon">
-          {(EMOJI.includes(u.ikon) || !u.ikon ? EMOJI : [u.ikon, ...EMOJI]).map((e) => (
-            <button key={e} type="button" aria-pressed={e === u.ikon} onClick={() => sett({ ikon: e })}>{e}</button>
+        <div className="ikon-valg" role="group" aria-label="Ikon">
+          {LISTEIKONER.map((navn) => (
+            <button key={navn} type="button" aria-pressed={navn === listeIkon(u.ikon)} aria-label={IKON_ETIKETT[navn] ?? navn} title={IKON_ETIKETT[navn]} onClick={() => sett({ ikon: navn })}><Ikon navn={navn} storrelse={22} /></button>
           ))}
         </div>
       </div>
       {visType && (
         <Felt etikett="Type" hjelp={LISTETYPER[u.type].beskrivelse}>
           <select value={u.type} onChange={(e) => sett({ type: e.target.value as ListeType })}>
-            {(Object.keys(LISTETYPER) as ListeType[]).map((t) => <option key={t} value={t}>{LISTETYPER[t].ikon} {LISTETYPER[t].navn}</option>)}
+            {(Object.keys(LISTETYPER) as ListeType[]).map((t) => <option key={t} value={t}>{LISTETYPER[t].navn}</option>)}
           </select>
         </Felt>
       )}
@@ -478,7 +477,7 @@ function ListeFelt({ u, sett, visType }: { u: Utkast; sett: (e: Partial<Utkast>)
 
 export function ListeSkjema({ liste, lukk }: { liste: Liste; lukk: () => void }) {
   const { felles, privat } = useTilstand();
-  const [u, setU] = useState<Utkast>({ ...liste, kobling: koblingAv(liste) });
+  const [u, setU] = useState<Utkast>({ ...liste, ikon: listeIkon(liste.ikon, LISTETYPER[liste.type].ikon), kobling: koblingAv(liste) });
   const gyldigKobling = koblingValg(felles, privat, u.privat).some((g) => g.valg.some((v) => v.verdi === u.kobling)) ? u.kobling : '';
   function lagre(e: FormEvent) {
     e.preventDefault();
@@ -507,7 +506,7 @@ function NyListeArk({ lukk, opprettet }: { lukk: () => void; opprettet: (id: str
   const egneMaler = lister.filter((l) => l.mal);
   const idag = iDag();
   const [kilde, setKilde] = useState('tom');
-  const [u, setU] = useState<Utkast>({ navn: '', ikon: '📝', kategori: 'Annet', type: 'sjekk', privat: false, kobling: '' });
+  const [u, setU] = useState<Utkast>({ navn: '', ikon: 'liste', kategori: 'Annet', type: 'sjekk', privat: false, kobling: '' });
   const [aar, setAar] = useState(kalenderAar(idag));
   const [modus, setModus] = useState<KalenderModus>('sondager');
   const [egne, setEgne] = useState<EgenDag[]>([FORSLAG_DAGER[0]]);
@@ -523,9 +522,9 @@ function NyListeArk({ lukk, opprettet }: { lukk: () => void; opprettet: (id: str
   function velg(k: string) {
     setKilde(k);
     const m: Mal | Liste | undefined = MALER.find((x) => `mal:${x.id}` === k) ?? egneMaler.find((x) => `egen:${x.id}` === k);
-    if (!m) { setU({ navn: '', ikon: '📝', kategori: 'Annet', type: 'sjekk', privat: false, kobling: '' }); return; }
+    if (!m) { setU({ navn: '', ikon: 'liste', kategori: 'Annet', type: 'sjekk', privat: false, kobling: '' }); return; }
     const navn = m.id === 'advent' ? `Adventskalender ${kalenderAar(idag)}` : m.id === 'gaver' ? `Gaver jul ${kalenderAar(idag)}` : m.navn;
-    setU({ navn, ikon: m.ikon, kategori: m.kategori, type: m.type, privat: !!m.privat, kobling: 'mal' in m ? koblingAv(m) : '' });
+    setU({ navn, ikon: listeIkon(m.ikon), kategori: m.kategori, type: m.type, privat: !!m.privat, kobling: 'mal' in m ? koblingAv(m) : '' });
   }
 
   const luker = erAdvent ? kalenderLuker(aar, modus, egne) : [];
@@ -652,7 +651,7 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
   const liste = lister.find((l) => l.id === id);
   if (!liste) {
     return (
-      <Tom ikon="liste" tittel="Fant ikke listen" tekst="Den kan være slettet.">
+      <Tom ikon="liste" tittel="Fant ikke lista" tekst="Den kan være slettet, eller så har den gjemt seg godt.">
         <button className="knapp" onClick={() => gaaTil('lister')}>Til listene</button>
       </Tom>
     );
@@ -699,7 +698,7 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
   function nullstillListe() {
     const foer = mine.filter((p) => tilbakestill.some((t) => t.id === p.id));
     void listeLager.lagrePunkter(tilbakestill);
-    visToast({ tekst: `Nullstilte ${tilbakestill.length} punkter`, angre: () => { void listeLager.lagrePunkter(foer); visToast(null); } });
+    visToast({ tekst: `Nullstilte ${tilbakestill.length} punkter. Klar for neste runde!`, angre: () => { void listeLager.lagrePunkter(foer); visToast(null); } });
   }
   const aapne = (p: Punkt) => setRedigerer({ punkt: p, ny: false });
 
@@ -819,8 +818,6 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
       stjerneTekst(p.vurdering),
       p.dato && type !== 'kalender' && (ferdig || dager! > 14) ? kortDato(p.dato) : null,
       barn.length ? (medAvkryss(type) ? `${barn.filter((b) => erFerdig(type, b.status)).length} av ${barn.length} gjort` : `${barn.length} ${barn.length === 1 ? 'underpunkt' : 'underpunkter'}`) : null,
-      p.lenke ? '🔗' : null,
-      p.vedlegg?.length ? `📎 ${p.vedlegg.length}` : null,
       p.notat,
     ].filter(Boolean);
     const aapen = !lukket.has(p.id);
@@ -832,9 +829,15 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
           <button className="rad-knapp" onClick={() => aapne(p)}>
             <span className="hoved">
               <span className="navn">{p.tekst || 'Uten navn'}</span>
-              {(deler.length > 0 || frist !== null) && (
+              {(deler.length > 0 || frist !== null || p.lenke || !!p.vedlegg?.length) && (
                 <span className="info">
                   {frist !== null && <><span className={`frist ${frist < 0 ? 'feil' : frist <= 2 ? 'varsel' : ''}`}>{frist < 0 && <Ikon navn="advarsel" storrelse={11} />}{dagerTekst(frist)}</span>{deler.length ? ' · ' : ''}</>}
+                  {(p.lenke || !!p.vedlegg?.length) && (
+                    <span className="info-ikoner">
+                      {p.lenke && <span title="Har lenke"><Ikon navn="lenke" storrelse={12} /></span>}
+                      {!!p.vedlegg?.length && <span title="Vedlegg"><Ikon navn="binders" storrelse={12} />{p.vedlegg.length}</span>}
+                    </span>
+                  )}
                   {deler.join(' · ')}
                 </span>
               )}
@@ -884,7 +887,7 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
     const aar = mine.find((p) => p.dato)?.dato?.slice(0, 4) ?? String(kalenderAar(idag));
     innhold = (
       <>
-        {tre.length === 0 && <Tom ikon="kalender" tittel="Ingen luker ennå" />}
+        {tre.length === 0 && <Tom ikon="kalender" tittel="Ingen luker ennå" tekst="Legg inn den første luka – resten av desember takker deg." />}
         <div className="kalender">
           {tre.map(({ punkt: p }) => {
             const klar = erFerdig(type, p.status);
@@ -930,7 +933,8 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
         <div className="liste">{rader(aapne_)}</div>
         {aapne_.length === 0 && ferdige.length > 0 && (
           <div className="alt-gjort">
-            <span><strong>Alt er gjort! 🎉</strong><span className="dempet liten">Skal listen brukes igjen? Nullstill den i stedet for å lage en ny.</span></span>
+            <Logo hoyde={22} animer />
+            <span><strong>Lista er i boks. Godt jobba, sulamittgjeng.</strong><span className="dempet liten">Skal lista brukes igjen? Nullstill den i stedet for å lage en ny.</span></span>
             {kanNullstille && <button className="knapp primar liten" onClick={nullstillListe}><Ikon navn="revisjon" storrelse={16} />Nullstill til neste gang</button>}
           </div>
         )}
@@ -979,7 +983,7 @@ function ListeSide({ id, gaaTil }: { id: string; gaaTil: (r: string) => void }) 
       </div>
 
       <div className="liste-meta">
-        <span className="merkelapp">{info.ikon} {info.navn}</span>
+        <span className="merkelapp"><Ikon navn={info.ikon} storrelse={12} />{info.navn}</span>
         <span className="merkelapp">{liste.kategori || 'Annet'}</span>
         {liste.privat
           ? <span className="merkelapp aksent"><Ikon navn="privat" storrelse={12} />Bare du ser listen</span>
@@ -1045,7 +1049,7 @@ export function PunktArk({ liste, start, ny, alle, historikk, lagre, lukk, aapne
   const info = LISTETYPER[type];
   const har = (f: (typeof info.felt)[number]) => info.felt.includes(f);
   const [p, setP] = useState<Punkt>(start);
-  const [bekreft, setBekreft] = useState(false);
+  const [bekreftDialog, spor] = useBekreft();
   const [nyttBarn, setNyttBarn] = useState('');
   const [lasterOpp, setLasterOpp] = useState(false);
   const [vedleggFeil, setVedleggFeil] = useState<string | null>(null);
@@ -1071,8 +1075,10 @@ export function PunktArk({ liste, start, ny, alle, historikk, lagre, lukk, aapne
     setLasterOpp(false);
   }
 
-  async function fjernVedlegg(v: Vedlegg) {
-    if (!confirm(`Slette «${v.navn}»? Dette kan ikke angres.`)) return;
+  function fjernVedlegg(v: Vedlegg) {
+    spor({ tittel: `Slette «${v.navn}»?`, tekst: 'Filen slettes for godt. Dette kan ikke angres.', knapp: 'Slett filen', ja: () => void slettVedlegg(v) });
+  }
+  async function slettVedlegg(v: Vedlegg) {
     const vedlegg = (p.vedlegg ?? []).filter((x) => x.id !== v.id);
     setP((x) => ({ ...x, vedlegg }));
     const lagret = alle.find((x) => x.id === p.id) ?? start;
@@ -1198,7 +1204,7 @@ export function PunktArk({ liste, start, ny, alle, historikk, lagre, lukk, aapne
               <input ref={filvelger} type="file" accept={GODTATTE_TYPER} multiple hidden
                 onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ''; if (f.length) void leggTilFiler(f); }} />
               <small>Bilder gjøres mindre før opplasting. PDF maks 10 MB.{liste.privat ? ' Følger listen – bare du ser dem.' : ''}</small>
-              {vedleggFeil && <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Kunne ikke laste opp.</strong><p className="liten">{vedleggFeil}</p></div></div>}
+              {vedleggFeil && <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Fila ble ikke lastet opp.</strong><p className="liten">{vedleggFeil}</p></div></div>}
             </>
           )}
         </div>
@@ -1241,13 +1247,19 @@ export function PunktArk({ liste, start, ny, alle, historikk, lagre, lukk, aapne
         )}
 
         <div className="knapperad slutt">
-          {!ny && (bekreft
-            ? <button type="button" className="knapp fare dytt" onClick={slett}><Ikon navn="slett" storrelse={18} />{barn.length ? `Slett med ${barn.length} underpunkter` : 'Bekreft sletting'}</button>
-            : <button type="button" className="knapp flat fare dytt" onClick={() => setBekreft(true)}><Ikon navn="slett" storrelse={18} />Slett</button>)}
+          {!ny && (
+            <button type="button" className="knapp flat fare dytt" onClick={() => spor({
+              tittel: `Slette «${p.tekst || 'punktet'}»?`,
+              tekst: barn.length ? `De ${barn.length} underpunktene forsvinner også. Du kan angre rett etterpå.` : 'Du kan angre rett etterpå, men ikke senere.',
+              knapp: barn.length ? 'Slett alt sammen' : 'Slett punktet',
+              ja: slett,
+            })}><Ikon navn="slett" storrelse={18} />Slett</button>
+          )}
           <button type="button" className="knapp" onClick={lukk}>Avbryt</button>
           <button type="submit" className="knapp primar" disabled={!p.tekst.trim() || (type === 'kalender' && !p.dato)}>Lagre</button>
         </div>
       </form>
+      {bekreftDialog}
     </Ark>
   );
 }
@@ -1272,7 +1284,7 @@ function flyttAar(p: Punkt, aar: number): Punkt {
 export function ValgArk({ liste, punkter, lukk, endre, del, gaaTil }: { liste: Liste; punkter: Punkt[]; lukk: () => void; endre: () => void; del: () => void; gaaTil: (r: string) => void }) {
   const { lister } = useLister();
   const { visToast } = useTilstand();
-  const [bekreft, setBekreft] = useState(false);
+  const [bekreftDialog, spor] = useBekreft();
   const tilbake = nullstill(punkter, liste.type);
   const forste = LISTETYPER[liste.type].statuser[0].tekst;
   const rekkefolge = lister.reduce((m, l) => Math.max(m, l.rekkefolge), 0) + 1;
@@ -1300,7 +1312,7 @@ export function ValgArk({ liste, punkter, lukk, endre, del, gaaTil }: { liste: L
       gjor: () => {
         const foer = punkter.filter((p) => tilbake.some((t) => t.id === p.id));
         void listeLager.lagrePunkter(tilbake);
-        visToast({ tekst: `Nullstilte ${tilbake.length} punkter`, angre: () => { void listeLager.lagrePunkter(foer); visToast(null); } });
+        visToast({ tekst: `Nullstilte ${tilbake.length} punkter. Klar for neste runde!`, angre: () => { void listeLager.lagrePunkter(foer); visToast(null); } });
         lukk();
       },
     },
@@ -1321,17 +1333,22 @@ export function ValgArk({ liste, punkter, lukk, endre, del, gaaTil }: { liste: L
             <span className="hoved"><span className="navn">{v.tekst}</span><span className="info" style={{ whiteSpace: 'normal' }}>{v.info}</span></span>
           </button>
         ))}
-        <button className="rad fare-rad" onClick={() => {
-          if (!bekreft) { setBekreft(true); return; }
-          const angre = listeLager.slettListe(liste);
-          visToast({ tekst: `Slettet «${liste.navn}»`, angre: () => { void angre(); visToast(null); } });
-          lukk();
-          gaaTil('lister');
-        }}>
+        <button className="rad fare-rad" onClick={() => spor({
+          tittel: `Slette «${liste.navn}»?`,
+          tekst: punkter.length ? `Alle ${punkter.length} punktene forsvinner også. Du kan angre rett etterpå.` : 'Lista er tom. Du kan angre rett etterpå.',
+          knapp: 'Slett lista',
+          ja: () => {
+            const angre = listeLager.slettListe(liste);
+            visToast({ tekst: `Slettet «${liste.navn}»`, angre: () => { void angre(); visToast(null); } });
+            lukk();
+            gaaTil('lister');
+          },
+        })}>
           <Ikon navn="slett" />
-          <span className="hoved"><span className="navn">{bekreft ? 'Trykk igjen for å slette' : 'Slett liste'}</span><span className="info">{punkter.length} punkter slettes også</span></span>
+          <span className="hoved"><span className="navn">Slett liste</span><span className="info">{punkter.length} punkter slettes også</span></span>
         </button>
       </div>
+      {bekreftDialog}
     </Ark>
   );
 }
@@ -1344,7 +1361,7 @@ export function GavehistorikkArk({ lukk }: { lukk: () => void }) {
   return (
     <Ark tittel="Gavehistorikk" lukk={lukk}>
       <p className="dempet liten" style={{ marginBottom: 8 }}>Kjøpte og gitte gaver fra alle gavelistene du ser, så dere slipper å gi det samme to ganger.</p>
-      {historikk.length === 0 && <Tom ikon="gave" tittel="Ingen gaver ennå" tekst="Gaver med mottaker som er kjøpt eller gitt havner her." />}
+      {historikk.length === 0 && <Tom ikon="gave" tittel="Ingen gavehistorikk ennå" tekst="Gaver med mottaker som er kjøpt eller gitt havner her. Da slipper dere å gi det samme to år på rad." />}
       {historikk.map((m) => (
         <div key={m.navn}>
           <div className="gruppe-hode"><span className="navn">{m.navn}</span><span className="dempet liten">{m.gaver.length} {m.gaver.length === 1 ? 'gave' : 'gaver'}</span></div>
@@ -1396,7 +1413,7 @@ function DelArk({ liste, punkter, lukk }: { liste: Liste; punkter: Punkt[]; lukk
     } catch (e) {
       // Avbrutt deling er ikke en feil
       if (e instanceof DOMException && e.name === 'AbortError') return;
-      try { await navigator.clipboard.writeText(kopi); visToast({ tekst: 'Kopiert' }); } catch { visToast({ tekst: 'Kunne ikke dele eller kopiere' }); }
+      try { await navigator.clipboard.writeText(kopi); visToast({ tekst: 'Kopiert' }); } catch { visToast({ tekst: 'Det ville seg ikke – verken deling eller kopiering virket' }); }
     }
   }
 
@@ -1442,7 +1459,7 @@ function GaveaarRad({ liste, punkter, aapne }: { liste: Liste; punkter: Punkt[];
   const neste = forekomster([liste], punkter, iDag())[0];
   return (
     <button className="rad" onClick={aapne}>
-      <span className="liste-ikon">{liste.ikon || '🎂'}</span>
+      <IkonBoble ikon={liste.ikon || 'kake'} />
       <span className="hoved">
         <span className="navn">{liste.navn}</span>
         <span className="info">{antall} {antall === 1 ? 'mottaker' : 'mottakere'}{neste ? ` · neste: ${anledningsNavn(neste.anledning).toLowerCase()} – ${neste.mottaker.tekst} ${kortDato(neste.dato)}` : ''}</span>

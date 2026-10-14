@@ -307,6 +307,8 @@ export interface VarselInnstillinger {
   time: number;
   /** Tidlige gavevarsler (før dagen) bare når ingen gave er kjøpt */
   bareUtenGave: boolean;
+  /** Varslene viser ikke navn, gaver eller avtaler (låseskjermen) – bare at det er noe nytt */
+  skjulDetaljer?: boolean;
   typer: Record<VarselType, VarselValg>;
 }
 

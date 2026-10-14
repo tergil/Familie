@@ -6,13 +6,13 @@ import { alder, andreSondag, anledningsDato, anledningsPlan, flyttGavelister, fo
 import { andelGaatt, avstem, dagerIMaaned, flyttMaaned, kategoriStatus, kontoPlan, kontoerFor, muligeDubletter, revisjonForMaaned } from '../src/logikk/oppfolging';
 import {
   MALER, adventssondager, delingsTekst, erFerdig, erGjort, flyttEtSteg, fremdrift, gavehistorikk, nyRekkefolge, punkterForDeling, hageIMaaned, huskelapp, kalenderAar, kalenderLuker, kopierPunkter, lagTre, listeSum,
-  medStatus, nesteStatus, nullstill, punkterFraMal, tidligereGaver, tolkHurtig,
+  LISTETYPER, listeIkon, medStatus, nesteStatus, nullstill, punkterFraMal, tidligereGaver, tolkHurtig,
 } from '../src/logikk/lister';
 import type { Hendelse, Post, Punkt, Saldo, Utgift, VarselInnstillinger } from '../src/data/modell';
 import { brett, icsTekst, lagIcs } from '../src/logikk/ics';
 import { angreEndring, endreForekomst, forekomster as kalForekomster, gjentakTekst, kalenderPoster, sammeMonster, slettForekomst } from '../src/logikk/kalender';
 import { STANDARD_VARSLER } from '../src/data/modell';
-import { beregnVarsler, forVarsler, medStandard, norskTid, slaaSammen, varseltrinn } from '../src/logikk/varsler';
+import { beregnVarsler, forVarsler, medStandard, norskTid, slaaSammen, utenDetaljer, varseltrinn } from '../src/logikk/varsler';
 
 let feil = 0;
 let ok = 0;
@@ -222,8 +222,8 @@ const onsker = [
   lp('genser', { tekst: 'Genser', status: 'onske', forelderId: 'strikk', notat: 'Str. M', rekkefolge: 4 }),
 ];
 sjekk('deling: kjøpte er ikke med', punkterForDeling('onske', onsker).map((p) => p.id), ['sofa', 'strikk', 'genser']);
-sjekk('delingstekst', delingsTekst({ navn: 'Ønsker', ikon: '🏠', type: 'onske' }, onsker).replace(/ /g, ' '),
-  '🏠 Ønsker\n\n• Ny sofa – 14 000 kr\n  https://example.com/sofa\n• Strikk\n   – Genser\n     Str. M');
+sjekk('delingstekst', delingsTekst({ navn: 'Ønsker', ikon: 'hus', type: 'onske' }, onsker).replace(/ /g, ' '),
+  'Ønsker\n\n• Ny sofa – 14 000 kr\n  https://example.com/sofa\n• Strikk\n   – Genser\n     Str. M');
 sjekk('delingstekst tom liste', delingsTekst({ navn: 'Tom', ikon: '', type: 'sjekk' }, []), 'Tom\n\n(Ingenting på listen akkurat nå)');
 sjekk('hurtig gave med mottaker', tolkHurtig('gave', 'Mamma: skjerf'), { mottaker: 'Mamma', tekst: 'skjerf' });
 sjekk('hurtig uten kolon i andre lister', tolkHurtig('sjekk', ' Kjøpe melk: lett '), { tekst: 'Kjøpe melk: lett' });
@@ -299,21 +299,32 @@ sjekk('varseltrinn: passert', varseltrinn(-1, [0]), null);
 const vInn = structuredClone(STANDARD_VARSLER);
 const v11 = beregnVarsler(ga.lister, ga.punkter, vInn, '2026-10-11');
 sjekk('varsler 11. okt: Mammas bursdag og frist om 3 dager', v11.map((v) => v.tittel),
-  ['🎂 Mamma har bursdag (fyller 70) om 18 dager', '📝 Om 3 dager: Bestille EU-kontroll']);
+  ['Mamma har bursdag (fyller 70) om 18 dager', 'Om 3 dager: Bestille EU-kontroll']);
 sjekk('bursdagsvarsel: tekst og nøkkel', [v11[0].tekst, v11[0].nokkel],
   ['tor. 29. okt.: ingen gave kjøpt ennå – 2 ideer i idébanken.', `bursdag:${mammaGa.id}:a-m-b:2026-10-29:21`]);
 const medGave = ga.punkter.map((p) => (p.tekst === 'Strikkebok' ? { ...p, status: 'kjopt', anledning: 'a-m-b:2026' } : p));
 sjekk('kjøpt gave: ingen tidlig varsel', beregnVarsler(ga.lister, medGave, vInn, '2026-10-11').some((v) => v.type === 'bursdag'), false);
 sjekk('kjøpt gave: varsel på dagen med gaven', beregnVarsler(ga.lister, medGave, vInn, '2026-10-29').find((v) => v.type === 'bursdag')?.tekst, 'Gave: Strikkebok');
 const v1203 = beregnVarsler(ga.lister, ga.punkter, vInn, '2026-12-03');
-sjekk('julevarsel 3 uker før', v1203.filter((v) => v.type === 'jul').map((v) => [v.tittel, v.tekst]), [['🎄 Jul om 21 dager', 'Gave kjøpt til 1 av 5.']]);
+sjekk('julevarsel 3 uker før', v1203.filter((v) => v.type === 'jul').map((v) => [v.tittel, v.tekst]), [['Jul om 21 dager', 'Gave kjøpt til 1 av 5.']]);
 sjekk('hage den 1. i måneden', beregnVarsler(ga.lister, ga.punkter, vInn, '2026-10-01').filter((v) => v.type === 'hage').map((v) => v.tekst), ['Epletre: høste epler, Plen: rake løv']);
 const medKalender = structuredClone(vInn); medKalender.typer.kalender.pa = true;
-sjekk('kalenderluke samme dag', beregnVarsler(ga.lister, ga.punkter, medKalender, '2026-11-29').filter((v) => v.type === 'kalender').map((v) => v.tittel), ['🕯️ Luke i dag: 1. søndag i advent']);
+sjekk('kalenderluke samme dag', beregnVarsler(ga.lister, ga.punkter, medKalender, '2026-11-29').filter((v) => v.type === 'kalender').map((v) => v.tittel), ['Luke i dag: 1. søndag i advent']);
 const avslaatt = structuredClone(vInn); for (const k of Object.keys(avslaatt.typer) as (keyof typeof avslaatt.typer)[]) avslaatt.typer[k].pa = false;
 sjekk('alt avslått gir ingen varsler', beregnVarsler(ga.lister, ga.punkter, avslaatt, '2026-10-11').length, 0);
 sjekk('mange varsler slås sammen', slaaSammen(Array.from({ length: 5 }, (_, i) => ({ type: 'frist' as const, nokkel: `k${i}`, nokler: [`k${i}`], tittel: `T${i}`, tekst: '', url: '' })))
   .map((x) => [x.tittel, x.nokler.length]), [['5 påminnelser i dag', 5]]);
+
+// Skjul detaljer: ingenting om hva varselet gjelder, men samme lenke og nøkler
+const skjult = utenDetaljer([{ tittel: 'Mamma har bursdag i dag', tekst: 'Gave: skjerf', url: '#/lister/x', nokler: ['a'] }, { tittel: 'Tannlege kl. 10:00', tekst: 'Oslo', url: '#/kalender', nokler: ['b'] }], ['bursdag', 'avtaleFor']);
+sjekk('skjul detaljer: ingen navn eller gaver', skjult.some((m) => /Mamma|skjerf|Tannlege|Oslo/.test(m.tittel + m.tekst)), false);
+sjekk('skjul detaljer: samme lenke og nøkler', skjult.map((m) => [m.url, m.nokler[0]]), [['#/lister/x', 'a'], ['#/kalender', 'b']]);
+sjekk('skjul detaljer: avtale har egen tekst', skjult[1].tekst.includes('avtale'), true);
+
+// Listeikoner: gamle emojier blir SVG-ikoner
+sjekk('listeikon fra emoji', ['🎁', '🕯️', '🕯', '🏔️', '⚡', 'gave', '', undefined, '🦄'].map((e) => listeIkon(e)), ['gave', 'lys', 'lys', 'fjell', 'lyn', 'gave', 'liste', 'liste', 'liste']);
+sjekk('ingen emojier i maler og listetyper', /\p{Extended_Pictographic}/u.test(JSON.stringify([MALER, LISTETYPER])), false);
+
 sjekk('norsk tid om sommeren (UTC+2)', norskTid(new Date('2026-10-11T22:30:00Z')), { dato: '2026-10-12', time: 0, minutt: 30 });
 sjekk('norsk tid om vinteren (UTC+1)', norskTid(new Date('2026-12-01T07:00:00Z')), { dato: '2026-12-01', time: 8, minutt: 480 });
 

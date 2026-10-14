@@ -55,7 +55,7 @@ function Poster() {
       <PostListe
         poster={rev!.poster} kategorier={felles!.kategorier} kontoer={felles!.kontoer} banker={felles!.banker}
         grupper={grupper} velg={setRedigerer}
-        tomTekst={<Tom ikon="budsjett" tittel="Ingen poster ennå" tekst="Legg til faste kostnader som husleie, strøm og forsikring." />}
+        tomTekst={<Tom ikon="budsjett" tittel="Her begynner oversikten" tekst="Legg til de faste kostnadene først – husleie, strøm og forsikring. Resten kommer av seg selv. Nesten." />}
       />
       {redigerer && (
         <PostSkjema
@@ -224,7 +224,7 @@ function Inntekter() {
             <span className="belop">{kr(tilMnd(i.belop, i.frekvens))}</span>
           </button>
         ))}
-        {rev!.inntekter.length === 0 && <Tom ikon="inntekt" tittel="Ingen inntekter ennå" />}
+        {rev!.inntekter.length === 0 && <Tom ikon="inntekt" tittel="Ingen inntekter ennå" tekst="Legg inn lønn og annet som kommer inn, så vet budsjettet hva det har å rutte med." />}
       </div>
       {redigerer && (
         <InntektSkjema

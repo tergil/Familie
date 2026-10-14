@@ -1,10 +1,10 @@
-# Familie – prosjektfakta
+# Sulamitten – prosjektfakta
 
 Personlige arbeidsinstrukser ligger i `~/.claude/CLAUDE.md`. Denne fila handler bare om prosjektet.
 
 ## Hva appen er
 
-- Privat budsjett-dashboard for Terje og Ingrid (kun to brukere).
+- **Sulamitten** («Hele sulamitten. Samlet.»): familieapp for Terje og Ingrid (kun to brukere) – budsjett, lister, gaver og kalender.
 - Brukes mest på mobil, også nettbrett og PC.
 - Viser **budsjett**, ikke faktiske utgifter. Budsjettet revideres ca. to ganger i året (revisjoner).
 - Fellesbudsjett (begge ser) + ett privatbudsjett per person (bare eieren ser). Bryteren «Felles | Privat» øverst på
@@ -34,7 +34,8 @@ Personlige arbeidsinstrukser ligger i `~/.claude/CLAUDE.md`. Denne fila handler 
   huskelapp først, økonomien (med felles/privat-bryteren) under.
 - **Varsler** (Oppsett → Varsler, `sider/Varsler.tsx`): push til iPhone (hjemskjerm, iOS 16.4+) og Android.
   Edge Function «varsler» kjøres hvert kvarter av pg_cron (daglige varsler i første kvarter av valgt time, «før avtale» hver gang), regner ut med `logikk/varsler.ts` og sender til brukerne som
-  har valgt den timen. `public/sw.js` viser varselet (ingen mellomlagring).
+  har valgt den timen. `public/sw.js` viser varselet (ingen mellomlagring). «Skjul detaljer» (`skjulDetaljer`, `utenDetaljer()`)
+  gir varsler uten navn, gaver og avtaler på låseskjermen.
 - **Deling** (Valg → Del liste): som tekst (øyeblikksbilde) eller lenke `#/delt/<nøkkel>` som vises uten innlogging
   (`sider/Delt.tsx`). Bare det som ikke er kjøpt/gjort deles, og aldri vedlegg.
 - Status: POC i grenen `poc`.
@@ -49,7 +50,7 @@ npm run typecheck    # tsc --noEmit
 npm test             # beregningstester, kjører uten nettleser
 npm run importer     # Excel i Data/ -> Data/import-familiebudsjett.json (lokalt!)
 npm run sjekk-data   # sjekker at ingen private data er staget for commit
-npm run ikoner       # lager app-ikonene i public/ fra SVG-en i scripts/lag-ikoner.mjs
+npm run ikoner       # tegner logoen (scripts/lag-logo.mjs → src/ui/logo.json) og lager app-ikonene i public/
 npm run funksjoner   # bygger supabase/functions/{varsler,kalender}/index.ts fra supabase/kilde/ + src/logikk
 npm run vapid        # nøkler for push-varsler: offentlig → src/data/varselnokkel.ts, privat → Data/varsler-oppsett.txt
 ```
@@ -76,6 +77,22 @@ npm run vapid        # nøkler for push-varsler: offentlig → src/data/varselno
 | `scripts/` | Tester, Excel-import, datasjekk |
 | `Data/` | **Private regneark og importfiler. ALDRI i Git.** |
 
+## Merkevare og design
+
+- Grunnlag: `Data/Sulamitten_merkevare_og_appdesignplattform.docx` (+ moodboard `Data/Image (12).jpg`). Terje har bestemt:
+  skoggrønn `#0E3D32`, terrakotta `#D45B3E`, krem `#F4E9D7`; behold dagens navigasjon (ikke «Planer»/«Familie»); ingen onboarding.
+- **Aldri emojier** – verken i UI, varsler, maler eller demodata. Bruk SVG-ikonene i `STIER` (`ui/felles.tsx`).
+  Listeikoner lagres som ikonnavn (`LISTEIKONER`); eldre lister har emojier i databasen, `listeIkon()` (logikk/lister.ts) oversetter.
+  Vis listeikoner med `<IkonBoble>`.
+- Farger: skoggrønn er tekst og hovedknapper (`--aksent`). Gul, terrakotta, havblå og rosa er flater/ikoner – aldri liten tekst
+  på krem (for lav kontrast). Statusfarger `--bra`, `--varsel`, `--feil`, `--info` (+ `-myk`). Mørkt tema: dyp grønn, gul aksent.
+- Skrift: Nunito ExtraBold (800) for overskrifter/tall i fokus, Inter for resten. Maks to familier.
+- Logo: `<Logo>` / `<Merke>` (krusedull → sirkel). `mikro` under ~24 px. `animer` bare ved utvalgte øyeblikk
+  (innlogging, lasting, liste ferdig) – aldri ved feil. Redusert bevegelse viser logoen ferdig tegnet.
+- **Sletting: alltid `useBekreft()`** (dialog med konsekvens, Avbryt er valgt) – ikke dobbelttrykk og ikke `confirm()`.
+- Tone: kort, folkelig, et lite skråsmil – også i tomme sider, feil og økonomi (Terjes valg). Men alltid tydelig om hva som skjedde
+  og hva man kan gjøre; aldri si at noe er lagret før det er bekreftet.
+
 ## Konvensjoner
 
 - Norsk overalt: UI, kode (variabler, funksjoner, filer), kommentarer og commit-meldinger.
@@ -83,7 +100,7 @@ npm run vapid        # nøkler for push-varsler: offentlig → src/data/varselno
 - Beregninger skal ligge i `src/logikk/` og ha tester i `scripts/test-beregning.ts`.
 - Beløp lagres med frekvens (mnd/kvartal/halvår/år) og regnes om med `tilMnd`.
 - All ny UI skal bruke eksisterende klasser (`kort`, `rad`, `knapp`, `kpi`, `merkelapp`, `Ark` …).
-- Kategorifarger er `--k0`…`--k7`, validert for fargeblindhet. Ikke endre på øyemål –
+- Kategorifarger er `--k0`…`--k7`, valgt med fargeblind-simulering mot krem og mørk bakgrunn. Ikke endre på øyemål –
   kjør dataviz-validatoren. Personer bruker nøytrale toner, aldri kategorifarger.
 - Endringer i dokumentene går via `endreFelles`/`endrePrivat` (lagrer automatisk). Sletting skal ha `angreTekst`.
 

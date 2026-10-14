@@ -10,14 +10,14 @@ export const ANLEDNING_NAVN: Record<AnledningType, string> = {
 };
 
 export const ANLEDNING_IKON: Record<AnledningType, string> = {
-  bursdag: '🎂', jul: '🎄', morsdag: '💐', farsdag: '👔', egen: '🎉',
+  bursdag: 'kake', jul: 'juletre', morsdag: 'blomst', farsdag: 'slips', egen: 'fest',
 };
 
 /** Samlede planer på tvers av gaveårene: jul, bursdager og «andre» (alt annet enn jul og bursdag) */
 export type PlanType = 'jul' | 'bursdag' | 'andre';
 export const PLAN_TYPER: PlanType[] = ['jul', 'bursdag', 'andre'];
 export const PLAN_NAVN: Record<PlanType, string> = { jul: 'Jul', bursdag: 'Bursdager', andre: 'Andre' };
-export const PLAN_IKON: Record<PlanType, string> = { jul: '🎄', bursdag: '🎂', andre: '🎉' };
+export const PLAN_IKON: Record<PlanType, string> = { jul: 'juletre', bursdag: 'kake', andre: 'fest' };
 
 /** Gamle lenker (morsdag, farsdag) havner under «andre» */
 export function tilPlanType(t: string | undefined): PlanType {

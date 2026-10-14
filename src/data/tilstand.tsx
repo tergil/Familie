@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { FellesDok, Person, PrivatDok, PrivatRevisjon, Revisjon } from './modell';
 import { KonfliktFeil, lager, type Bruker, type Lagret } from './lager';
 import { aktivRevisjon, iDag } from '../logikk/beregning';
+import { Laster } from '../ui/felles';
 
 export type LagreStatus = 'lagret' | 'lagrer' | 'feil' | 'konflikt';
 
@@ -195,9 +196,9 @@ export function TilstandGiver({ bruker, children }: { bruker: Bruker; children: 
 
   if (feil) {
     return (
-      <div className="laster"><div className="banner feil" style={{ maxWidth: 480 }}><div><strong>Kunne ikke laste budsjettet</strong><p>{feil}</p></div></div></div>
+      <div className="laster"><div className="banner feil" style={{ maxWidth: 480 }}><div><strong>Budsjettet ville ikke komme fram</strong><p>{feil}</p></div></div></div>
     );
   }
-  if (!lastet) return <div className="laster"><div className="spinner" aria-label="Laster" /></div>;
+  if (!lastet) return <Laster />;
   return <Kontekst.Provider value={verdi}>{children}</Kontekst.Provider>;
 }

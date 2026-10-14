@@ -1,51 +1,67 @@
-/* Designtokens – terrakotta-paletten.
-   Kategorifargene (--k0..--k7) er validert for fargeblindhet og kontrast med
-   dataviz-validatoren (lys mot #FAF6F0, mørk mot #1F1B18). Ikke endre dem på øyemål. */
+/* Designtokens – Sulamitten (merkevaredokumentet v1.0, Data/Sulamitten_merkevare_og_appdesignplattform.docx).
+   Skoggrønn #0E3D32 er tekst og hovedknapper, krem #F4E9D7 er bakgrunn. Gul, terrakotta, havblå og rosa
+   er aksenter (flater og ikoner) – aldri liten tekst direkte på krem.
+   Kategorifargene (--k0..--k7) er valgt med fargeblind-simulering (protan/deutan/tritan) og har minst
+   3:1 kontrast mot bakgrunnen (lys mot #F4E9D7, mørk mot #0B241E). Ikke endre dem på øyemål. */
 
 :root {
   color-scheme: light;
 
+  /* Merkevarefarger */
+  --skoggronn: #0E3D32;
+  --krem: #F4E9D7;
+  --gul: #F4B942;
+  --gul-myk: #FBE6B0;
+  --terrakotta: #D45B3E;
+  --terrakotta-myk: #F7D9CF;
+  --havbla: #4E8CC9;
+  --havbla-myk: #DCE8F4;
+  --rosa: #F6C7C7;
+  --rosa-myk: #FBE4E2;
+
   /* Flater */
-  --bg: #FAF6F0;
-  --flate: #FFFDF9;
-  --flate-2: #F3ECE2;
-  --flate-3: #EAE0D2;
-  --linje: #E4D8C8;
-  --linje-sterk: #CDBBA5;
+  --bg: #F4E9D7;
+  --flate: #FDFAF4;
+  --flate-2: #EFE2CC;
+  --flate-3: #E5D5BA;
+  --linje: #E2D1B5;
+  --linje-sterk: #9C8665;
 
   /* Tekst */
-  --blekk: #2B211B;
-  --blekk-2: #5E5047;
-  --dempet: #6E5F52;
+  --blekk: #0E3D32;
+  --blekk-2: #2D5A4D;
+  --dempet: #546558;
 
-  /* Aksent (terrakotta) */
-  --aksent: #A84F2B;
-  --aksent-hover: #8F4123;
-  --aksent-myk: #F8E8DF;
-  --paa-aksent: #FFFDF9;
+  /* Aksent (hovedknapper, valgt, lenker) */
+  --aksent: #0E3D32;
+  --aksent-hover: #18574A;
+  --aksent-myk: #DCE8DC;
+  --paa-aksent: #FDFAF4;
 
   /* Status – reservert betydning, alltid med ikon/tekst */
-  --bra: #4B6A24;
-  --bra-myk: #E6ECD8;
-  --varsel: #765604;
-  --varsel-myk: #F5EACB;
-  --feil: #A8352A;
-  --feil-myk: #F6DEDA;
+  --bra: #2C6E3A;
+  --bra-myk: #DCEBD5;
+  --varsel: #7A4E00;
+  --varsel-myk: #FBE3AD;
+  --feil: #B0301C;
+  --feil-myk: #F8DAD2;
+  --info: #2D64A0;
+  --info-myk: #DDE9F5;
 
   /* Kategorier (fast rekkefølge) */
-  --k0: #C0643F; /* terrakotta */
-  --k1: #008A9E; /* blågrønn */
-  --k2: #A98014; /* oker */
-  --k3: #8A4F7D; /* plomme */
-  --k4: #6F8A3A; /* oliven */
-  --k5: #4F6FC0; /* dueblå */
-  --k6: #D0707E; /* leirrosa */
-  --k7: #8F4E10; /* umbra */
-  --noytral-flyt: #B9A895;
+  --k0: #C16438; /* terrakotta */
+  --k1: #1B86BF; /* havblå */
+  --k2: #5B4414; /* oker */
+  --k3: #B74F91; /* plomme */
+  --k4: #377065; /* blågrønn */
+  --k5: #6D56C7; /* fiolett */
+  --k6: #912D47; /* bær */
+  --k7: #A67C60; /* nøtt */
+  --noytral-flyt: #B5A385;
 
   /* Typografi */
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-tittel: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-tittel: 'Nunito', 'Inter', system-ui, sans-serif;
 
   /* Avstander (4px-rutenett) */
   --a1: 4px;
@@ -56,10 +72,10 @@
   --a6: 32px;
   --a7: 48px;
 
-  --radius: 14px;
-  --radius-liten: 8px;
-  --skygge: 0 1px 2px rgb(60 40 20 / 0.05), 0 2px 8px rgb(60 40 20 / 0.05);
-  --skygge-hoy: 0 12px 40px rgb(40 25 10 / 0.18);
+  --radius: 18px;
+  --radius-liten: 10px;
+  --skygge: 0 1px 2px rgb(14 61 50 / 0.05), 0 2px 10px rgb(14 61 50 / 0.06);
+  --skygge-hoy: 0 12px 40px rgb(14 40 30 / 0.2);
 
   --nav-hoyde: 64px;
   --sidebar: 248px;
@@ -68,34 +84,42 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-tema='lys']) {
     color-scheme: dark;
-    --bg: #1F1B18;
-    --flate: #282320;
-    --flate-2: #312B27;
-    --flate-3: #3A332E;
-    --linje: #3D3530;
-    --linje-sterk: #54483F;
-    --blekk: #F2EAE0;
-    --blekk-2: #CBBFB2;
-    --dempet: #A09283;
-    --aksent: #D9805A;
-    --aksent-hover: #E6966F;
-    --aksent-myk: #33231E;
-    --paa-aksent: #1F1B18;
-    --bra: #A3BD6A;
-    --bra-myk: #2F3522;
-    --varsel: #D9B24A;
-    --varsel-myk: #3A3120;
-    --feil: #E8857A;
-    --feil-myk: #43271F;
-    --k0: #C8704A;
-    --k1: #1E97A8;
-    --k2: #B38A1E;
-    --k3: #A86A9C;
-    --k4: #7E9A40;
-    --k5: #6F88D0;
-    --k6: #CC6F80;
-    --k7: #94601E;
-    --noytral-flyt: #6B5E53;
+    --gul-myk: #3B3A1D;
+    --terrakotta: #E57A5E;
+    --terrakotta-myk: #40291F;
+    --havbla: #7FB0E3;
+    --havbla-myk: #183450;
+    --rosa-myk: #43292D;
+    --bg: #0B241E;
+    --flate: #12302A;
+    --flate-2: #183A32;
+    --flate-3: #20473D;
+    --linje: #224339;
+    --linje-sterk: #5A8371;
+    --blekk: #F4E9D7;
+    --blekk-2: #D6CDBB;
+    --dempet: #A8B5A6;
+    --aksent: #F4B942;
+    --aksent-hover: #F7C866;
+    --aksent-myk: #2F3A22;
+    --paa-aksent: #0E3D32;
+    --bra: #8FD19A;
+    --bra-myk: #173F2A;
+    --varsel: #F0A35E;
+    --varsel-myk: #3E2E16;
+    --feil: #F28B78;
+    --feil-myk: #47221B;
+    --info: #8DBBEA;
+    --info-myk: #183450;
+    --k0: #EEA087;
+    --k1: #80B7F4;
+    --k2: #DCBE6C;
+    --k3: #DB68C2;
+    --k4: #6AD6D2;
+    --k5: #8976F1;
+    --k6: #CC8A9F;
+    --k7: #C67D32;
+    --noytral-flyt: #4F6A5F;
     --skygge: 0 1px 2px rgb(0 0 0 / 0.3);
     --skygge-hoy: 0 12px 40px rgb(0 0 0 / 0.5);
   }
@@ -103,34 +127,42 @@
 
 :root[data-tema='mork'] {
   color-scheme: dark;
-  --bg: #1F1B18;
-  --flate: #282320;
-  --flate-2: #312B27;
-  --flate-3: #3A332E;
-  --linje: #3D3530;
-  --linje-sterk: #54483F;
-  --blekk: #F2EAE0;
-  --blekk-2: #CBBFB2;
-  --dempet: #A09283;
-  --aksent: #D9805A;
-  --aksent-hover: #E6966F;
-  --aksent-myk: #33231E;
-  --paa-aksent: #1F1B18;
-  --bra: #A3BD6A;
-  --bra-myk: #2F3522;
-  --varsel: #D9B24A;
-  --varsel-myk: #3A3120;
-  --feil: #E8857A;
-  --feil-myk: #43271F;
-  --k0: #C8704A;
-  --k1: #1E97A8;
-  --k2: #B38A1E;
-  --k3: #A86A9C;
-  --k4: #7E9A40;
-  --k5: #6F88D0;
-  --k6: #CC6F80;
-  --k7: #94601E;
-  --noytral-flyt: #6B5E53;
+  --gul-myk: #3B3A1D;
+  --terrakotta: #E57A5E;
+  --terrakotta-myk: #40291F;
+  --havbla: #7FB0E3;
+  --havbla-myk: #183450;
+  --rosa-myk: #43292D;
+  --bg: #0B241E;
+  --flate: #12302A;
+  --flate-2: #183A32;
+  --flate-3: #20473D;
+  --linje: #224339;
+  --linje-sterk: #5A8371;
+  --blekk: #F4E9D7;
+  --blekk-2: #D6CDBB;
+  --dempet: #A8B5A6;
+  --aksent: #F4B942;
+  --aksent-hover: #F7C866;
+  --aksent-myk: #2F3A22;
+  --paa-aksent: #0E3D32;
+  --bra: #8FD19A;
+  --bra-myk: #173F2A;
+  --varsel: #F0A35E;
+  --varsel-myk: #3E2E16;
+  --feil: #F28B78;
+  --feil-myk: #47221B;
+  --info: #8DBBEA;
+  --info-myk: #183450;
+  --k0: #EEA087;
+  --k1: #80B7F4;
+  --k2: #DCBE6C;
+  --k3: #DB68C2;
+  --k4: #6AD6D2;
+  --k5: #8976F1;
+  --k6: #CC8A9F;
+  --k7: #C67D32;
+  --noytral-flyt: #4F6A5F;
   --skygge: 0 1px 2px rgb(0 0 0 / 0.3);
   --skygge-hoy: 0 12px 40px rgb(0 0 0 / 0.5);
 }

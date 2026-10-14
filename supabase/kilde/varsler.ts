@@ -12,7 +12,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 import type { VarselInnstillinger } from '../../src/data/modell';
-import { beregnVarsler, forVarsler, medStandard, norskTid, slaaSammen } from '../../src/logikk/varsler';
+import { beregnVarsler, forVarsler, medStandard, norskTid, slaaSammen, utenDetaljer } from '../../src/logikk/varsler';
 import { hentAlt, navnFra } from './felles';
 
 declare const Deno: { env: { get(n: string): string | undefined }; serve(f: (r: Request) => Response | Promise<Response>): void };
@@ -77,7 +77,7 @@ async function behandle(req: Request): Promise<Response> {
     const { data } = await db.auth.getUser(jwt);
     if (!data.user) return svar({ feil: 'Ikke innlogget' }, 401);
     const { data: enheter } = await db.from('varsel_abonnement').select('id, bruker, endpoint, p256dh, auth').eq('bruker', data.user.id);
-    const n = await send(db, (enheter ?? []) as Abonnement[], { tittel: '🔔 Testvarsel', tekst: 'Varslene virker på denne enheten.', url: '#/varsler' });
+    const n = await send(db, (enheter ?? []) as Abonnement[], { tittel: 'Testvarsel fra Sulamitten', tekst: 'Det virker! Nå får du beskjed når noe er verdt å huske.', url: '#/varsler' });
     if (!n && sendefeil.length) return svar({ feil: `Push-tjenesten sa nei: ${sendefeil.join(' | ')}`, sendt: 0, enheter: enheter?.length ?? 0 }, 502);
     return svar({ sendt: n, enheter: enheter?.length ?? 0, feil: sendefeil.length ? sendefeil : undefined });
   }
@@ -125,7 +125,9 @@ async function behandle(req: Request): Promise<Response> {
     let antall = 0;
     // Varsel før en avtale kommer alltid alene (tidskritisk); resten slås sammen når det er mange
     const forAvtale = nye.filter((v) => v.type === 'avtaleFor');
-    const meldinger = [...forAvtale.map((v) => ({ tittel: v.tittel, tekst: v.tekst, url: v.url, nokler: v.nokler })), ...slaaSammen(nye.filter((v) => v.type !== 'avtaleFor'))];
+    const alleMeldinger = [...forAvtale.map((v) => ({ tittel: v.tittel, tekst: v.tekst, url: v.url, nokler: v.nokler })), ...slaaSammen(nye.filter((v) => v.type !== 'avtaleFor'))];
+    // «Skjul detaljer»: ingen navn, gaver eller avtaler på låseskjermen
+    const meldinger = inn.skjulDetaljer ? utenDetaljer(alleMeldinger, forAvtale.map((v) => v.type)) : alleMeldinger;
     for (const melding of meldinger) {
       if (await send(db, enheter as Abonnement[], melding)) {
         antall++;

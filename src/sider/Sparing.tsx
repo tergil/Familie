@@ -91,7 +91,7 @@ export function Sparing() {
       <section>
         <div className="kort-hode"><h2>Felles sparemål</h2></div>
         {fellesMaal.length === 0
-          ? <div className="kort"><Tom ikon="sparing" tittel="Ingen felles sparemål" tekst="Slå på «Sparemål» på en konto under Kontoer." /></div>
+          ? <div className="kort"><Tom ikon="sparing" tittel="Ingen felles sparemål ennå" tekst="Slå på «Sparemål» på en konto under Kontoer. Drømmer teller også." /></div>
           : <div className="rutenett to">{fellesMaal.map((k) => kort(k, false))}</div>}
       </section>
 
@@ -102,7 +102,7 @@ export function Sparing() {
             <button className="knapp liten" onClick={() => setRedigerer({ privat: true })}><Ikon navn="pluss" storrelse={18} />Ny sparekonto</button>
           </div>
           {egneMaal.length === 0
-            ? <div className="kort"><Tom ikon="sparing" tittel="Ingen egne sparemål" tekst="F.eks. bufferkonto, fond eller BSU." /></div>
+            ? <div className="kort"><Tom ikon="sparing" tittel="Ingen egne sparemål ennå" tekst="F.eks. bufferkonto, fond eller BSU. Litt hver måned blir mye til slutt." /></div>
             : <div className="rutenett to">{egneMaal.map((k) => kort(k, true))}</div>}
         </section>
       )}

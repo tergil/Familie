@@ -36,7 +36,7 @@ export function FlytKort({ tittel, undertittel, lagFlyt, poster, kategorier }: {
         </div>
       </div>
       {flyt.lenker.length === 0
-        ? <p className="dempet">Ingen pengeflyt å vise ennå.</p>
+        ? <p className="dempet">Ingen pengeflyt å vise ennå. Pengene står stille – eller så mangler tallene.</p>
         : tabell ? <FlytTabell flyt={flyt} /> : <Sankey flyt={flyt} velg={(n) => n.kategoriId && setValgt(n)} />}
       {!tabell && brukteKat.length > 0 && (
         <div className="forklaring" aria-label="Fargeforklaring">

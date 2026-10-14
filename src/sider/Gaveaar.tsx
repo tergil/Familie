@@ -13,7 +13,7 @@ import {
   gaveaar, gaverTil, medAutoAnledning, mottakere, nesteDato, nokkelTekst, nyAnledning, personbudsjett, planNokkel, planTittel, potter,
   type Forekomst, type PlanDel, type PlanType,
 } from '../logikk/gaveaar';
-import { Ark, BelopFelt, Felt, Ikon, MAANEDER_KORT, Segment, Tom, kortDato, kr, maanedTekst } from '../ui/felles';
+import { Ark, BelopFelt, Felt, Ikon, IkonBoble, MAANEDER_KORT, Segment, Tom, kortDato, kr, maanedTekst, useBekreft } from '../ui/felles';
 import { UtgiftSkjema, type UtgiftForslag } from '../ui/UtgiftSkjema';
 import { BudsjettKort, FeilBanner, FristMerke, ListeSkjema, PunktArk, SeksjonHode, StatusKnapp, ValgArk } from './Lister';
 
@@ -29,7 +29,7 @@ function nestePlanAar(type: PlanType): number {
 function fodtTekst(fodt: string, idag: string): string {
   const naa = alder(fodt, idag) ?? 0;
   const neste = nesteDato({ id: '', type: 'bursdag', dag: fodt.slice(5) }, idag);
-  if (neste === idag) return `Fyller ${naa} i dag 🎉`;
+  if (neste === idag) return `Fyller ${naa} i dag. Hipp hurra!`;
   return `${naa} år · fyller ${neste ? alder(fodt, neste) : naa + 1}${neste ? ` ${kortDato(neste)}` : ''}`;
 }
 
@@ -37,12 +37,12 @@ function fodtTekst(fodt: string, idag: string): string {
 function Alder({ alder: a, forbi }: { alder?: number; forbi?: boolean }) {
   if (a === undefined) return null;
   const ord = forbi ? 'fylte' : 'fyller';
-  return rundDag(a) ? <span className="merkelapp aksent">🎉 {ord} {a}</span> : <span className="dempet">{ord} {a}</span>;
+  return rundDag(a) ? <span className="merkelapp aksent"><Ikon navn="fest" storrelse={12} />{ord} {a}</span> : <span className="dempet">{ord} {a}</span>;
 }
 
 function nyttGaveaar(privat: boolean, rekkefolge: number): Liste {
   return {
-    id: nyId(), navn: privat ? 'Mitt gaveår' : 'Gaveår', ikon: '🎂', kategori: 'Gaver', type: 'gaveaar',
+    id: nyId(), navn: privat ? 'Mitt gaveår' : 'Gaveår', ikon: 'kake', kategori: 'Gaver', type: 'gaveaar',
     privat, mal: false, rekkefolge, opprettet: iDag(),
   };
 }
@@ -131,7 +131,7 @@ export function GaveaarSide({ liste, gaaTil }: { liste: Liste; gaaTil: (r: strin
         <button className="knapp liten" onClick={() => setValg(true)}><Ikon navn="mer" storrelse={16} />Valg</button>
       </div>
       <div className="liste-meta">
-        <span className="merkelapp">🎂 Gaveår</span>
+        <span className="merkelapp"><Ikon navn="kake" storrelse={12} />Gaveår</span>
         {liste.privat
           ? <span className="merkelapp aksent"><Ikon navn="privat" storrelse={12} />Bare du ser dette gaveåret</span>
           : <span className="merkelapp"><Ikon navn="person" storrelse={12} />Felles</span>}
@@ -142,7 +142,7 @@ export function GaveaarSide({ liste, gaaTil }: { liste: Liste; gaaTil: (r: strin
       <div className="plan-knapper" role="group" aria-label="Planer">
         {planer.map(({ type, aar }) => (
           <button key={type} className="chip" onClick={() => gaaTil(`lister/plan/${type}/${aar}`)}>
-            <span aria-hidden="true">{PLAN_IKON[type]}</span>{planTittel(type, aar)}<Ikon navn="pilhoyre" storrelse={14} />
+            <Ikon navn={PLAN_IKON[type]} storrelse={16} />{planTittel(type, aar)}<Ikon navn="pilhoyre" storrelse={14} />
           </button>
         ))}
       </div>
@@ -152,7 +152,7 @@ export function GaveaarSide({ liste, gaaTil }: { liste: Liste; gaaTil: (r: strin
       <div className="rutenett to">
         <section className="kort">
           <div className="kort-hode"><div className="tittel"><h2>De neste 12 månedene</h2><span className="dempet liten">Varsles på huskelappen 3 uker før hvis ingenting er kjøpt</span></div></div>
-          {tidslinje.length === 0 && <Tom ikon="kalender" tittel="Ingen anledninger ennå" tekst="Legg til mottakere og bursdager, så fylles årshjulet." />}
+          {tidslinje.length === 0 && <Tom ikon="kalender" tittel="Årshjulet er tomt" tekst="Legg til mottakere og bursdager, så husker Sulamitten dem for dere." />}
           {[...perMaaned].map(([maaned, liste_]) => (
             <div className="seksjon" key={maaned}>
               <SeksjonHode tittel={maanedTekst(maaned)} />
@@ -181,9 +181,11 @@ export function GaveaarSide({ liste, gaaTil }: { liste: Liste; gaaTil: (r: strin
                 <button className="rad" key={m.id} onClick={() => setAapen(m.id)}>
                   <span className="avatar noytral" aria-hidden="true">{m.tekst.slice(0, 1).toUpperCase()}</span>
                   <span className="hoved">
-                    <span className="navn">{m.tekst}{fyller !== undefined && <span className="dempet liten" style={{ fontWeight: 400 }}> · fyller {fyller}{rundDag(fyller) ? ' 🎉' : ''}</span>}</span>
+                    <span className="navn">{m.tekst}{fyller !== undefined && <span className="dempet liten" style={{ fontWeight: 400 }}> · fyller {fyller}{rundDag(fyller) ? ' (rund dag)' : ''}</span>}</span>
                     <span className="info">
-                      {(m.anledninger ?? []).map((a) => `${ANLEDNING_IKON[a.type]} ${a.type === 'bursdag' || a.type === 'egen' ? (a.dag ? kortDato(`2000-${a.dag}`) : anledningsNavn(a)) : anledningsNavn(a)}`).join('  ')}
+                      {(m.anledninger ?? []).map((a) => (
+                        <span key={a.id} className="anledning-merke"><Ikon navn={ANLEDNING_IKON[a.type]} storrelse={12} />{a.type === 'bursdag' || a.type === 'egen' ? (a.dag ? kortDato(`2000-${a.dag}`) : anledningsNavn(a)) : anledningsNavn(a)}</span>
+                      ))}
                       {ideer ? ` · ${ideer} ${ideer === 1 ? 'idé' : 'ideer'}` : ''}
                     </span>
                     {mangler.length > 0 && <span className="info varsel-tekst"><Ikon navn="advarsel" storrelse={11} /> {anledningsNavn(mangler[0])} mangler dato</span>}
@@ -215,7 +217,7 @@ function ForekomstRad({ f, aapne }: { f: Forekomst; aapne: () => void }) {
     <button className="rad" onClick={aapne}>
       <span className="dato-blokk" aria-hidden="true"><span className="dag">{Number(f.dato.slice(8))}</span><span className="mnd">{MAANEDER_KORT[Number(f.dato.slice(5, 7)) - 1]}</span></span>
       <span className="hoved">
-        <span className="navn">{ANLEDNING_IKON[f.anledning.type]} {anledningsNavn(f.anledning)} – {f.mottaker.tekst}</span>
+        <span className="navn"><span className="navn-ikon"><Ikon navn={ANLEDNING_IKON[f.anledning.type]} storrelse={15} /></span>{anledningsNavn(f.anledning)} – {f.mottaker.tekst}</span>
         <span className="info">{f.alder !== undefined && <><Alder alder={f.alder} /> · </>}{info}</span>
       </span>
       {gitt ? <span className="merkelapp bra"><Ikon navn="sjekk" storrelse={12} />Gitt</span>
@@ -286,8 +288,8 @@ function MottakerArk({ liste, mottakerId, lukk }: { liste: Liste; mottakerId: st
   // En felles gave som du betaler, føres som privat utgift
   const forslag = (g: Punkt): UtgiftForslag => ({ belop: g.belop ?? 0, notat: `${g.tekst} til ${mottaker!.tekst}`, privat: liste.privat || (!!meg && g.betaler === meg.id) });
 
+  const [bekreftDialog, spor] = useBekreft();
   function slettMottaker() {
-    if (!confirm(`Slette ${mottaker!.tekst} med ${alle.length} gaver og ideer?`)) return;
     const angre = listeLager.slettPunkt(mottaker!);
     visToast({ tekst: `Slettet ${mottaker!.tekst}`, angre: () => { void angre(); visToast(null); } });
     lukk();
@@ -311,7 +313,7 @@ function MottakerArk({ liste, mottakerId, lukk }: { liste: Liste; mottakerId: st
           <span className="info">{[
             visAnledning && g.anledning ? nokkelTekst(mottaker, g.anledning) : null,
             g.betaler ? `betales av ${g.betaler === meg?.id ? 'deg' : 'den andre'}` : null,
-            g.lenke ? '🔗' : null, g.vedlegg?.length ? `📎 ${g.vedlegg.length}` : null, g.notat,
+            g.lenke ? 'lenke' : null, g.vedlegg?.length ? `${g.vedlegg.length} vedlegg` : null, g.notat,
           ].filter(Boolean).join(' · ')}</span>
         </span>
         {g.belop ? <span className="belop">{kr(g.belop)}</span> : null}
@@ -342,9 +344,9 @@ function MottakerArk({ liste, mottakerId, lukk }: { liste: Liste; mottakerId: st
           </div>
           <div className="valgchips" role="group" aria-label="Legg til anledning">
             {mangler.map((t) => (
-              <button key={t} type="button" onClick={() => leggTilAnledning(nyAnledning(t))}><Ikon navn="pluss" storrelse={14} />{ANLEDNING_IKON[t]} {ANLEDNING_NAVN[t]}</button>
+              <button key={t} type="button" onClick={() => leggTilAnledning(nyAnledning(t))}><Ikon navn={ANLEDNING_IKON[t]} storrelse={15} />{ANLEDNING_NAVN[t]}</button>
             ))}
-            <button type="button" onClick={() => setNyEgen(true)}><Ikon navn="pluss" storrelse={14} />🎉 Annen (konfirmasjon, navnefest …)</button>
+            <button type="button" onClick={() => setNyEgen(true)}><Ikon navn="fest" storrelse={15} />Annen (konfirmasjon, navnefest …)</button>
           </div>
           {nyEgen && <NyEgenAnledning lagre={(a) => { leggTilAnledning(a); setNyEgen(false); }} avbryt={() => setNyEgen(false)} />}
         </div>
@@ -392,10 +394,16 @@ function MottakerArk({ liste, mottakerId, lukk }: { liste: Liste; mottakerId: st
         )}
 
         <div className="knapperad slutt">
-          <button type="button" className="knapp flat fare dytt" onClick={slettMottaker}><Ikon navn="slett" storrelse={18} />Slett mottaker</button>
+          <button type="button" className="knapp flat fare dytt" onClick={() => spor({
+            tittel: `Slette ${mottaker!.tekst}?`,
+            tekst: alle.length ? `${alle.length} gaver og ideer forsvinner også, sammen med historikken. Du kan angre rett etterpå.` : 'Du kan angre rett etterpå.',
+            knapp: 'Slett mottaker',
+            ja: slettMottaker,
+          })}><Ikon navn="slett" storrelse={18} />Slett mottaker</button>
           <button type="button" className="knapp primar" onClick={lukk}>Ferdig</button>
         </div>
       </div>
+      {bekreftDialog}
     </Ark>
   );
 }
@@ -409,7 +417,7 @@ function AnledningRad({ a, fodt, endre, fjern }: { a: Anledning; fodt?: string; 
   const visAar = a.aar ?? Number((neste ?? idag).slice(0, 4));
   return (
     <div className="anledning-rad">
-      <span className="anledning-ikon" aria-hidden="true">{ANLEDNING_IKON[a.type]}</span>
+      <IkonBoble ikon={ANLEDNING_IKON[a.type]} storrelse="liten" />
       <div className="anledning-felt">
         {a.type === 'egen'
           ? <input className="anledning-navn" value={a.navn ?? ''} onChange={(e) => endre({ ...a, navn: e.target.value })} aria-label="Navn på anledningen" placeholder="Navn" />
@@ -524,11 +532,11 @@ export function AnledningsPlan({ type: t, aar: a, gaaTil }: { type?: string; aar
         </div>
       </div>
       <Segment etikett="Anledning" full verdi={type} endre={(x) => gaa({ type: x })}
-        valg={PLAN_TYPER.map((x) => ({ verdi: x, tekst: `${PLAN_IKON[x]} ${PLAN_NAVN[x]}` }))} />
+        valg={PLAN_TYPER.map((x) => ({ verdi: x, tekst: PLAN_NAVN[x], ikon: PLAN_IKON[x] }))} />
 
       {!alleAar.length ? (
         <section className="kort">
-          <Tom ikon="gave" tittel="Ingen gaveår ennå" tekst="Lag et felles gaveår og ditt eget private under Lister → Ny liste → Gaveår.">
+          <Tom ikon="gave" tittel="Ingen gaveår ennå" tekst="Lag et felles gaveår og ditt eget private under Lister → Ny liste → Gaveår. Så slipper dere panikkhandel på bensinstasjonen.">
             <button className="knapp primar" onClick={() => gaaTil('lister')}>Til listene</button>
           </Tom>
         </section>

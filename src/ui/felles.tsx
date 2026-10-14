@@ -1,5 +1,8 @@
 // Små gjenbrukbare byggeklosser. Hold dem enkle – stilen ligger i stil/app.css.
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import LOGO from './logo.json';
+import { listeIkon } from '../logikk/lister';
 
 // ---------------------------------------------------------------- Tall
 
@@ -115,6 +118,56 @@ const STIER: Record<string, ReactNode> = {
   mobil: <><rect x="7" y="2.5" width="10" height="19" rx="2" /><path d="M11 18.5h2" /></>,
   skjerm: <><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></>,
   google: <></>,
+  // Listeikoner (erstatter emojiene – se LISTEIKONER)
+  hus: <><path d="M3 12 12 4l9 8" /><path d="M5 10v10h14V10" /><path d="M10 20v-6h4v6" /></>,
+  juletre: <><path d="M12 3 7 10h3l-4 6h12l-4-6h3z" /><path d="M12 16v4" /></>,
+  lys: <><rect x="9" y="10" width="6" height="11" rx="1" /><path d="M12 10V8.5" /><path d="M12 3c1.6 1.7 1.6 3.3 0 4.3-1.6-1-1.6-2.6 0-4.3z" /></>,
+  koffert: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 12.5h18" /></>,
+  fjell: <><path d="M2.5 20 9 8l4 7 2.5-4L21.5 20z" /><path d="M7 11.5l2 1.3 1.8-1" /></>,
+  bestikk: <><path d="M5 3v5a2 2 0 0 0 4 0V3M7 3v18" /><path d="M17 21V3c-2.2 1.2-3.3 4-3.3 8H17" /></>,
+  tv: <><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M9 21h6M8 2.5 12 6l4-3.5" /></>,
+  film: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7.5 4v16M16.5 4v16M3 9h4.5M3 15h4.5M16.5 9H21M16.5 15H21" /></>,
+  bok: <><path d="M4 19.5V5a2 2 0 0 1 2-2h14v14H6a2 2 0 0 0-2 2.5 2 2 0 0 0 2 2h14" /><path d="M8.5 7h7" /></>,
+  spire: <><path d="M12 21v-9" /><path d="M12 12C12 8 9.5 6 5 6c0 4 2.5 6 7 6z" /><path d="M12 10c0-3 2.3-5.2 7-5.2 0 3.4-2.3 5.2-7 5.2z" /></>,
+  blomst: <><path d="M12 21v-8" /><path d="M7 4.5l2.6 2.2L12 3.5l2.4 3.2L17 4.5V9a5 5 0 0 1-10 0z" /><path d="M12 18c-1.8-2-4.2-2.3-6-1.6M12 18c1.8-2 4.2-2.3 6-1.6" /></>,
+  verktoy: <path d="M14.7 6.3a4 4 0 0 0-5.3 5.3L3.5 17.5a2.1 2.1 0 0 0 3 3l5.9-5.9a4 4 0 0 0 5.3-5.3l-2.5 2.5-2.6-.4-.4-2.6z" />,
+  lyn: <path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z" />,
+  sofa: <><path d="M5 11V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3" /><path d="M3 13a2 2 0 0 1 4 0v2h10v-2a2 2 0 0 1 4 0v5H3z" /><path d="M5.5 18v2M18.5 18v2" /></>,
+  fest: <><path d="M4 20.5 8.5 8l7.5 7.5z" /><path d="M14 3.5v2M19.5 9.5h2M17 7l1.5-1.5M12.5 11c1-2 2.8-3 5-3" /></>,
+  hjerte: <path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.3a4.3 4.3 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z" />,
+  bil: <><path d="M5 16.5V12l2-5h10l2 5v4.5" /><path d="M3 12h18v4.5H3z" /><circle cx="7.5" cy="19" r="1.5" /><circle cx="16.5" cy="19" r="1.5" /></>,
+  barnevogn: <><path d="M13 3.5V11h8a7.5 7.5 0 0 0-8-7.5z" /><path d="M3 6h2l2 5h14a7 7 0 0 1-7 6H9.5" /><circle cx="9" cy="20" r="1.5" /><circle cx="17" cy="20" r="1.5" /></>,
+  pote: <><circle cx="6.5" cy="10.5" r="1.7" /><circle cx="10" cy="6.5" r="1.7" /><circle cx="14" cy="6.5" r="1.7" /><circle cx="17.5" cy="10.5" r="1.7" /><path d="M12 12c-3 0-5.5 3.5-5.5 5.6 0 1.9 1.9 2.4 3 1.9l2.5-1 2.5 1c1.1.5 3 0 3-1.9C17.5 15.5 15 12 12 12z" /></>,
+  lyspare: <><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z" /></>,
+  kake: <><path d="M3.5 21h17M5 21v-7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v7" /><path d="M5 17c2 1.3 3.5 1.3 5 0 1.5 1.3 3.5 1.3 5 0 1.5 1.3 3 1.3 4 0" /><path d="M12 13V9.5" /><path d="M12 4.5c1.1 1.1 1.1 2.3 0 3.2-1.1-.9-1.1-2.1 0-3.2z" /></>,
+  pose: <><path d="M5 8h14l-1 12.5H6z" /><path d="M9 8V6.5a3 3 0 0 1 6 0V8" /></>,
+  fly: <path d="M10.2 13.8 3.5 11.3 5 9.8l7.2.8 4.2-4.2a2 2 0 0 1 2.8 2.8L15 13.4l.8 7.2-1.5 1.5-2.5-6.7-2.8 2.8.4 2.4-1.3 1.3-1.5-3-3-1.5 1.3-1.3 2.4.4z" />,
+  ball: <><circle cx="12" cy="12" r="9" /><path d="M12 7.5l4 2.9-1.5 4.6h-5L8 10.4z" /><path d="M12 3v4.5M16 10.4l4.5-1.6M14.5 15l2.7 4M9.5 15l-2.7 4M8 10.4 3.5 8.8" /></>,
+  musikk: <><path d="M9 18V5.5l11-2V16" /><circle cx="6.5" cy="18" r="2.5" /><circle cx="17.5" cy="16" r="2.5" /></>,
+  mynt: <><ellipse cx="12" cy="6" rx="7" ry="3" /><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" /></>,
+  telt: <><path d="M3 20 12 4l9 16z" /><path d="M12 20 9 14h6z" /></>,
+  slips: <path d="M10 3h4l-1 3 2 11-3 4-3-4 2-11z" />,
+  smil: <><circle cx="12" cy="12" r="9" /><path d="M8.5 14c1.8 2.2 5.2 2.2 7 0M9 9.5v.5M15 9.5v.5" /></>,
+  oye: <><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></>,
+  oyeAv: <><path d="M10 5.7A10 10 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-2.6 3.4M6.6 6.6C3.9 8.3 2.5 12 2.5 12S6 18.5 12 18.5c1.9 0 3.5-.6 4.9-1.5" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" /></>,
+};
+
+/**
+ * Ikonene man kan velge for en liste, gruppert som i velgeren. Navnene lagres i Liste.ikon.
+ * Eldre lister har emojier lagret – listeIkon() i logikk/lister.ts oversetter dem.
+ */
+export const LISTEIKONER = [
+  'liste', 'pose', 'gave', 'kake', 'fest', 'juletre', 'lys', 'hjerte', 'stjerne',
+  'koffert', 'fly', 'fjell', 'telt', 'sol', 'bil', 'bestikk', 'tv', 'film', 'bok', 'musikk', 'ball',
+  'spire', 'blomst', 'hus', 'sofa', 'verktoy', 'lyn', 'lyspare', 'barnevogn', 'pote', 'mynt', 'kalender',
+];
+
+/** Navn på listeikonene (skjermleser og verktøytips) */
+export const IKON_ETIKETT: Record<string, string> = {
+  liste: 'Liste', pose: 'Handlepose', gave: 'Gave', kake: 'Kake', fest: 'Fest', juletre: 'Juletre', lys: 'Lys', hjerte: 'Hjerte',
+  stjerne: 'Stjerne', koffert: 'Koffert', fly: 'Fly', fjell: 'Fjell', telt: 'Telt', sol: 'Sol', bil: 'Bil', bestikk: 'Mat',
+  tv: 'TV', film: 'Film', bok: 'Bok', musikk: 'Musikk', ball: 'Sport', spire: 'Hage', blomst: 'Blomst', hus: 'Hus', sofa: 'Sofa',
+  verktoy: 'Verktøy', lyn: 'Strøm', lyspare: 'Idé', barnevogn: 'Barn', pote: 'Dyr', mynt: 'Penger', kalender: 'Kalender',
 };
 
 export function Ikon({ navn, storrelse = 20 }: { navn: keyof typeof STIER | string; storrelse?: number }) {
@@ -134,6 +187,97 @@ export function Ikon({ navn, storrelse = 20 }: { navn: keyof typeof STIER | stri
       {STIER[navn]}
     </svg>
   );
+}
+
+/** Ikon i en farget rute (lister, anledninger). Fargen følger ikonet, så samme liste alltid ser lik ut. */
+export function IkonBoble({ ikon, storrelse = 'normal' }: { ikon?: string; storrelse?: 'liten' | 'normal' | 'stor' }) {
+  const navn = listeIkon(ikon);
+  const tone = TONER[[...navn].reduce((s, t) => s + t.charCodeAt(0), 0) % TONER.length];
+  const px = storrelse === 'liten' ? 16 : storrelse === 'stor' ? 28 : 20;
+  return <span className={`liste-ikon ${tone}${storrelse === 'normal' ? '' : ` ${storrelse}`}`} aria-hidden="true"><Ikon navn={navn} storrelse={px} /></span>;
+}
+const TONER = ['tone-gul', 'tone-terrakotta', 'tone-havbla', 'tone-rosa', 'tone-gronn'];
+
+// ---------------------------------------------------------------- Logo
+
+/**
+ * Sulamitten-symbolet: krusedull som blir en sirkel («Fra surr til system»).
+ * mikro = færre løkker og ingen stråler (under ~24 px). animer = streken tegnes opp (bare ved utvalgte øyeblikk).
+ */
+export function Logo({ hoyde = 32, mikro, animer }: { hoyde?: number; mikro?: boolean; animer?: boolean }) {
+  return (
+    <svg className={`logo${animer ? ' tegn' : ''}`} width={hoyde * 2} height={hoyde} viewBox={LOGO.viewBox} aria-hidden="true">
+      <path className="logo-strek" d={mikro ? LOGO.mikro : LOGO.sti} pathLength={1} fill="none" stroke="currentColor"
+        strokeWidth={mikro ? 12 : 7} strokeLinecap="round" strokeLinejoin="round" />
+      {!mikro && LOGO.straler.map((d, i) => (
+        <path key={d} className={`logo-straale s${i}`} d={d} fill="none" strokeWidth={6.5} strokeLinecap="round" />
+      ))}
+    </svg>
+  );
+}
+
+/** Logo med ordmerket «Sulamitten» (og evt. slagordet) */
+export function Merke({ hoyde = 28, slagord, animer, loddrett }: { hoyde?: number; slagord?: boolean; animer?: boolean; loddrett?: boolean }) {
+  return (
+    <span className={`merke-logo${loddrett ? ' loddrett' : ''}`}>
+      <Logo hoyde={hoyde} animer={animer} />
+      <span className="merke-tekst">
+        <span className="ordmerke">Sulamitten</span>
+        {slagord && <span className="slagord">Hele sulamitten. Samlet.</span>}
+      </span>
+    </span>
+  );
+}
+
+/** Lasteskjerm: logoen tegnes opp (rolig, gjentas til innholdet er klart) */
+export function Laster() {
+  return <div className="laster" role="status"><Logo hoyde={44} animer /><span className="skjult">Laster …</span></div>;
+}
+
+// ---------------------------------------------------------------- Bekreft (før sletting o.l.)
+
+export interface BekreftValg {
+  tittel: string;
+  /** Hva som skjer – konsekvensen skal komme tydelig fram */
+  tekst?: ReactNode;
+  /** Teksten på knappen, f.eks. «Slett lista» */
+  knapp?: string;
+  /** Ikon i dialogen og på knappen (standard: søppelbøtte) */
+  ikon?: string;
+  ja: () => void;
+}
+
+/** Dialog som spør før noe slettes. Avbryt er valgt når den åpnes, så Enter ikke sletter ved et uhell. */
+export function Bekreft({ tittel, tekst, knapp = 'Slett', ikon = 'slett', ja, nei }: BekreftValg & { nei: () => void }) {
+  const tittelId = useId(), tekstId = useId();
+  useEffect(() => {
+    // Escape lukker bare denne dialogen, ikke arket under
+    const tast = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); nei(); } };
+    window.addEventListener('keydown', tast, true);
+    return () => window.removeEventListener('keydown', tast, true);
+  }, [nei]);
+  return createPortal(
+    <div className="slor bekreft-slor" onMouseDown={(e) => e.target === e.currentTarget && nei()}>
+      <div className="bekreft" role="alertdialog" aria-modal="true" aria-labelledby={tittelId} aria-describedby={tekst ? tekstId : undefined}>
+        <span className="bekreft-ikon"><Ikon navn={ikon} storrelse={22} /></span>
+        <h2 id={tittelId}>{tittel}</h2>
+        {tekst && <div id={tekstId} className="bekreft-tekst">{tekst}</div>}
+        <div className="bekreft-knapper">
+          <button type="button" className="knapp" autoFocus onClick={nei}>Avbryt</button>
+          <button type="button" className="knapp slett" onClick={ja}><Ikon navn={ikon} storrelse={18} />{knapp}</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** const [bekreftDialog, spor] = useBekreft(); … spor({ tittel, tekst, knapp, ja }) … {bekreftDialog} */
+export function useBekreft(): [ReactNode, (v: BekreftValg) => void] {
+  const [valg, setValg] = useState<BekreftValg | null>(null);
+  const nei = useCallback(() => setValg(null), []);
+  const dialog = valg ? <Bekreft {...valg} nei={nei} ja={() => { setValg(null); valg.ja(); }} /> : null;
+  return [dialog, setValg];
 }
 
 // ---------------------------------------------------------------- Ark (bunnark / dialog)

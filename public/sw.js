@@ -6,7 +6,7 @@ self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { tekst: e.data ? e.data.text() : '' }; }
   const base = self.registration.scope;
-  e.waitUntil(self.registration.showNotification(d.tittel || 'Familie', {
+  e.waitUntil(self.registration.showNotification(d.tittel || 'Sulamitten', {
     body: d.tekst || '',
     icon: `${base}ikon-192.png`,
     data: { url: base + (d.url || '') },

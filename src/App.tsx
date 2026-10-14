@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { IkkeMedlemFeil, lager, type Bruker } from './data/lager';
 import { TilstandGiver, useTilstand, type LagreStatus } from './data/tilstand';
-import { Avatar, Ikon, Segment } from './ui/felles';
+import { Avatar, Ikon, Laster, Merke, Segment } from './ui/felles';
 import { RevisjonsVelger, VisningsBryter, type Visning } from './ui/deler';
 import { Oversikt } from './sider/Oversikt';
 import { Budsjett } from './sider/Budsjett';
@@ -10,15 +10,13 @@ import { HuskelappKort, Lister } from './sider/Lister';
 import { Kalender, KommendeKort } from './sider/Kalender';
 import { Varsler } from './sider/Varsler';
 import { DeltSide } from './sider/Delt';
-import { PLAN_IKON, planTittel, tilPlanType } from './logikk/gaveaar';
+import { planTittel, tilPlanType } from './logikk/gaveaar';
 import { useLister } from './data/lister';
 import { Sparing } from './sider/Sparing';
 import { Revisjoner } from './sider/Revisjoner';
 import { Data, Kategorier, Kontoer, Mer, Personer } from './sider/Oppsett';
 import { Oppfolging } from './sider/Oppfolging';
 import { UtgiftSkjema } from './ui/UtgiftSkjema';
-
-const LOGO = `${import.meta.env.BASE_URL}favicon.svg`;
 
 // ---------------------------------------------------------------- Ruting (hash, fungerer på GitHub Pages)
 
@@ -68,14 +66,14 @@ function Innlogging({ feil }: { feil: string | null }) {
   return (
     <main className="innlogging">
       <div className="kort">
-        <img src={LOGO} width={64} height={64} alt="" style={{ borderRadius: 16 }} />
-        <h1>Familie</h1>
-        <p className="dempet">Logg inn for å se budsjett, lister og gaver.</p>
+        <h1 className="skjult">Sulamitten</h1>
+        <Merke hoyde={64} slagord animer loddrett />
+        <p className="dempet">Familiens felles oversikt over penger, planer, lister og alt det andre. Litt mindre å huske på.</p>
         {feil && <div className="banner feil" style={{ textAlign: 'left' }}><Ikon navn="advarsel" /><div>{feil}</div></div>}
         <button className="knapp full" disabled={venter} onClick={async () => { setVenter(true); await lager.loggInn(); }}>
           <Ikon navn="google" />{venter ? 'Sender deg til Google …' : 'Logg inn med Google'}
         </button>
-        <p className="dempet liten"><Ikon navn="privat" storrelse={12} /> Kun for inviterte</p>
+        <p className="dempet liten"><Ikon navn="privat" storrelse={12} /> Bare for dem som er invitert inn i sulamitten</p>
       </div>
     </main>
   );
@@ -105,10 +103,10 @@ function MedInnlogging() {
         if (!b && lager.modus === 'lokal') { await lager.loggInn(); b = await lager.hentBruker(); }
         setBruker(b);
       })
-      .catch((e) => { setFeil(e instanceof IkkeMedlemFeil ? e.message : `Innlogging feilet: ${e.message ?? e}`); setBruker(null); });
+      .catch((e) => { setFeil(e instanceof IkkeMedlemFeil ? e.message : `Innloggingen gikk i surr: ${e.message ?? e}. Prøv igjen.`); setBruker(null); });
   }, []);
 
-  if (bruker === undefined) return <div className="laster"><div className="spinner" aria-label="Laster" /></div>;
+  if (bruker === undefined) return <Laster />;
   if (!bruker) return <Innlogging feil={feil} />;
   return <TilstandGiver bruker={bruker}><Skall /></TilstandGiver>;
 }
@@ -181,8 +179,8 @@ function Skall() {
   const aapenListe = side === 'lister' && underside ? lister.find((l) => l.id === underside) : undefined;
   const [, , planType, planAar] = rute.split('/');
   const tittel = side === 'lister' && underside === 'plan'
-    ? `${PLAN_IKON[tilPlanType(planType)]} ${planTittel(tilPlanType(planType), planAar ?? '')}`
-    : aapenListe ? `${aapenListe.ikon} ${aapenListe.navn}` : TITLER[side] ?? 'Oversikt';
+    ? planTittel(tilPlanType(planType), planAar ?? '')
+    : aapenListe ? aapenListe.navn : TITLER[side] ?? 'Oversikt';
 
   let innhold;
   switch (side) {
@@ -222,10 +220,7 @@ function Skall() {
   return (
     <div className="ramme">
       <nav className="sidebar" aria-label="Hovedmeny">
-        <div className="merke">
-          <img src={LOGO} width={28} height={28} alt="" />
-          Familie
-        </div>
+        <a className="merke" href="#/oversikt" aria-label="Sulamitten – til oversikten"><Merke hoyde={26} /></a>
         {HOVED.map(([r, ikon, tekst]) => (
           <a key={r} href={`#/${r}`} aria-current={erAktiv(r) ? 'page' : undefined}><Ikon navn={ikon} />{tekst}</a>
         ))}
@@ -257,15 +252,15 @@ function Skall() {
           {status === 'konflikt' && (
             <div className="banner varsel" role="alert">
               <Ikon navn="advarsel" />
-              <div><strong>Budsjettet er endret et annet sted.</strong><p>Din siste endring ble ikke lagret. Last inn på nytt for å se den nyeste versjonen.</p></div>
+              <div><strong>Noen var litt raskere enn deg.</strong><p>Budsjettet ble endret et annet sted samtidig, så din siste endring ble ikke lagret. Last inn på nytt for å se den nyeste versjonen.</p></div>
               <button className="knapp liten" onClick={() => void lastPaaNytt()}>Last inn</button>
             </div>
           )}
           {status === 'feil' && (
-            <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Kunne ikke lagre.</strong> Endringen er ikke lagret i databasen. Prøv igjen, eller last inn siden på nytt.{feilmelding && <p className="liten" style={{ marginTop: 4, fontFamily: 'ui-monospace, monospace' }}>Feil: {feilmelding}</p>}</div></div>
+            <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Det ble ikke lagret.</strong> Endringen kom ikke fram til databasen. Sjekk nettet og prøv igjen, eller last inn siden på nytt.{feilmelding && <p className="liten" style={{ marginTop: 4, fontFamily: 'ui-monospace, monospace' }}>Feil: {feilmelding}</p>}</div></div>
           )}
           {lager.modus === 'lokal' && side === 'oversikt' && (
-            <div className="banner info"><Ikon navn="info" /><div><strong>Demomodus</strong> med oppdiktede tall. Du ser som {meg?.navn}. Bytt person under <a href="#/data">Import/eksport</a>.</div></div>
+            <div className="banner info"><Ikon navn="info" /><div><strong>Demomodus</strong> med oppdiktede tall – her kan du trykke på alt uten at noe går i stykker. Du ser som {meg?.navn}. Bytt person under <a href="#/data">Import/eksport</a>.</div></div>
           )}
           {OKONOMI.includes(side) && (
             <div className="okonomi-topp">

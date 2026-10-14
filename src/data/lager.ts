@@ -328,7 +328,7 @@ class LokaltLager implements Lager {
 
   async sendTestvarsel() {
     const reg = await navigator.serviceWorker?.ready;
-    await reg?.showNotification('🔔 Testvarsel (demo)', { body: 'I demomodus vises varselet bare lokalt.', icon: `${import.meta.env.BASE_URL}ikon-192.png` });
+    await reg?.showNotification('Testvarsel (demo)', { body: 'Det virker! I demomodus vises varselet bare her.', icon: `${import.meta.env.BASE_URL}ikon-192.png` });
     return reg ? 1 : 0;
   }
 

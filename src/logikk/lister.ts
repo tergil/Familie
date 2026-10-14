@@ -3,6 +3,48 @@
 import type { Id, Liste, ListeType, Punkt } from '../data/modell';
 import { nyId } from '../data/modell';
 
+// ---------------------------------------------------------------- Ikoner
+
+/** Eldre lister har en emoji som ikon. De vises med SVG-ikonet som ligner mest. */
+const EMOJI_TIL_IKON: Record<string, string> = {
+  '📝': 'liste',
+  '🎁': 'gave',
+  '🎄': 'juletre',
+  '🕯️': 'lys',
+  '🧳': 'koffert',
+  '🏔️': 'fjell',
+  '☀️': 'sol',
+  '🍽️': 'bestikk',
+  '📺': 'tv',
+  '🎬': 'film',
+  '📚': 'bok',
+  '🌱': 'spire',
+  '🌷': 'blomst',
+  '🔧': 'verktoy',
+  '⚡': 'lyn',
+  '🏠': 'hus',
+  '🛋️': 'sofa',
+  '🎉': 'fest',
+  '❤️': 'hjerte',
+  '⭐': 'stjerne',
+  '🚗': 'bil',
+  '👶': 'barnevogn',
+  '🐶': 'pote',
+  '💡': 'lyspare',
+  '🎂': 'kake',
+  '✨': 'stjerne',
+  '💐': 'blomst',
+  '👔': 'slips'
+};
+
+/** Navnet på SVG-ikonet til en liste (ikon-feltet kan være et ikonnavn, en gammel emoji eller tomt) */
+export function listeIkon(ikon: string | undefined, standard = 'liste'): string {
+  const i = (ikon ?? '').trim();
+  if (!i) return standard;
+  if (/^[a-zA-Z]+$/.test(i)) return i;
+  return EMOJI_TIL_IKON[i] ?? EMOJI_TIL_IKON[i.replace(/\uFE0F/g, '')] ?? EMOJI_TIL_IKON[i + '\uFE0F'] ?? standard;
+}
+
 // ---------------------------------------------------------------- Listetyper
 
 export interface StatusValg {
@@ -25,47 +67,47 @@ export interface TypeInfo {
 
 export const LISTETYPER: Record<ListeType, TypeInfo> = {
   sjekk: {
-    navn: 'Huskeliste', beskrivelse: 'Vanlig liste med avkrysning', ikon: '📝',
+    navn: 'Huskeliste', beskrivelse: 'Vanlig liste med avkrysning', ikon: 'liste',
     statuser: [{ id: 'apen', tekst: 'Ikke gjort' }, { id: 'ferdig', tekst: 'Gjort' }], brukt: ['ferdig'],
     felt: ['dato', 'belop', 'lenke'],
   },
   gave: {
-    navn: 'Gaveliste', beskrivelse: 'Idé → kjøpt → gitt, med mottaker og historikk', ikon: '🎁',
+    navn: 'Gaveliste', beskrivelse: 'Idé → kjøpt → gitt, med mottaker og historikk', ikon: 'gave',
     statuser: [{ id: 'ide', tekst: 'Idé' }, { id: 'kjopt', tekst: 'Kjøpt' }, { id: 'gitt', tekst: 'Gitt' }], brukt: ['kjopt', 'gitt'],
     felt: ['mottaker', 'belop', 'lenke', 'dato'],
   },
   onske: {
-    navn: 'Ønskeliste', beskrivelse: 'Ting dere ønsker eller trenger, med pris', ikon: '✨',
+    navn: 'Ønskeliste', beskrivelse: 'Ting dere ønsker eller trenger, med pris', ikon: 'stjerne',
     statuser: [{ id: 'onske', tekst: 'Ønsker' }, { id: 'kjopt', tekst: 'Kjøpt' }], brukt: ['kjopt'],
     felt: ['belop', 'lenke', 'dato'],
   },
   oppgave: {
-    navn: 'Oppgaver', beskrivelse: 'Ting som skal fikses, f.eks. av elektrikeren', ikon: '🔧',
+    navn: 'Oppgaver', beskrivelse: 'Ting som skal fikses, f.eks. av elektrikeren', ikon: 'verktoy',
     statuser: [{ id: 'apen', tekst: 'Må fikses' }, { id: 'bestilt', tekst: 'Bestilt' }, { id: 'ferdig', tekst: 'Ferdig' }], brukt: ['ferdig'],
     felt: ['belop', 'dato', 'lenke'],
   },
   opplevelse: {
-    navn: 'Steder å besøke', beskrivelse: 'Restauranter og opplevelser, med vurdering', ikon: '🍽️',
+    navn: 'Steder å besøke', beskrivelse: 'Restauranter og opplevelser, med vurdering', ikon: 'bestikk',
     statuser: [{ id: 'vil', tekst: 'Vil prøve' }, { id: 'besokt', tekst: 'Besøkt' }], brukt: [],
     felt: ['vurdering', 'lenke', 'dato'],
   },
   serie: {
-    navn: 'Serier og filmer', beskrivelse: 'Vil se → ser nå → sett, med vurdering', ikon: '📺',
+    navn: 'Serier og filmer', beskrivelse: 'Vil se → ser nå → sett, med vurdering', ikon: 'tv',
     statuser: [{ id: 'vil', tekst: 'Vil se' }, { id: 'ser', tekst: 'Ser nå' }, { id: 'sett', tekst: 'Sett' }], brukt: [],
     felt: ['vurdering', 'lenke'],
   },
   hage: {
-    navn: 'Hage', beskrivelse: 'Planter og ting, med stell per måned', ikon: '🌱',
+    navn: 'Hage', beskrivelse: 'Planter og ting, med stell per måned', ikon: 'spire',
     statuser: [{ id: 'apen', tekst: 'Aktiv' }], brukt: [],
     felt: ['plassering', 'maaneder'],
   },
   kalender: {
-    navn: 'Kalender', beskrivelse: 'Luker med dato og idé, f.eks. adventskalender', ikon: '🕯️',
+    navn: 'Kalender', beskrivelse: 'Luker med dato og idé, f.eks. adventskalender', ikon: 'lys',
     statuser: [{ id: 'apen', tekst: 'Ikke klar' }, { id: 'klar', tekst: 'Klar' }], brukt: ['klar'],
     felt: ['dato', 'belop'],
   },
   gaveaar: {
-    navn: 'Gaveår', beskrivelse: 'Faste mottakere med bursdag, jul og andre anledninger, idébank og budsjett per person', ikon: '🎂',
+    navn: 'Gaveår', beskrivelse: 'Faste mottakere med bursdag, jul og andre anledninger, idébank og budsjett per person', ikon: 'kake',
     statuser: [{ id: 'ide', tekst: 'Idé' }, { id: 'kjopt', tekst: 'Kjøpt' }, { id: 'gitt', tekst: 'Gitt' }], brukt: ['kjopt', 'gitt'],
     felt: ['belop', 'lenke'],
   },
@@ -173,7 +215,7 @@ export interface Mal {
 
 export const MALER: Mal[] = [
   {
-    id: 'pakke-hytte', navn: 'Pakkeliste hyttetur', ikon: '🏔️', kategori: 'Reise', type: 'sjekk',
+    id: 'pakke-hytte', navn: 'Pakkeliste hyttetur', ikon: 'fjell', kategori: 'Reise', type: 'sjekk',
     beskrivelse: 'Klær, mat og det som alltid glemmes. Nullstill før neste tur.',
     punkter: [
       { tekst: 'Klær', barn: ['Ullundertøy', 'Sokker', 'Ytterklær', 'Lue og votter', 'Innesko'] },
@@ -183,7 +225,7 @@ export const MALER: Mal[] = [
     ],
   },
   {
-    id: 'pakke-syden', navn: 'Pakkeliste sydentur', ikon: '☀️', kategori: 'Reise', type: 'sjekk',
+    id: 'pakke-syden', navn: 'Pakkeliste sydentur', ikon: 'sol', kategori: 'Reise', type: 'sjekk',
     beskrivelse: 'Pass, badetøy og solkrem.',
     punkter: [
       { tekst: 'Reisedokumenter', barn: ['Pass', 'Reiseforsikringskort', 'Billetter', 'Bankkort og litt kontanter'] },
@@ -193,43 +235,43 @@ export const MALER: Mal[] = [
     ],
   },
   {
-    id: 'jul', navn: 'Juleforberedelser', ikon: '🎄', kategori: 'Jul', type: 'sjekk',
+    id: 'jul', navn: 'Juleforberedelser', ikon: 'juletre', kategori: 'Jul', type: 'sjekk',
     beskrivelse: 'Det som må gjøres før jul. Kopier fra i fjor neste år.',
     punkter: ['Lage gaveliste', 'Sende julekort', 'Kjøpe juletre', 'Bake', 'Pynte', 'Handle julemat', 'Pakke inn gaver'],
   },
   {
-    id: 'gaveaar', navn: 'Gaveår', ikon: '🎂', kategori: 'Gaver', type: 'gaveaar',
+    id: 'gaveaar', navn: 'Gaveår', ikon: 'kake', kategori: 'Gaver', type: 'gaveaar',
     beskrivelse: 'Faste mottakere med bursdag, jul, morsdag og farsdag. Ideer samles gjennom året og følger med til neste år.',
     punkter: [],
   },
   {
-    id: 'gaver', navn: 'Gaver', ikon: '🎁', kategori: 'Gaver', type: 'gave', privat: true,
+    id: 'gaver', navn: 'Gaver', ikon: 'gave', kategori: 'Gaver', type: 'gave', privat: true,
     beskrivelse: 'Privat som standard. Skriv «Mamma: skjerf» for å sette mottaker.',
     punkter: [],
   },
   {
-    id: 'advent', navn: 'Adventskalender', ikon: '🕯️', kategori: 'Jul', type: 'kalender',
+    id: 'advent', navn: 'Adventskalender', ikon: 'lys', kategori: 'Jul', type: 'kalender',
     beskrivelse: '24 luker eller bare søndagene i advent, pluss egne dager.',
     punkter: [],
   },
   {
-    id: 'restauranter', navn: 'Restauranter vi vil prøve', ikon: '🍽️', kategori: 'Fritid', type: 'opplevelse',
+    id: 'restauranter', navn: 'Restauranter vi vil prøve', ikon: 'bestikk', kategori: 'Fritid', type: 'opplevelse',
     beskrivelse: 'Vil prøve → besøkt, med terningkast.', punkter: [],
   },
   {
-    id: 'serier', navn: 'Serier og filmer', ikon: '📺', kategori: 'Fritid', type: 'serie',
+    id: 'serier', navn: 'Serier og filmer', ikon: 'tv', kategori: 'Fritid', type: 'serie',
     beskrivelse: 'Vil se → ser nå → sett.', punkter: [],
   },
   {
-    id: 'hage', navn: 'Hagen', ikon: '🌱', kategori: 'Hage', type: 'hage',
+    id: 'hage', navn: 'Hagen', ikon: 'spire', kategori: 'Hage', type: 'hage',
     beskrivelse: 'Planter med plassering og stell per måned.', punkter: [],
   },
   {
-    id: 'elektriker', navn: 'Til elektrikeren', ikon: '⚡', kategori: 'Hus', type: 'oppgave',
+    id: 'elektriker', navn: 'Til elektrikeren', ikon: 'lyn', kategori: 'Hus', type: 'oppgave',
     beskrivelse: 'Samle oppdragene og anslått pris.', punkter: [],
   },
   {
-    id: 'hus', navn: 'Ønsker til huset', ikon: '🏠', kategori: 'Hus', type: 'onske',
+    id: 'hus', navn: 'Ønsker til huset', ikon: 'hus', kategori: 'Hus', type: 'onske',
     beskrivelse: 'Koble til et sparemål og se hva som mangler.', punkter: [],
   },
 ];
@@ -466,7 +508,7 @@ const krTekst = (n: number) => `${new Intl.NumberFormat('nb-NO', { maximumFracti
 
 /** Listen som ren tekst, klar til å lime inn i Messenger, SMS eller e-post */
 export function delingsTekst(liste: Pick<Liste, 'navn' | 'ikon' | 'type'>, punkter: Punkt[]): string {
-  const linjer = [`${liste.ikon} ${liste.navn}`.trim(), ''];
+  const linjer = [liste.navn.trim(), ''];
   const ekstra = (p: Punkt, innrykk: string) => {
     if (p.notat) linjer.push(`${innrykk}${p.notat}`);
     if (p.lenke) linjer.push(`${innrykk}${p.lenke}`);

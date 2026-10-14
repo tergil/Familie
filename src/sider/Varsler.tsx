@@ -7,17 +7,17 @@ import { STANDARD_VARSLER } from '../data/modell';
 import { lager } from '../data/lager';
 import { useTilstand } from '../data/tilstand';
 import { VAPID_OFFENTLIG } from '../data/varselnokkel';
-import { Felt, Ikon, datoTekst } from '../ui/felles';
+import { Felt, IkonBoble, Ikon, Laster, datoTekst } from '../ui/felles';
 
 const TYPER: { type: VarselType; ikon: string; navn: string; tekst: string; valg: number[] }[] = [
-  { type: 'avtaler', ikon: '📅', navn: 'Avtaler i kalenderen', tekst: 'Oversikt over dagens avtaler på morgenen – eller morgendagens kvelden før.', valg: [0, 1] },
-  { type: 'avtaleFor', ikon: '⏰', navn: 'Før en avtale', tekst: 'Når avtalen har «varsel» (f.eks. 30 min før). Går til den/de avtalen gjelder eller som henter.', valg: [] },
-  { type: 'bursdag', ikon: '🎂', navn: 'Bursdager', tekst: 'Fra gaveårene. Tidlig for å rekke å kjøpe gave, samme dag for å huske å gratulere.', valg: [0, 1, 3, 7, 14, 21, 28] },
-  { type: 'jul', ikon: '🎄', navn: 'Jul', tekst: 'Ett samlet varsel med hvor mange julegaver som er kjøpt.', valg: [1, 7, 14, 21, 28, 42] },
-  { type: 'andre', ikon: '🎉', navn: 'Andre anledninger', tekst: 'Morsdag, farsdag, konfirmasjon, navnefest og lignende.', valg: [0, 1, 3, 7, 14, 21, 28] },
-  { type: 'frist', ikon: '📝', navn: 'Frister i lister', tekst: 'Punkter med «Husk innen»-dato som ikke er gjort.', valg: [0, 1, 2, 3, 7] },
-  { type: 'kalender', ikon: '🕯️', navn: 'Kalenderluker', tekst: 'F.eks. adventskalenderen – idéen for dagen.', valg: [0, 1] },
-  { type: 'hage', ikon: '🌱', navn: 'Hagen', tekst: 'Den 1. i hver måned: hva som skal gjøres i hagen.', valg: [] },
+  { type: 'avtaler', ikon: 'kalender', navn: 'Avtaler i kalenderen', tekst: 'Oversikt over dagens avtaler på morgenen – eller morgendagens kvelden før.', valg: [0, 1] },
+  { type: 'avtaleFor', ikon: 'klokke', navn: 'Før en avtale', tekst: 'Når avtalen har «varsel» (f.eks. 30 min før). Går til den/de avtalen gjelder eller som henter.', valg: [] },
+  { type: 'bursdag', ikon: 'kake', navn: 'Bursdager', tekst: 'Fra gaveårene. Tidlig for å rekke å kjøpe gave, samme dag for å huske å gratulere.', valg: [0, 1, 3, 7, 14, 21, 28] },
+  { type: 'jul', ikon: 'juletre', navn: 'Jul', tekst: 'Ett samlet varsel med hvor mange julegaver som er kjøpt.', valg: [1, 7, 14, 21, 28, 42] },
+  { type: 'andre', ikon: 'fest', navn: 'Andre anledninger', tekst: 'Morsdag, farsdag, konfirmasjon, navnefest og lignende.', valg: [0, 1, 3, 7, 14, 21, 28] },
+  { type: 'frist', ikon: 'liste', navn: 'Frister i lister', tekst: 'Punkter med «Husk innen»-dato som ikke er gjort.', valg: [0, 1, 2, 3, 7] },
+  { type: 'kalender', ikon: 'lys', navn: 'Kalenderluker', tekst: 'F.eks. adventskalenderen – idéen for dagen.', valg: [0, 1] },
+  { type: 'hage', ikon: 'spire', navn: 'Hagen', tekst: 'Den 1. i hver måned: hva som skal gjøres i hagen.', valg: [] },
 ];
 
 const dagerNavn = (d: number) => (d === 0 ? 'Samme dag' : d === 1 ? '1 dag før' : d % 7 === 0 ? `${d / 7} ${d === 7 ? 'uke' : 'uker'} før` : `${d} dager før`);
@@ -90,7 +90,7 @@ export function Varsler() {
       if (!lagretFor && inn) { await lager.lagreVarselInnstillinger(inn); setLagretFor(true); }
       setMitt(sub.endpoint);
       setEnheter(await lager.hentVarselEnheter());
-      visToast({ tekst: 'Varsler er slått på for denne enheten' });
+      visToast({ tekst: 'Varsler er på. Nå husker vi for deg.' });
     } catch (e) {
       setFeil(feiltekst(e));
     } finally {
@@ -120,13 +120,13 @@ export function Varsler() {
       const n = await lager.sendTestvarsel();
       visToast({ tekst: n ? `Testvarsel sendt til ${n} ${n === 1 ? 'enhet' : 'enheter'}` : 'Ingen enheter mottok varselet' });
     } catch (e) {
-      setFeil(`Kunne ikke sende testvarsel. Er funksjonen «varsler» satt opp i Supabase? (${feiltekst(e)})`);
+      setFeil(`Testvarselet kom ikke fram. Er funksjonen «varsler» satt opp i Supabase? (${feiltekst(e)})`);
     } finally {
       setJobber(false);
     }
   }
 
-  if (!inn) return <div className="laster"><div className="spinner" aria-label="Laster" /></div>;
+  if (!inn) return <Laster />;
   const sett = (type: VarselType, endring: Partial<VarselInnstillinger['typer'][VarselType]>) =>
     endre({ ...inn, typer: { ...inn.typer, [type]: { ...inn.typer[type], ...endring } } });
 
@@ -147,7 +147,7 @@ export function Varsler() {
     enhetsstatus = (
       <div className="banner varsel">
         <Ikon navn="advarsel" />
-        <div><strong>Varsler er blokkert</strong><p>Slå dem på igjen i innstillingene: iPhone → Innstillinger → Varslinger → Familie. Android → hold inne appikonet → Appinfo → Varsler.</p></div>
+        <div><strong>Varsler er blokkert</strong><p>Slå dem på igjen i innstillingene: iPhone → Innstillinger → Varslinger → Sulamitten. Android → hold inne appikonet → Appinfo → Varsler.</p></div>
       </div>
     );
   } else {
@@ -166,7 +166,7 @@ export function Varsler() {
       {lager.modus === 'lokal' && (
         <div className="banner info"><Ikon navn="info" /><div><strong>Demomodus:</strong> ingen server sender varsler. Innstillingene lagres i nettleseren, og testvarselet vises bare her.</div></div>
       )}
-      {feil && <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Noe gikk galt.</strong><p className="liten">{feil}</p></div></div>}
+      {feil && <div className="banner feil" role="alert"><Ikon navn="advarsel" /><div><strong>Varslene ville ikke helt som vi ville.</strong><p className="liten">{feil}</p></div></div>}
 
       <section className="kort">
         <div className="kort-hode">
@@ -205,6 +205,16 @@ export function Varsler() {
           <span className="hoved"><span className="navn" style={{ whiteSpace: 'normal' }}>Tidlige gavevarsler bare hvis ingen gave er kjøpt</span><span className="info" style={{ whiteSpace: 'normal' }}>Varselet på selve dagen kommer uansett.</span></span>
           <input type="checkbox" className="bryter" checked={inn.bareUtenGave} onChange={(e) => endre({ ...inn, bareUtenGave: e.target.checked })} />
         </label>
+        <label className="rad" style={{ cursor: 'pointer' }}>
+          <Ikon navn={inn.skjulDetaljer ? 'oyeAv' : 'oye'} />
+          <span className="hoved">
+            <span className="navn" style={{ whiteSpace: 'normal' }}>Skjul detaljer på låseskjermen</span>
+            <span className="info" style={{ whiteSpace: 'normal' }}>{inn.skjulDetaljer
+              ? 'Varslene sier bare at det er noe nytt i Sulamitten – ingen navn, gaver eller avtaler. Åpne appen for å se hva.'
+              : 'Varslene viser navn, gaver og avtaler. Slå på hvis andre ofte ser telefonen din.'}</span>
+          </span>
+          <input type="checkbox" className="bryter" checked={!!inn.skjulDetaljer} onChange={(e) => endre({ ...inn, skjulDetaljer: e.target.checked })} />
+        </label>
 
         <div className="varseltyper">
           {TYPER.map((t) => {
@@ -212,7 +222,7 @@ export function Varsler() {
             return (
               <div className="varseltype" key={t.type}>
                 <label className="rad" style={{ cursor: 'pointer', borderBottom: 0 }}>
-                  <span className="liste-ikon liten" aria-hidden="true">{t.ikon}</span>
+                  <IkonBoble ikon={t.ikon} storrelse="liten" />
                   <span className="hoved"><span className="navn">{t.navn}</span><span className="info" style={{ whiteSpace: 'normal' }}>{t.tekst}</span></span>
                   <input type="checkbox" className="bryter" checked={v.pa} onChange={(e) => sett(t.type, { pa: e.target.checked })} />
                 </label>
