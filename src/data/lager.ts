@@ -1,6 +1,6 @@
 // Lagring: Supabase når VITE_SUPABASE_URL er satt, ellers lokal demomodus i nettleseren.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { DeltListe, FellesDok, Liste, Punkt, PrivatDok, Saldo, Utgift } from './modell';
+import type { DeltListe, FellesDok, Liste, Punkt, PrivatDok, Saldo, Utgift, VarselEnhet, VarselInnstillinger } from './modell';
 import { tomtPrivatDok } from './modell';
 import { demoFelles, demoLister, demoOppfolging, demoPrivat } from './demo';
 
@@ -70,6 +70,16 @@ export interface Lager {
   slettVedlegg(stier: string[]): Promise<void>;
   /** Kopierer en fil til ny sti (når et punkt flyttes til en annen liste) */
   kopierVedlegg(fra: string, til: string): Promise<void>;
+
+  // Varsler (push) – egne tabeller, se supabase/varsler.sql
+  hentVarselInnstillinger(): Promise<VarselInnstillinger | null>;
+  lagreVarselInnstillinger(v: VarselInnstillinger): Promise<void>;
+  /** Dine enheter med varsler på */
+  hentVarselEnheter(): Promise<VarselEnhet[]>;
+  lagreVarselEnhet(abonnement: PushSubscriptionJSON, enhet: string): Promise<void>;
+  slettVarselEnhet(endpoint: string): Promise<void>;
+  /** Sender et testvarsel til dine enheter. Returnerer antall sendt. */
+  sendTestvarsel(): Promise<number>;
 }
 
 /** Varsler sider som viser utgifter/saldoer om at noe er endret */
@@ -279,6 +289,34 @@ class LokaltLager implements Lager {
   async kopierVedlegg(fra: string, til: string) {
     const url = les<string>(`vedlegg.${fra}`);
     if (url) skriv(`vedlegg.${til}`, url);
+  }
+
+  // Demomodus: ingen server – innstillingene lagres i nettleseren, testvarselet vises lokalt
+  async hentVarselInnstillinger() {
+    return les<VarselInnstillinger>(`varsler.${this.megEpost()}`);
+  }
+
+  async lagreVarselInnstillinger(v: VarselInnstillinger) {
+    skriv(`varsler.${this.megEpost()}`, v);
+  }
+
+  async hentVarselEnheter() {
+    return les<VarselEnhet[]>(`varselenheter.${this.megEpost()}`) ?? [];
+  }
+
+  async lagreVarselEnhet(a: PushSubscriptionJSON, enhet: string) {
+    const liste = (await this.hentVarselEnheter()).filter((e) => e.endpoint !== a.endpoint);
+    skriv(`varselenheter.${this.megEpost()}`, [...liste, { endpoint: a.endpoint ?? '', enhet, opprettet: new Date().toISOString() }]);
+  }
+
+  async slettVarselEnhet(endpoint: string) {
+    skriv(`varselenheter.${this.megEpost()}`, (await this.hentVarselEnheter()).filter((e) => e.endpoint !== endpoint));
+  }
+
+  async sendTestvarsel() {
+    const reg = await navigator.serviceWorker?.ready;
+    await reg?.showNotification('🔔 Testvarsel (demo)', { body: 'I demomodus vises varselet bare lokalt.', icon: `${import.meta.env.BASE_URL}ikon-192.png` });
+    return reg ? 1 : 0;
   }
 
   async slettVedlegg(stier: string[]) {
@@ -504,6 +542,41 @@ class SupabaseLager implements Lager {
   async kopierVedlegg(fra: string, til: string) {
     const { error } = await this.db.storage.from('vedlegg').copy(fra, til);
     if (error) throw error;
+  }
+
+  async hentVarselInnstillinger() {
+    const { data, error } = await this.db.from('varsel_innstilling').select('data').maybeSingle();
+    if (error) throw error;
+    return (data?.data as VarselInnstillinger | undefined) ?? null;
+  }
+
+  async lagreVarselInnstillinger(v: VarselInnstillinger) {
+    const { error } = await this.db.from('varsel_innstilling').upsert({ bruker: await this.eier(true), data: v, oppdatert: new Date().toISOString() });
+    if (error) throw error;
+  }
+
+  async hentVarselEnheter() {
+    const { data, error } = await this.db.from('varsel_abonnement').select('endpoint, enhet, opprettet').order('opprettet');
+    if (error) throw error;
+    return (data ?? []) as VarselEnhet[];
+  }
+
+  async lagreVarselEnhet(a: PushSubscriptionJSON, enhet: string) {
+    const { error } = await this.db.from('varsel_abonnement').upsert({
+      bruker: await this.eier(true), endpoint: a.endpoint, p256dh: a.keys?.p256dh, auth: a.keys?.auth, enhet,
+    }, { onConflict: 'endpoint' });
+    if (error) throw error;
+  }
+
+  async slettVarselEnhet(endpoint: string) {
+    const { error } = await this.db.from('varsel_abonnement').delete().eq('endpoint', endpoint);
+    if (error) throw error;
+  }
+
+  async sendTestvarsel() {
+    const { data, error } = await this.db.functions.invoke('varsler', { body: { handling: 'test' } });
+    if (error) throw error;
+    return (data as { sendt?: number })?.sendt ?? 0;
   }
 
   async slettVedlegg(stier: string[]) {

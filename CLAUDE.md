@@ -24,6 +24,9 @@ Personlige arbeidsinstrukser ligger i `~/.claude/CLAUDE.md`. Denne fila handler 
   `betaler` = person-id når en felles gave går av én persons gavekonto. `fodt` på mottakeren gir bursdag og alder.
   Planer (`#/lister/plan/<jul|bursdag|andre>/<år>`): Juleplan, Bursdager og Andre (alt unntatt jul og bursdag),
   samler felles + eget gaveår med potter «Felles» / «Fra deg». Varsler på huskelappen 3 uker før hvis ingenting er kjøpt.
+- **Varsler** (Oppsett → Varsler, `sider/Varsler.tsx`): push til iPhone (hjemskjerm, iOS 16.4+) og Android.
+  Edge Function «varsler» kjøres hver time av pg_cron, regner ut med `logikk/varsler.ts` og sender til brukerne som
+  har valgt den timen. `public/sw.js` viser varselet (ingen mellomlagring).
 - **Deling** (Valg → Del liste): som tekst (øyeblikksbilde) eller lenke `#/delt/<nøkkel>` som vises uten innlogging
   (`sider/Delt.tsx`). Bare det som ikke er kjøpt/gjort deles, og aldri vedlegg.
 - Status: POC i grenen `poc`.
@@ -39,6 +42,8 @@ npm test             # beregningstester, kjører uten nettleser
 npm run importer     # Excel i Data/ -> Data/import-familiebudsjett.json (lokalt!)
 npm run sjekk-data   # sjekker at ingen private data er staget for commit
 npm run ikoner       # lager app-ikonene i public/ fra SVG-en i scripts/lag-ikoner.mjs
+npm run varsel-funksjon  # bygger supabase/functions/varsler/index.ts fra supabase/kilde/varsler.ts + src/logikk
+npm run vapid        # nøkler for push-varsler: offentlig → src/data/varselnokkel.ts, privat → Data/varsler-oppsett.txt
 ```
 
 - **Kjør `npm test` og `npm run typecheck` før du sier deg ferdig.**
@@ -56,6 +61,8 @@ npm run ikoner       # lager app-ikonene i public/ fra SVG-en i scripts/lag-ikon
 | `src/stil/` | `tokens.css` (farger, avstander – lys/mørk) og `app.css` |
 | `supabase/skjema.sql` | Budsjettdokumentene + RLS-regler. Kjøres i Supabase SQL Editor |
 | `supabase/oppfolging.sql` | Tabellene `utgift` og `saldo` (egne rader, `eier` null = felles) |
+| `supabase/varsler.sql` | Varsler: `varsel_abonnement` (enheter), `varsel_innstilling`, `varsel_sendt`. Timejobben står i Data/varsler-oppsett.txt |
+| `supabase/kilde/`, `supabase/functions/` | Edge Function «varsler» (kilde + generert fil som limes inn i Supabase) |
 | `supabase/lister.sql` | Tabellene `liste` (`eier` null = felles) og `listepunkt` (arver synlighet fra listen), funksjonen `hent_delt_liste` (delingslenker) og Storage-bøtta `vedlegg` |
 | `scripts/` | Tester, Excel-import, datasjekk |
 | `Data/` | **Private regneark og importfiler. ALDRI i Git.** |
@@ -101,6 +108,9 @@ npm run ikoner       # lager app-ikonene i public/ fra SVG-en i scripts/lag-ikon
   felt som er ment for deling – legg aldri til vedlegg, mottaker eller budsjettkobling der.
 - **Vedlegg** ligger i Storage-bøtta `vedlegg` under `<liste-id>/<punkt-id>/`. Tilgangen følger listen. Sletter man et
   punkt eller en liste, blir filene liggende (så «Angre» virker) – de er da utilgjengelige, men tar plass.
+- **Varsler:** endres `src/logikk/varsler.ts` (eller lister/gaveår-logikken den bruker), må `npm run varsel-funksjon` kjøres
+  og funksjonen limes inn i Supabase på nytt. Nye VAPID-nøkler (`npm run vapid -- --ny`) gjør at alle enheter må slå på
+  varsler igjen. Den private nøkkelen og cron-hemmeligheten skal bare ligge i Data/ og i Supabase.
 - `crypto.randomUUID` finnes bare på https/localhost – bruk alltid `nyId()` fra `modell.ts`.
 - Headless Edge kan ikke lage vinduer smalere enn ~500 px. Mobil-skjermbilder: iframe-siden må serveres fra samme
   adresse som appen (ikke `file://` – da henger appen på lasteikonet), eller bruk CDP `Emulation.setDeviceMetricsOverride`.

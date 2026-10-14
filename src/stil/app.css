@@ -721,3 +721,10 @@ body.drar-punkt [data-dra-id] { transition: transform .15s ease; }
 .seksjon.har-vaert { margin-top: var(--a5); }
 .seksjon.boks.forbi { background: var(--flate-2); }
 .seksjon.boks.forbi .seksjon-hode .navn { color: var(--blekk-2); }
+
+/* ---------------------------------------------------------------- Varsler */
+
+.varseltyper { display: flex; flex-direction: column; margin-top: var(--a2); }
+.varseltype { border-top: 1px solid var(--linje); padding-bottom: var(--a2); }
+.varsel-valg { padding: 0 var(--a1) var(--a2) 48px; }
+.varsel-valg button { min-height: 36px; font-size: 13px; }

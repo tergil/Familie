@@ -7,6 +7,7 @@ import { Oversikt } from './sider/Oversikt';
 import { Budsjett } from './sider/Budsjett';
 import { NyPrivatRevisjon, PrivatBudsjett, PrivatOversikt } from './sider/Privat';
 import { Lister } from './sider/Lister';
+import { Varsler } from './sider/Varsler';
 import { DeltSide } from './sider/Delt';
 import { PLAN_IKON, planTittel, tilPlanType } from './logikk/gaveaar';
 import { useLister } from './data/lister';
@@ -131,11 +132,12 @@ const OPPSETT: [string, string, string][] = [
   ['kontoer', 'konto', 'Kontoer'],
   ['kategorier', 'kategori', 'Kategorier'],
   ['personer', 'person', 'Personer'],
+  ['varsler', 'bjelle', 'Varsler'],
   ['data', 'lastned', 'Import/eksport'],
 ];
 const TITLER: Record<string, string> = {
   oversikt: 'Oversikt', budsjett: 'Budsjett', oppfolging: 'Oppfølging', lister: 'Lister', sparing: 'Sparemål', mer: 'Mer',
-  revisjoner: 'Revisjoner', kontoer: 'Kontoer og banker', kategorier: 'Kategorier', personer: 'Personer og fordeling', data: 'Import og eksport',
+  revisjoner: 'Revisjoner', kontoer: 'Kontoer og banker', kategorier: 'Kategorier', personer: 'Personer og fordeling', varsler: 'Varsler', data: 'Import og eksport',
 };
 
 function Lagring({ status }: { status: LagreStatus }) {
@@ -195,6 +197,7 @@ function Skall() {
     case 'kategorier': innhold = <Kategorier />; break;
     case 'personer': innhold = <Personer />; break;
     case 'data': innhold = <Data />; break;
+    case 'varsler': innhold = <Varsler />; break;
     case 'mer': innhold = <Mer gaaTil={gaaTil} tema={tema} byttTema={byttTema} />; break;
     default: innhold = erPrivat ? <PrivatOversikt gaaTil={gaaTil} nyRevisjon={() => setNyPrivatRevisjon(true)} /> : <Oversikt gaaTil={gaaTil} />;
   }

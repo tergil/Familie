@@ -9,6 +9,8 @@ import {
   medStatus, nesteStatus, nullstill, punkterFraMal, tidligereGaver, tolkHurtig,
 } from '../src/logikk/lister';
 import type { Post, Punkt, Saldo, Utgift } from '../src/data/modell';
+import { STANDARD_VARSLER } from '../src/data/modell';
+import { beregnVarsler, norskTid, slaaSammen, varseltrinn } from '../src/logikk/varsler';
 
 let feil = 0;
 let ok = 0;
@@ -286,6 +288,32 @@ const strikkebok = ga.punkter.find((p) => p.tekst === 'Strikkebok')!;
 sjekk('kjøpt idé får neste anledning', medAutoAnledning({ ...strikkebok, status: 'kjopt' }, mammaGa, '2026-10-11').anledning, 'a-m-b:2026');
 sjekk('idé uten kjøp forblir i idébanken', medAutoAnledning(strikkebok, mammaGa, '2026-10-11').anledning, undefined);
 sjekk('valgt anledning endres ikke', medAutoAnledning({ ...strikkebok, status: 'kjopt', anledning: 'a-m-j:2026' }, mammaGa, '2026-10-11').anledning, 'a-m-j:2026');
+
+// --- Varsler
+sjekk('varseltrinn: 18 dager igjen, [21, 0]', varseltrinn(18, [21, 0]), { trinn: 21, alle: [21] });
+sjekk('varseltrinn: samme dag', varseltrinn(0, [21, 0]), { trinn: 0, alle: [0, 21] });
+sjekk('varseltrinn: for tidlig', varseltrinn(25, [21]), null);
+sjekk('varseltrinn: passert', varseltrinn(-1, [0]), null);
+const vInn = structuredClone(STANDARD_VARSLER);
+const v11 = beregnVarsler(ga.lister, ga.punkter, vInn, '2026-10-11');
+sjekk('varsler 11. okt: Mammas bursdag og frist om 3 dager', v11.map((v) => v.tittel),
+  ['🎂 Mamma har bursdag (fyller 70) om 18 dager', '📝 Om 3 dager: Bestille EU-kontroll']);
+sjekk('bursdagsvarsel: tekst og nøkkel', [v11[0].tekst, v11[0].nokkel],
+  ['tor. 29. okt.: ingen gave kjøpt ennå – 2 ideer i idébanken.', `bursdag:${mammaGa.id}:a-m-b:2026-10-29:21`]);
+const medGave = ga.punkter.map((p) => (p.tekst === 'Strikkebok' ? { ...p, status: 'kjopt', anledning: 'a-m-b:2026' } : p));
+sjekk('kjøpt gave: ingen tidlig varsel', beregnVarsler(ga.lister, medGave, vInn, '2026-10-11').some((v) => v.type === 'bursdag'), false);
+sjekk('kjøpt gave: varsel på dagen med gaven', beregnVarsler(ga.lister, medGave, vInn, '2026-10-29').find((v) => v.type === 'bursdag')?.tekst, 'Gave: Strikkebok');
+const v1203 = beregnVarsler(ga.lister, ga.punkter, vInn, '2026-12-03');
+sjekk('julevarsel 3 uker før', v1203.filter((v) => v.type === 'jul').map((v) => [v.tittel, v.tekst]), [['🎄 Jul om 21 dager', 'Gave kjøpt til 1 av 5.']]);
+sjekk('hage den 1. i måneden', beregnVarsler(ga.lister, ga.punkter, vInn, '2026-10-01').filter((v) => v.type === 'hage').map((v) => v.tekst), ['Epletre: høste epler, Plen: rake løv']);
+const medKalender = structuredClone(vInn); medKalender.typer.kalender.pa = true;
+sjekk('kalenderluke samme dag', beregnVarsler(ga.lister, ga.punkter, medKalender, '2026-11-29').filter((v) => v.type === 'kalender').map((v) => v.tittel), ['🕯️ Luke i dag: 1. søndag i advent']);
+const avslaatt = structuredClone(vInn); for (const k of Object.keys(avslaatt.typer) as (keyof typeof avslaatt.typer)[]) avslaatt.typer[k].pa = false;
+sjekk('alt avslått gir ingen varsler', beregnVarsler(ga.lister, ga.punkter, avslaatt, '2026-10-11').length, 0);
+sjekk('mange varsler slås sammen', slaaSammen(Array.from({ length: 5 }, (_, i) => ({ type: 'frist' as const, nokkel: `k${i}`, nokler: [`k${i}`], tittel: `T${i}`, tekst: '', url: '' })))
+  .map((x) => [x.tittel, x.nokler.length]), [['5 påminnelser i dag', 5]]);
+sjekk('norsk tid om sommeren (UTC+2)', norskTid(new Date('2026-10-11T22:30:00Z')), { dato: '2026-10-12', time: 0 });
+sjekk('norsk tid om vinteren (UTC+1)', norskTid(new Date('2026-12-01T07:00:00Z')), { dato: '2026-12-01', time: 8 });
 
 // --- Flytte gamle gavelister inn i gaveåret
 const mittGa = ga.lister.find((l) => l.navn === 'Mitt gaveår')!;

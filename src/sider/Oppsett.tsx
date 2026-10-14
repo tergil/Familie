@@ -378,6 +378,7 @@ export function Mer({ gaaTil, tema, byttTema }: { gaaTil: (r: string) => void; t
     ['kontoer', 'konto', 'Kontoer og banker'],
     ['kategorier', 'kategori', 'Kategorier'],
     ['personer', 'person', 'Personer og fordeling'],
+    ['varsler', 'bjelle', 'Varsler'],
     ['data', 'lastned', 'Import og eksport'],
   ];
   return (

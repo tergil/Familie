@@ -278,3 +278,43 @@ export interface DeltListe {
   type: ListeType;
   punkter: Punkt[];
 }
+
+// ---------------------------------------------------------------------------
+// Varsler (push): innstillinger per bruker. Sendes av Edge Function «varsler» (se supabase/varsler.sql).
+// ---------------------------------------------------------------------------
+
+export type VarselType = 'bursdag' | 'jul' | 'andre' | 'frist' | 'kalender' | 'hage';
+
+export interface VarselValg {
+  pa: boolean;
+  /** Hvor mange dager før det skal varsles. 0 = samme dag. */
+  dager: number[];
+}
+
+export interface VarselInnstillinger {
+  /** Klokkeslett (time, norsk tid) varslene sendes */
+  time: number;
+  /** Tidlige gavevarsler (før dagen) bare når ingen gave er kjøpt */
+  bareUtenGave: boolean;
+  typer: Record<VarselType, VarselValg>;
+}
+
+export const STANDARD_VARSLER: VarselInnstillinger = {
+  time: 8,
+  bareUtenGave: true,
+  typer: {
+    bursdag: { pa: true, dager: [21, 0] },
+    jul: { pa: true, dager: [21] },
+    andre: { pa: true, dager: [21, 0] },
+    frist: { pa: true, dager: [3, 0] },
+    kalender: { pa: false, dager: [0] },
+    hage: { pa: true, dager: [0] },
+  },
+};
+
+/** En enhet som har slått på varsler */
+export interface VarselEnhet {
+  endpoint: string;
+  enhet: string;
+  opprettet: string;
+}
